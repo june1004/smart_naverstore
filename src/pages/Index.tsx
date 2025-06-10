@@ -1,11 +1,11 @@
-
 import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import KeywordSearch from "@/components/KeywordSearch";
 import SearchTrend from "@/components/SearchTrend";
 import ShoppingInsight from "@/components/ShoppingInsight";
-import { ShoppingCart, TrendingUp, BarChart3 } from "lucide-react";
+import AutoKeywordAnalyzer from "@/components/AutoKeywordAnalyzer";
+import { ShoppingCart, TrendingUp, BarChart3, Sparkles } from "lucide-react";
 
 const Index = () => {
   return (
@@ -23,8 +23,15 @@ const Index = () => {
         </div>
 
         {/* Main Tabs */}
-        <Tabs defaultValue="keyword" className="w-full">
-          <TabsList className="grid w-full grid-cols-3 mb-8 bg-white shadow-lg rounded-lg p-1">
+        <Tabs defaultValue="auto-analyzer" className="w-full">
+          <TabsList className="grid w-full grid-cols-4 mb-8 bg-white shadow-lg rounded-lg p-1">
+            <TabsTrigger 
+              value="auto-analyzer" 
+              className="flex items-center gap-2 py-3 px-6 data-[state=active]:bg-purple-600 data-[state=active]:text-white"
+            >
+              <Sparkles className="h-4 w-4" />
+              AI 자동분석
+            </TabsTrigger>
             <TabsTrigger 
               value="keyword" 
               className="flex items-center gap-2 py-3 px-6 data-[state=active]:bg-blue-600 data-[state=active]:text-white"
@@ -47,6 +54,23 @@ const Index = () => {
               쇼핑인사이트
             </TabsTrigger>
           </TabsList>
+
+          <TabsContent value="auto-analyzer" className="space-y-6">
+            <Card className="shadow-lg border-0 bg-white/80 backdrop-blur-sm">
+              <CardHeader className="bg-gradient-to-r from-purple-600 to-purple-700 text-white rounded-t-lg">
+                <CardTitle className="flex items-center gap-2">
+                  <Sparkles className="h-5 w-5" />
+                  AI 키워드 자동 분석
+                </CardTitle>
+                <CardDescription className="text-purple-100">
+                  키워드만 입력하면 AI가 자동으로 카테고리를 찾아 트렌드와 인사이트를 분석해드립니다
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="p-6">
+                <AutoKeywordAnalyzer />
+              </CardContent>
+            </Card>
+          </TabsContent>
 
           <TabsContent value="keyword" className="space-y-6">
             <Card className="shadow-lg border-0 bg-white/80 backdrop-blur-sm">
