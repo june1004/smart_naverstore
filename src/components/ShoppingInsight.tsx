@@ -5,9 +5,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell } from "recharts";
-import { BarChart3, TrendingUp, Search, Calendar, Loader2 } from "lucide-react";
+import { BarChart3, TrendingUp, Search, Calendar, Loader2, Target } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { Badge } from "@/components/ui/badge";
 
 interface InsightData {
   period: string;
@@ -25,6 +26,7 @@ const ShoppingInsight = () => {
   const [insightData, setInsightData] = useState<InsightData[]>([]);
   const [categoryAnalysis, setCategoryAnalysis] = useState<CategoryAnalysis | null>(null);
   const [foundCategory, setFoundCategory] = useState("");
+  const [analysisType, setAnalysisType] = useState<"category" | "keyword">("category");
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
@@ -40,8 +42,8 @@ const ShoppingInsight = () => {
     startDate.setMonth(endDate.getMonth() - months);
     
     return {
-      startDate: `${startDate.getFullYear()}-${String(startDate.getMonth() + 1).padStart(2, '0')}`,
-      endDate: `${endDate.getFullYear()}-${String(endDate.getMonth() + 1).padStart(2, '0')}`
+      startDate: `${startDate.getFullYear()}-${String(startDate.getMonth() + 1).padStart(2, '0')}-${String(startDate.getDate()).padStart(2, '0')}`,
+      endDate: `${endDate.getFullYear()}-${String(endDate.getMonth() + 1).padStart(2, '0')}-${String(endDate.getDate()).padStart(2, '0')}`
     };
   };
 
@@ -65,28 +67,39 @@ const ShoppingInsight = () => {
 
       if (categoryError) throw new Error(categoryError.message);
 
-      setFoundCategory(categoryData.suggestedCategory);
+      setFoundCategory(categoryData.suggestedCategory || "키워드 분석");
       setCategoryAnalysis(categoryData.categoryAnalysis);
+      setAnalysisType(categoryData.useKeywordAnalysis ? "keyword" : "category");
 
-      // 2단계: 찾은 카테고리로 인사이트 분석
+      // 2단계: 인사이트 분석
       const selectedPeriodOption = periodOptions.find(p => p.value === selectedPeriod);
       const { startDate, endDate } = getDateRange(selectedPeriodOption?.months || 1);
 
       const { data: insightData, error: insightError } = await supabase.functions.invoke('naver-shopping-insight', {
         body: {
           category: categoryData.suggestedCategory,
+          keyword: keyword.trim(),
           startDate,
           endDate,
           timeUnit: 'month',
           device: '',
           ages: [],
-          gender: ''
+          gender: '',
+          useKeywordAnalysis: categoryData.useKeywordAnalysis
         }
       });
 
       if (insightError) throw new Error(insightError.message);
 
-      setInsightData(insightData.results?.[0]?.data || []);
+      // 응답 데이터 구조에 따라 처리
+      let processedData = [];
+      if (insightData.results && insightData.results.length > 0) {
+        processedData = insightData.results[0].data || [];
+      } else if (insightData.data) {
+        processedData = insightData.data;
+      }
+
+      setInsightData(processedData);
       
       toast({
         title: "인사이트 분석 완료",
@@ -95,11 +108,50 @@ const ShoppingInsight = () => {
 
     } catch (error) {
       console.error('인사이트 분석 오류:', error);
-      toast({
-        title: "분석 실패",
-        description: "인사이트 분석 중 오류가 발생했습니다.",
-        variant: "destructive",
-      });
+      
+      // 에러 발생 시 키워드 기반 분석으로 재시도
+      try {
+        console.log('키워드 기반 분석으로 재시도...');
+        const selectedPeriodOption = periodOptions.find(p => p.value === selectedPeriod);
+        const { startDate, endDate } = getDateRange(selectedPeriodOption?.months || 1);
+
+        const { data: fallbackData, error: fallbackError } = await supabase.functions.invoke('naver-shopping-insight', {
+          body: {
+            keyword: keyword.trim(),
+            startDate,
+            endDate,
+            timeUnit: 'month',
+            device: '',
+            ages: [],
+            gender: '',
+            useKeywordAnalysis: true
+          }
+        });
+
+        if (fallbackError) throw new Error(fallbackError.message);
+
+        let processedData = [];
+        if (fallbackData.results && fallbackData.results.length > 0) {
+          processedData = fallbackData.results[0].data || [];
+        }
+
+        setInsightData(processedData);
+        setAnalysisType("keyword");
+        setFoundCategory("키워드 분석");
+        
+        toast({
+          title: "키워드 분석 완료",
+          description: `"${keyword}" 키워드 트렌드 분석이 완료되었습니다.`,
+        });
+
+      } catch (fallbackError) {
+        console.error('키워드 분석도 실패:', fallbackError);
+        toast({
+          title: "분석 실패",
+          description: "인사이트 분석 중 오류가 발생했습니다. 다른 키워드로 시도해보세요.",
+          variant: "destructive",
+        });
+      }
     } finally {
       setLoading(false);
     }
@@ -194,29 +246,41 @@ const ShoppingInsight = () => {
       {categoryAnalysis && (
         <Card>
           <CardHeader>
-            <CardTitle>카테고리 분석 결과</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              <Target className="h-5 w-5" />
+              카테고리 분석 결과
+            </CardTitle>
           </CardHeader>
           <CardContent>
+            {categoryAnalysis.mainCategory && (
+              <div className="mb-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-sm font-medium">주요 카테고리:</span>
+                  <Badge variant="default" className="bg-purple-600 text-white">
+                    {categoryAnalysis.mainCategory[0]} ({categoryAnalysis.mainCategory[1]}개 상품)
+                  </Badge>
+                </div>
+              </div>
+            )}
+            
             <Accordion type="single" collapsible className="w-full">
               <AccordionItem value="category-analysis">
                 <AccordionTrigger>
                   <div className="flex items-center gap-2">
                     <BarChart3 className="h-4 w-4" />
                     상세 카테고리 분석 보기
-                    {categoryAnalysis.mainCategory && (
-                      <span className="text-sm text-muted-foreground">
-                        (주요: {categoryAnalysis.mainCategory[0]})
-                      </span>
-                    )}
                   </div>
                 </AccordionTrigger>
                 <AccordionContent>
-                  <div className="space-y-2">
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
                     {categoryAnalysis.allCategories.map(([cat, count], index) => (
-                      <div key={index} className="flex justify-between items-center p-2 bg-gray-50 rounded">
-                        <span className="text-sm">{cat}</span>
-                        <span className="text-sm font-medium">{count}개 상품</span>
-                      </div>
+                      <Badge 
+                        key={index} 
+                        variant={index === 0 ? "default" : "secondary"} 
+                        className={index === 0 ? "bg-purple-600 text-white" : ""}
+                      >
+                        {cat.split('>')[0]} ({count})
+                      </Badge>
                     ))}
                   </div>
                 </AccordionContent>
@@ -245,11 +309,12 @@ const ShoppingInsight = () => {
                 <div>
                   <span className="font-medium">분석 기간:</span> {periodOptions.find(p => p.value === selectedPeriod)?.label}
                 </div>
-                {categoryAnalysis?.mainCategory && (
-                  <div className="col-span-2">
-                    <span className="font-medium">발견된 카테고리:</span> {categoryAnalysis.mainCategory[0]}
-                  </div>
-                )}
+                <div className="col-span-2">
+                  <span className="font-medium">분석 방식:</span> 
+                  <Badge variant={analysisType === "category" ? "default" : "secondary"} className="ml-2">
+                    {analysisType === "category" ? `카테고리 분석 (${foundCategory})` : "키워드 트렌드 분석"}
+                  </Badge>
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -259,7 +324,7 @@ const ShoppingInsight = () => {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <TrendingUp className="h-5 w-5" />
-                "{keyword}" 분야의 클릭량 추이
+                "{keyword}" {analysisType === "category" ? "분야의 클릭량" : "검색량"} 추이
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -270,7 +335,7 @@ const ShoppingInsight = () => {
                     <XAxis dataKey="period" />
                     <YAxis />
                     <Tooltip 
-                      formatter={(value: any) => [`${value}`, '클릭량 추이']}
+                      formatter={(value: any) => [`${value}`, analysisType === "category" ? '클릭량 추이' : '검색량 추이']}
                       labelFormatter={(label) => `기간: ${label}`}
                     />
                     <Line 
@@ -384,19 +449,19 @@ const ShoppingInsight = () => {
                   <div className="text-2xl font-bold text-blue-600">
                     {Math.max(...insightData.map(d => d.ratio)).toFixed(1)}
                   </div>
-                  <div className="text-sm text-gray-600">최고 클릭량</div>
+                  <div className="text-sm text-gray-600">최고 {analysisType === "category" ? "클릭량" : "검색량"}</div>
                 </div>
                 <div className="p-4 bg-green-50 rounded-lg">
                   <div className="text-2xl font-bold text-green-600">
                     {Math.min(...insightData.map(d => d.ratio)).toFixed(1)}
                   </div>
-                  <div className="text-sm text-gray-600">최저 클릭량</div>
+                  <div className="text-sm text-gray-600">최저 {analysisType === "category" ? "클릭량" : "검색량"}</div>
                 </div>
                 <div className="p-4 bg-orange-50 rounded-lg">
                   <div className="text-2xl font-bold text-orange-600">
                     {(insightData.reduce((sum, d) => sum + d.ratio, 0) / insightData.length).toFixed(1)}
                   </div>
-                  <div className="text-sm text-gray-600">평균 클릭량</div>
+                  <div className="text-sm text-gray-600">평균 {analysisType === "category" ? "클릭량" : "검색량"}</div>
                 </div>
               </div>
             </CardContent>

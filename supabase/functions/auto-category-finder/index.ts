@@ -46,14 +46,15 @@ serve(async (req) => {
     // 카테고리 분석
     const categoryAnalysis = analyzeCategoryFromItems(data.items);
     
-    // 가장 적합한 카테고리 찾기
-    const bestCategory = findBestCategoryMatch(categoryAnalysis);
+    // 가장 적합한 카테고리 찾기 (키워드 기반 분석도 지원)
+    const bestCategory = findBestCategoryMatch(categoryAnalysis, keyword);
 
     return new Response(JSON.stringify({
       keyword,
       suggestedCategory: bestCategory,
       categoryAnalysis,
-      totalItems: data.total
+      totalItems: data.total,
+      useKeywordAnalysis: bestCategory === null // 카테고리를 찾지 못한 경우 키워드 분석 사용
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
@@ -87,33 +88,60 @@ function analyzeCategoryFromItems(items: any[]) {
   };
 }
 
-function findBestCategoryMatch(categoryAnalysis: any) {
+function findBestCategoryMatch(categoryAnalysis: any, keyword: string) {
+  // 네이버 쇼핑인사이트에서 지원하는 주요 카테고리 ID들
   const categoryMapping: { [key: string]: string } = {
     '패션의류': '50000000',
     '패션잡화': '50000001', 
-    '화장품': '50000002',
-    '미용': '50000002',
-    '디지털': '50000003',
-    '가전': '50000003',
-    '가구': '50000004',
-    '인테리어': '50000004',
-    '출산': '50000005',
-    '육아': '50000005',
+    '화장품/미용': '50000002',
+    '디지털/가전': '50000003',
+    '가구/인테리어': '50000004',
+    '출산/육아': '50000005',
     '식품': '50000006',
-    '스포츠': '50000007',
-    '레저': '50000007'
+    '스포츠/레저': '50000007',
+    '생활/건강': '50000008',
+    '여가/생활편의': '50000009'
   };
 
-  if (!categoryAnalysis.mainCategory) return '50000000'; // 기본값
+  if (!categoryAnalysis.mainCategory) return null;
 
   const mainCategoryText = categoryAnalysis.mainCategory[0];
   
-  // 키워드 매칭으로 카테고리 찾기
-  for (const [keyword, categoryId] of Object.entries(categoryMapping)) {
-    if (mainCategoryText.includes(keyword)) {
+  // 직접 매칭 시도
+  for (const [categoryName, categoryId] of Object.entries(categoryMapping)) {
+    if (mainCategoryText.includes(categoryName.split('/')[0])) {
       return categoryId;
     }
   }
 
-  return '50000000'; // 기본값
+  // 키워드 기반 매칭
+  const keywordMappings: { [key: string]: string } = {
+    '옷': '50000000',
+    '의류': '50000000',
+    '가방': '50000001',
+    '신발': '50000001',
+    '화장품': '50000002',
+    '스킨케어': '50000002',
+    '휴대폰': '50000003',
+    '컴퓨터': '50000003',
+    '가전': '50000003',
+    '가구': '50000004',
+    '침대': '50000004',
+    '육아': '50000005',
+    '기저귀': '50000005',
+    '음식': '50000006',
+    '식품': '50000006',
+    '운동': '50000007',
+    '스포츠': '50000007',
+    '건강': '50000008',
+    '생활': '50000008'
+  };
+
+  for (const [keywordPattern, categoryId] of Object.entries(keywordMappings)) {
+    if (keyword.includes(keywordPattern) || mainCategoryText.includes(keywordPattern)) {
+      return categoryId;
+    }
+  }
+
+  return null; // 매칭되는 카테고리가 없으면 키워드 분석 사용
 }

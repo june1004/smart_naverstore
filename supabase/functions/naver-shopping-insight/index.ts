@@ -13,7 +13,7 @@ serve(async (req) => {
   }
 
   try {
-    const { category, startDate, endDate, timeUnit = 'month', device = '', ages = [], gender = '' } = await req.json();
+    const { category, keyword, startDate, endDate, timeUnit = 'month', device = '', ages = [], gender = '', useKeywordAnalysis = false } = await req.json();
     
     const clientId = Deno.env.get('NAVER_CLIENT_ID');
     const clientSecret = Deno.env.get('NAVER_CLIENT_SECRET');
@@ -25,17 +25,45 @@ serve(async (req) => {
       });
     }
 
-    const requestBody = {
-      startDate,
-      endDate,
-      timeUnit,
-      category,
-      device,
-      ages,
-      gender
-    };
+    let apiUrl = '';
+    let requestBody = {};
 
-    const response = await fetch('https://openapi.naver.com/v1/datalab/shopping/categories', {
+    if (useKeywordAnalysis && keyword) {
+      // 키워드 기반 분석 (네이버 데이터랩 검색어 트렌드)
+      apiUrl = 'https://openapi.naver.com/v1/datalab/search';
+      requestBody = {
+        startDate,
+        endDate,
+        timeUnit,
+        keywordGroups: [
+          {
+            groupName: keyword,
+            keywords: [keyword]
+          }
+        ],
+        device,
+        ages,
+        gender
+      };
+    } else if (category) {
+      // 카테고리 기반 분석 (네이버 쇼핑인사이트)
+      apiUrl = 'https://openapi.naver.com/v1/datalab/shopping/categories';
+      requestBody = {
+        startDate,
+        endDate,
+        timeUnit,
+        category,
+        device,
+        ages,
+        gender
+      };
+    } else {
+      throw new Error('카테고리 또는 키워드가 필요합니다.');
+    }
+
+    console.log('API 요청:', { apiUrl, requestBody });
+
+    const response = await fetch(apiUrl, {
       method: 'POST',
       headers: {
         'X-Naver-Client-Id': clientId,
@@ -46,12 +74,19 @@ serve(async (req) => {
     });
 
     if (!response.ok) {
-      throw new Error(`네이버 쇼핑인사이트 API 오류: ${response.status}`);
+      const errorText = await response.text();
+      console.error('API 응답 오류:', response.status, errorText);
+      throw new Error(`네이버 API 오류: ${response.status} - ${errorText}`);
     }
 
     const data = await response.json();
+    console.log('API 응답 성공:', data);
 
-    return new Response(JSON.stringify(data), {
+    return new Response(JSON.stringify({
+      ...data,
+      analysisType: useKeywordAnalysis ? 'keyword' : 'category',
+      searchTerm: useKeywordAnalysis ? keyword : category
+    }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
 
