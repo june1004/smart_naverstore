@@ -3,9 +3,10 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { Search, Download } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Table,
   TableBody,
@@ -17,32 +18,29 @@ import {
 
 interface MonthlyStats {
   keyword: string;
-  monthlyPcSearches: number;
-  monthlyMobileSearches: number;
-  totalSearches: number;
-  pcClicks: number;
-  mobileClicks: number;
-  pcClickRate: number;
-  mobileClickRate: number;
-  competitionLevel: string;
-  competitionScore: number;
-  avgPosition: number;
-  impressions: number;
-  ctr: number;
+  registrationTime: string;
+  rank: number;
+  image: string;
+  productName: string;
+  company: string;
+  searchVolume: number;
+  clicks: number;
+  clickRate: number;
   cpc: number;
+  cost: number;
 }
 
 const MonthlySearchStats = () => {
   const [keyword, setKeyword] = useState("");
-  const [statsData, setStatsData] = useState<MonthlyStats[]>([]);
+  const [monthlyData, setMonthlyData] = useState<MonthlyStats[]>([]);
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
-  const searchMonthlyStats = async () => {
+  const generateMonthlyStats = async () => {
     if (!keyword.trim()) {
       toast({
         title: "키워드를 입력해주세요",
-        description: "검색할 키워드를 입력해주세요.",
+        description: "월간 통계를 생성할 키워드를 입력해주세요.",
         variant: "destructive",
       });
       return;
@@ -51,35 +49,59 @@ const MonthlySearchStats = () => {
     setLoading(true);
     
     try {
-      // 실제 API 대신 임시 데이터 생성
-      const mockData: MonthlyStats[] = Array.from({ length: 10 }, (_, index) => ({
-        keyword: `${keyword} ${index + 1}`,
-        monthlyPcSearches: Math.floor(Math.random() * 500000) + 10000,
-        monthlyMobileSearches: Math.floor(Math.random() * 200000) + 5000,
-        totalSearches: Math.floor(Math.random() * 700000) + 15000,
-        pcClicks: Math.floor(Math.random() * 50000) + 1000,
-        mobileClicks: Math.floor(Math.random() * 30000) + 500,
-        pcClickRate: Math.random() * 10 + 0.1,
-        mobileClickRate: Math.random() * 5 + 0.1,
-        competitionLevel: ['높음', '중간', '낮음'][Math.floor(Math.random() * 3)],
-        competitionScore: Math.floor(Math.random() * 15) + 1,
-        avgPosition: Math.random() * 20 + 1,
-        impressions: Math.floor(Math.random() * 10000000) + 100000,
-        ctr: Math.random() * 10 + 0.1,
-        cpc: Math.random() * 3 + 0.1,
+      // 저장된 쇼핑 검색 결과에서 데이터 가져오기
+      const savedSearchHistory = localStorage.getItem('shoppingSearchHistory');
+      let baseData = [];
+      
+      if (savedSearchHistory) {
+        const parsedHistory = JSON.parse(savedSearchHistory);
+        if (parsedHistory.keyword === keyword.trim()) {
+          baseData = parsedHistory.results.slice(0, 10);
+        }
+      }
+
+      // 기본 데이터가 없으면 샘플 데이터 생성
+      if (baseData.length === 0) {
+        baseData = Array.from({ length: 10 }, (_, index) => ({
+          title: `${keyword} 관련 상품 ${index + 1}`,
+          image: "/placeholder.svg",
+          mallName: `쇼핑몰${index + 1}`,
+        }));
+      }
+
+      const mockStats: MonthlyStats[] = baseData.map((item, index) => ({
+        keyword: keyword.trim(),
+        registrationTime: getCurrentDateTime(),
+        rank: index + 1,
+        image: item.image || "/placeholder.svg",
+        productName: item.title?.replace(/<[^>]*>/g, '') || `${keyword} 상품 ${index + 1}`,
+        company: item.mallName || `업체${index + 1}`,
+        searchVolume: Math.floor(Math.random() * 50000) + 10000,
+        clicks: Math.floor(Math.random() * 5000) + 500,
+        clickRate: parseFloat((Math.random() * 10 + 2).toFixed(2)),
+        cpc: Math.floor(Math.random() * 500) + 100,
+        cost: Math.floor(Math.random() * 100000) + 20000,
       }));
 
-      setStatsData(mockData);
+      setMonthlyData(mockStats);
+      
+      // 검색 결과 저장
+      localStorage.setItem('monthlyStatsHistory', JSON.stringify({
+        keyword: keyword.trim(),
+        searchTime: getCurrentDateTime(),
+        data: mockStats
+      }));
+
       toast({
-        title: "월간 검색 통계 조회 완료",
-        description: `'${keyword}' 관련 키워드의 월간 통계를 조회했습니다.`,
+        title: "월간 통계 생성 완료",
+        description: `'${keyword}' 키워드의 월간 검색 통계 ${mockStats.length}개를 생성했습니다.`,
       });
 
     } catch (error) {
-      console.error('월간 통계 조회 오류:', error);
+      console.error('월간 통계 생성 오류:', error);
       toast({
-        title: "조회 실패",
-        description: "월간 통계 조회 중 오류가 발생했습니다.",
+        title: "통계 생성 실패",
+        description: "월간 통계 생성 중 오류가 발생했습니다.",
         variant: "destructive",
       });
     } finally {
@@ -88,25 +110,22 @@ const MonthlySearchStats = () => {
   };
 
   const downloadExcel = () => {
-    if (!statsData.length) return;
+    if (!monthlyData.length) return;
 
     const csvContent = [
-      ["키워드", "월간 검색수(PC)", "월간 검색수(모바일)", "월간 검색수", "클릭수(PC)", "클릭수(모바일)", "클릭률(PC)", "클릭률(모바일)", "경쟁도", "경쟁점수", "평균순위", "노출수", "클릭률", "클릭당비용"],
-      ...statsData.map(item => [
+      ["키워드", "등록일시", "순위", "이미지", "상품명", "업체명", "월간검색수", "클릭수", "클릭률(%)", "CPC", "비용"],
+      ...monthlyData.map(item => [
         item.keyword,
-        item.monthlyPcSearches,
-        item.monthlyMobileSearches,
-        item.totalSearches,
-        item.pcClicks,
-        item.mobileClicks,
-        item.pcClickRate.toFixed(2),
-        item.mobileClickRate.toFixed(2),
-        item.competitionLevel,
-        item.competitionScore,
-        item.avgPosition.toFixed(1),
-        item.impressions,
-        item.ctr.toFixed(3),
-        item.cpc.toFixed(5)
+        item.registrationTime,
+        item.rank,
+        item.image,
+        item.productName,
+        item.company,
+        item.searchVolume.toLocaleString(),
+        item.clicks.toLocaleString(),
+        item.clickRate,
+        item.cpc.toLocaleString(),
+        item.cost.toLocaleString()
       ])
     ].map(row => row.join(",")).join("\n");
 
@@ -126,123 +145,150 @@ const MonthlySearchStats = () => {
     });
   };
 
+  const getCurrentDateTime = () => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
+  };
+
+  // 컴포넌트 마운트 시 저장된 데이터 복원
+  useState(() => {
+    const savedHistory = localStorage.getItem('monthlyStatsHistory');
+    if (savedHistory) {
+      const parsedHistory = JSON.parse(savedHistory);
+      setKeyword(parsedHistory.keyword);
+      setMonthlyData(parsedHistory.data);
+    }
+  });
+
   return (
     <div className="space-y-6">
       {/* 검색 영역 */}
       <div className="flex gap-4">
         <div className="flex-1">
           <Input
-            placeholder="키워드를 입력하세요 (예: 김치, 마스크, 스마트폰 등)"
+            placeholder="월간 통계를 생성할 키워드를 입력하세요"
             value={keyword}
             onChange={(e) => setKeyword(e.target.value)}
-            onKeyPress={(e) => e.key === 'Enter' && searchMonthlyStats()}
+            onKeyPress={(e) => e.key === 'Enter' && generateMonthlyStats()}
             className="h-12 text-lg"
           />
         </div>
         <Button 
-          onClick={searchMonthlyStats} 
+          onClick={generateMonthlyStats} 
           disabled={loading}
           className="h-12 px-8 bg-green-600 hover:bg-green-700"
         >
           <Search className="h-4 w-4 mr-2" />
-          {loading ? "조회중..." : "월간통계 조회"}
+          {loading ? "생성중..." : "통계 생성"}
         </Button>
       </div>
 
-      {/* 검색 정보 헤더 */}
-      {statsData.length > 0 && (
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex justify-between items-center mb-4">
-              <div className="space-y-1">
-                <div className="text-sm text-gray-600">
-                  키워드: <span className="font-medium">{keyword}</span>
+      {monthlyData.length > 0 && (
+        <>
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex justify-between items-center mb-4">
+                <div className="space-y-1">
+                  <div className="text-sm text-gray-600">
+                    키워드: <span className="font-medium">{keyword}</span>
+                  </div>
+                  <div className="text-sm text-gray-600">
+                    총 검색결과: {monthlyData.length}개
+                  </div>
                 </div>
-                <div className="text-sm text-gray-600">
-                  총 키워드: {statsData.length}개
-                </div>
+                <Button onClick={downloadExcel} variant="outline" className="gap-2">
+                  <Download className="h-4 w-4" />
+                  엑셀다운로드
+                </Button>
               </div>
-              <Button onClick={downloadExcel} variant="outline" className="gap-2">
-                <Download className="h-4 w-4" />
-                엑셀다운로드
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>월간 검색 통계</CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+              <ScrollArea className="w-full">
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-gray-50">
+                        <TableHead className="w-20 text-center">순위</TableHead>
+                        <TableHead className="w-20 text-center">이미지</TableHead>
+                        <TableHead className="min-w-60">상품명</TableHead>
+                        <TableHead className="w-24 text-center">업체명</TableHead>
+                        <TableHead className="w-24 text-center">월간검색수</TableHead>
+                        <TableHead className="w-20 text-center">클릭수</TableHead>
+                        <TableHead className="w-20 text-center">클릭률(%)</TableHead>
+                        <TableHead className="w-20 text-center">CPC</TableHead>
+                        <TableHead className="w-20 text-center">비용</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {monthlyData.map((item, index) => (
+                        <TableRow key={index} className="hover:bg-gray-50">
+                          <TableCell className="text-center font-medium">
+                            {item.rank}
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <div className="w-16 h-16 mx-auto bg-gray-100 rounded flex items-center justify-center">
+                              <img 
+                                src={item.image} 
+                                alt="상품 이미지" 
+                                className="w-full h-full object-cover rounded"
+                                onError={(e) => {
+                                  e.currentTarget.src = "/placeholder.svg";
+                                }}
+                              />
+                            </div>
+                          </TableCell>
+                          <TableCell className="font-medium">
+                            {item.productName}
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <Badge variant="outline" className="text-xs">
+                              {item.company}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-center font-medium text-blue-600">
+                            {item.searchVolume.toLocaleString()}
+                          </TableCell>
+                          <TableCell className="text-center font-medium text-green-600">
+                            {item.clicks.toLocaleString()}
+                          </TableCell>
+                          <TableCell className="text-center font-medium text-purple-600">
+                            {item.clickRate}%
+                          </TableCell>
+                          <TableCell className="text-center font-medium text-orange-600">
+                            {item.cpc.toLocaleString()}원
+                          </TableCell>
+                          <TableCell className="text-center font-medium text-red-600">
+                            {item.cost.toLocaleString()}원
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </ScrollArea>
+            </CardContent>
+          </Card>
+        </>
       )}
 
-      {/* 월간 통계 테이블 */}
-      {statsData.length > 0 && (
-        <Card>
-          <CardContent className="p-0">
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow className="bg-gray-50">
-                    <TableHead className="w-32 text-center">키워드</TableHead>
-                    <TableHead className="w-24 text-center">월간 검색수(PC)</TableHead>
-                    <TableHead className="w-24 text-center">월간 검색수(모바일)</TableHead>
-                    <TableHead className="w-24 text-center">월간 검색수</TableHead>
-                    <TableHead className="w-20 text-center">클릭수(PC)</TableHead>
-                    <TableHead className="w-20 text-center">클릭수(모바일)</TableHead>
-                    <TableHead className="w-20 text-center">클릭률(PC)</TableHead>
-                    <TableHead className="w-20 text-center">클릭률(모바일)</TableHead>
-                    <TableHead className="w-16 text-center">경쟁도</TableHead>
-                    <TableHead className="w-16 text-center">경쟁점수</TableHead>
-                    <TableHead className="w-16 text-center">평균순위</TableHead>
-                    <TableHead className="w-20 text-center">노출수</TableHead>
-                    <TableHead className="w-16 text-center">클릭률</TableHead>
-                    <TableHead className="w-20 text-center">클릭당비용</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {statsData.map((item, index) => (
-                    <TableRow key={index} className="hover:bg-gray-50">
-                      <TableCell className="font-medium">{item.keyword}</TableCell>
-                      <TableCell className="text-center">{item.monthlyPcSearches.toLocaleString()}</TableCell>
-                      <TableCell className="text-center">{item.monthlyMobileSearches.toLocaleString()}</TableCell>
-                      <TableCell className="text-center font-bold text-blue-600">{item.totalSearches.toLocaleString()}</TableCell>
-                      <TableCell className="text-center">{item.pcClicks.toLocaleString()}</TableCell>
-                      <TableCell className="text-center">{item.mobileClicks.toLocaleString()}</TableCell>
-                      <TableCell className="text-center">{item.pcClickRate.toFixed(2)}%</TableCell>
-                      <TableCell className="text-center">{item.mobileClickRate.toFixed(2)}%</TableCell>
-                      <TableCell className="text-center">
-                        <span className={`px-2 py-1 rounded text-xs ${
-                          item.competitionLevel === '높음' ? 'bg-red-100 text-red-700' :
-                          item.competitionLevel === '중간' ? 'bg-yellow-100 text-yellow-700' :
-                          'bg-green-100 text-green-700'
-                        }`}>
-                          {item.competitionLevel}
-                        </span>
-                      </TableCell>
-                      <TableCell className="text-center">{item.competitionScore}</TableCell>
-                      <TableCell className="text-center">{item.avgPosition.toFixed(1)}</TableCell>
-                      <TableCell className="text-center">{item.impressions.toLocaleString()}</TableCell>
-                      <TableCell className="text-center">{item.ctr.toFixed(3)}%</TableCell>
-                      <TableCell className="text-center">{item.cpc.toFixed(5)}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* 로딩 상태 */}
       {loading && (
         <div className="text-center py-8">
           <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-green-600"></div>
-          <p className="mt-4 text-gray-600">월간 통계를 조회 중입니다...</p>
+          <p className="mt-4 text-gray-600">월간 통계를 생성하고 있습니다...</p>
         </div>
       )}
 
-      {/* 검색 결과 없음 */}
-      {!loading && !statsData.length && keyword && (
+      {!loading && monthlyData.length === 0 && keyword && (
         <div className="text-center py-12">
           <Search className="h-12 w-12 text-gray-300 mx-auto mb-4" />
-          <p className="text-gray-500 text-lg">월간 통계 결과가 없습니다.</p>
-          <p className="text-gray-400">다른 키워드로 검색해보세요.</p>
+          <p className="text-gray-500 text-lg">월간 통계를 생성해주세요.</p>
+          <p className="text-gray-400">키워드를 입력하고 통계 생성 버튼을 클릭하세요.</p>
         </div>
       )}
     </div>
