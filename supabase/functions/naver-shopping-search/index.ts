@@ -1,7 +1,6 @@
 
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -16,11 +15,14 @@ serve(async (req) => {
   try {
     const { keyword, display = 20, start = 1, sort = 'sim' } = await req.json();
     
+    // 환경 변수에서 네이버 API 키 가져오기
     const clientId = Deno.env.get('NAVER_CLIENT_ID');
     const clientSecret = Deno.env.get('NAVER_CLIENT_SECRET');
 
     if (!clientId || !clientSecret) {
-      return new Response(JSON.stringify({ error: 'API 키가 설정되지 않았습니다.' }), {
+      return new Response(JSON.stringify({ 
+        error: '네이버 API 키가 환경 변수에 설정되지 않았습니다. NAVER_CLIENT_ID와 NAVER_CLIENT_SECRET을 설정해주세요.' 
+      }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
@@ -28,6 +30,8 @@ serve(async (req) => {
 
     const encodedKeyword = encodeURIComponent(keyword);
     const url = `https://openapi.naver.com/v1/search/shop.json?query=${encodedKeyword}&display=${display}&start=${start}&sort=${sort}`;
+
+    console.log(`네이버 쇼핑 API 호출: ${url}`);
 
     const response = await fetch(url, {
       method: 'GET',
@@ -38,13 +42,15 @@ serve(async (req) => {
     });
 
     if (!response.ok) {
-      throw new Error(`네이버 API 오류: ${response.status}`);
+      throw new Error(`네이버 API 오류: ${response.status} - ${response.statusText}`);
     }
 
     const data = await response.json();
 
     // 카테고리 정보를 추출하여 분석
     const categoryAnalysis = analyzeCategoryFromItems(data.items);
+
+    console.log(`검색 완료: ${data.items?.length || 0}개 상품 찾음`);
 
     return new Response(JSON.stringify({
       ...data,
