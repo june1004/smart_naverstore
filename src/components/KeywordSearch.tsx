@@ -38,10 +38,16 @@ interface CategoryAnalysis {
   allCategories: Array<[string, number]>;
 }
 
+interface SearchHistory {
+  keyword: string;
+  searchTime: string;
+  results: ShoppingItem[];
+  categoryAnalysis: CategoryAnalysis | null;
+}
+
 const KeywordSearch = () => {
   const [keyword, setKeyword] = useState("");
-  const [results, setResults] = useState<ShoppingItem[]>([]);
-  const [categoryAnalysis, setCategoryAnalysis] = useState<CategoryAnalysis | null>(null);
+  const [searchHistory, setSearchHistory] = useState<SearchHistory | null>(null);
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
@@ -71,8 +77,14 @@ const KeywordSearch = () => {
         throw new Error(error.message);
       }
 
-      setResults(data.items || []);
-      setCategoryAnalysis(data.categoryAnalysis || null);
+      const newSearchHistory: SearchHistory = {
+        keyword: keyword.trim(),
+        searchTime: getCurrentDateTime(),
+        results: data.items || [],
+        categoryAnalysis: data.categoryAnalysis || null
+      };
+
+      setSearchHistory(newSearchHistory);
       toast({
         title: "검색 완료",
         description: `'${keyword}' 검색 결과 ${data.items?.length || 0}개를 찾았습니다.`,
@@ -91,10 +103,12 @@ const KeywordSearch = () => {
   };
 
   const downloadExcel = () => {
+    if (!searchHistory?.results.length) return;
+
     const csvContent = [
       ["등록일시", "순번", "이미지", "상품명", "업체명", "1차카테고리", "2차카테고리", "3차카테고리", "4차카테고리", "브랜드", "제조사", "가격", "통합점수", "클릭수", "통합순위", "통합클릭순위", "통합검색비율", "브랜드키워드여부", "쇼핑몰키워드", "링크"],
-      ...results.map((item, index) => [
-        getCurrentDateTime(),
+      ...searchHistory.results.map((item, index) => [
+        searchHistory.searchTime,
         index + 1,
         item.image,
         item.title.replace(/<[^>]*>/g, ''),
@@ -106,13 +120,13 @@ const KeywordSearch = () => {
         item.brand,
         item.maker,
         item.lprice,
-        generateRandomScore(50000, 200000), // 통합점수
-        generateRandomScore(1000, 50000), // 클릭수
-        generateRandomScore(1, 100), // 통합순위
-        generateRandomScore(1, 100), // 통합클릭순위
-        (Math.random() * 100).toFixed(2), // 통합검색비율
-        Math.random() > 0.5 ? "브랜드" : "일반", // 브랜드키워드여부
-        Math.random() > 0.7 ? "쇼핑몰" : "일반", // 쇼핑몰키워드
+        generateRandomScore(50000, 200000),
+        generateRandomScore(1000, 50000),
+        generateRandomScore(1, 100),
+        generateRandomScore(1, 100),
+        (Math.random() * 100).toFixed(2),
+        Math.random() > 0.5 ? "브랜드" : "일반",
+        Math.random() > 0.7 ? "쇼핑몰" : "일반",
         item.link
       ])
     ].map(row => row.join(",")).join("\n");
@@ -121,7 +135,7 @@ const KeywordSearch = () => {
     const link = document.createElement("a");
     const url = URL.createObjectURL(blob);
     link.setAttribute("href", url);
-    link.setAttribute("download", `${keyword}_쇼핑검색결과.csv`);
+    link.setAttribute("download", `${searchHistory.keyword}_쇼핑검색결과.csv`);
     link.style.visibility = 'hidden';
     document.body.appendChild(link);
     link.click();
@@ -142,7 +156,6 @@ const KeywordSearch = () => {
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
   };
 
-  // 랜덤 점수 생성 함수
   const generateRandomScore = (min: number, max: number) => {
     return Math.floor(Math.random() * (max - min + 1)) + min;
   };
@@ -171,25 +184,25 @@ const KeywordSearch = () => {
       </div>
 
       {/* 카테고리 분석 정보 */}
-      {categoryAnalysis && (
+      {searchHistory?.categoryAnalysis && (
         <Card>
           <CardHeader>
             <CardTitle>카테고리 분석</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {categoryAnalysis.mainCategory && (
+              {searchHistory.categoryAnalysis.mainCategory && (
                 <div>
                   <h4 className="font-medium mb-2">주요 카테고리</h4>
                   <Badge variant="outline" className="text-sm">
-                    {categoryAnalysis.mainCategory[0]} ({categoryAnalysis.mainCategory[1]}개)
+                    {searchHistory.categoryAnalysis.mainCategory[0]} ({searchHistory.categoryAnalysis.mainCategory[1]}개)
                   </Badge>
                 </div>
               )}
               <div>
                 <h4 className="font-medium mb-2">전체 카테고리 분포</h4>
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
-                  {categoryAnalysis.allCategories.slice(0, 8).map(([category, count], index) => (
+                  {searchHistory.categoryAnalysis.allCategories.slice(0, 8).map(([category, count], index) => (
                     <Badge key={index} variant="secondary" className="text-xs">
                       {category.split('>')[0]} ({count})
                     </Badge>
@@ -202,19 +215,19 @@ const KeywordSearch = () => {
       )}
 
       {/* 검색 정보 헤더 */}
-      {results.length > 0 && (
+      {searchHistory?.results.length && (
         <Card>
           <CardContent className="p-4">
             <div className="flex justify-between items-center mb-4">
               <div className="space-y-1">
                 <div className="text-sm text-gray-600">
-                  키워드: <span className="font-medium">{keyword}</span>
+                  키워드: <span className="font-medium">{searchHistory.keyword}</span>
                 </div>
                 <div className="text-sm text-gray-600">
-                  마지막 조회: {getCurrentDateTime()}
+                  마지막 조회: {searchHistory.searchTime}
                 </div>
                 <div className="text-sm text-gray-600">
-                  총 검색결과: {results.length}개
+                  총 검색결과: {searchHistory.results.length}개
                 </div>
               </div>
               <Button onClick={downloadExcel} variant="outline" className="gap-2">
@@ -227,7 +240,7 @@ const KeywordSearch = () => {
       )}
 
       {/* 검색 결과 테이블 */}
-      {results.length > 0 && (
+      {searchHistory?.results.length && (
         <Card>
           <CardContent className="p-0">
             <div className="overflow-x-auto">
@@ -257,10 +270,10 @@ const KeywordSearch = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {results.map((item, index) => (
+                  {searchHistory.results.map((item, index) => (
                     <TableRow key={index} className="hover:bg-gray-50">
                       <TableCell className="text-center text-xs">
-                        {getCurrentDateTime()}
+                        {searchHistory.searchTime}
                       </TableCell>
                       <TableCell className="text-center font-medium">
                         {index + 1}
@@ -362,7 +375,7 @@ const KeywordSearch = () => {
       )}
 
       {/* 검색 결과 없음 */}
-      {!loading && results.length === 0 && keyword && (
+      {!loading && !searchHistory?.results.length && keyword && (
         <div className="text-center py-12">
           <Search className="h-12 w-12 text-gray-300 mx-auto mb-4" />
           <p className="text-gray-500 text-lg">검색 결과가 없습니다.</p>
