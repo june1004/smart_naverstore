@@ -4,22 +4,12 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
-import { BarChart3, PieChart as PieChartIcon, TrendingUp, Calendar } from "lucide-react";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from "recharts";
+import { BarChart3, TrendingUp } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 
 interface InsightData {
-  category: string;
-  ratio: number;
-  change: number;
-}
-
-interface AgeGroupData {
-  ageGroup: string;
-  ratio: number;
-}
-
-interface GenderData {
-  gender: string;
+  period: string;
   ratio: number;
 }
 
@@ -28,8 +18,6 @@ const ShoppingInsight = () => {
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [insightData, setInsightData] = useState<InsightData[]>([]);
-  const [ageData, setAgeData] = useState<AgeGroupData[]>([]);
-  const [genderData, setGenderData] = useState<GenderData[]>([]);
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
@@ -66,50 +54,39 @@ const ShoppingInsight = () => {
     setLoading(true);
 
     try {
-      // 네이버 쇼핑인사이트 API 호출 시뮬레이션
-      const mockInsightData: InsightData[] = [
-        { category: "상의", ratio: 35.2, change: 5.3 },
-        { category: "하의", ratio: 28.7, change: -2.1 },
-        { category: "아우터", ratio: 20.5, change: 8.7 },
-        { category: "원피스", ratio: 10.1, change: -1.2 },
-        { category: "기타", ratio: 5.5, change: 3.4 }
-      ];
+      const { data, error } = await supabase.functions.invoke('naver-shopping-insight', {
+        body: {
+          category,
+          startDate,
+          endDate,
+          timeUnit: 'month',
+          device: '',
+          ages: [],
+          gender: ''
+        }
+      });
 
-      const mockAgeData: AgeGroupData[] = [
-        { ageGroup: "10대", ratio: 12.3 },
-        { ageGroup: "20대", ratio: 34.7 },
-        { ageGroup: "30대", ratio: 28.9 },
-        { ageGroup: "40대", ratio: 16.8 },
-        { ageGroup: "50대+", ratio: 7.3 }
-      ];
+      if (error) {
+        throw new Error(error.message);
+      }
 
-      const mockGenderData: GenderData[] = [
-        { gender: "여성", ratio: 68.5 },
-        { gender: "남성", ratio: 31.5 }
-      ];
-
-      setTimeout(() => {
-        setInsightData(mockInsightData);
-        setAgeData(mockAgeData);
-        setGenderData(mockGenderData);
-        setLoading(false);
-        toast({
-          title: "인사이트 분석 완료",
-          description: "쇼핑 인사이트 데이터를 성공적으로 가져왔습니다.",
-        });
-      }, 1500);
+      setInsightData(data.results?.[0]?.data || []);
+      toast({
+        title: "인사이트 분석 완료",
+        description: "쇼핑 인사이트 데이터를 성공적으로 가져왔습니다.",
+      });
 
     } catch (error) {
-      setLoading(false);
+      console.error('인사이트 분석 오류:', error);
       toast({
         title: "분석 실패",
-        description: "인사이트 분석 중 오류가 발생했습니다.",
+        description: "인사이트 분석 중 오류가 발생했습니다. API 키 설정을 확인해주세요.",
         variant: "destructive",
       });
+    } finally {
+      setLoading(false);
     }
   };
-
-  const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6'];
 
   return (
     <div className="space-y-6">
@@ -142,28 +119,22 @@ const ShoppingInsight = () => {
           {/* 날짜 범위 */}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="text-sm font-medium mb-2 block">시작일</label>
-              <div className="relative">
-                <input
-                  type="date"
-                  value={startDate}
-                  onChange={(e) => setStartDate(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
-                />
-                <Calendar className="absolute right-3 top-3 h-4 w-4 text-gray-400 pointer-events-none" />
-              </div>
+              <label className="text-sm font-medium mb-2 block">시작일 (YYYY-MM)</label>
+              <input
+                type="month"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
+              />
             </div>
             <div>
-              <label className="text-sm font-medium mb-2 block">종료일</label>
-              <div className="relative">
-                <input
-                  type="date"
-                  value={endDate}
-                  onChange={(e) => setEndDate(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
-                />
-                <Calendar className="absolute right-3 top-3 h-4 w-4 text-gray-400 pointer-events-none" />
-              </div>
+              <label className="text-sm font-medium mb-2 block">종료일 (YYYY-MM)</label>
+              <input
+                type="month"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
+              />
             </div>
           </div>
 
@@ -181,12 +152,44 @@ const ShoppingInsight = () => {
       {/* 분석 결과 */}
       {insightData.length > 0 && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* 카테고리별 비율 차트 */}
+          {/* 트렌드 라인 차트 */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <TrendingUp className="h-5 w-5" />
+                카테고리 트렌드 변화
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="h-80">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={insightData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="period" />
+                    <YAxis />
+                    <Tooltip 
+                      formatter={(value: any) => [`${value}`, '검색 비율']}
+                      labelFormatter={(label) => `기간: ${label}`}
+                    />
+                    <Line 
+                      type="monotone" 
+                      dataKey="ratio" 
+                      stroke="#8B5CF6" 
+                      strokeWidth={3}
+                      dot={{ fill: "#8B5CF6", strokeWidth: 2, r: 4 }}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* 막대 차트 */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <BarChart3 className="h-5 w-5" />
-                카테고리별 쇼핑 비율
+                기간별 검색 비율
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -194,13 +197,10 @@ const ShoppingInsight = () => {
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={insightData}>
                     <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="category" />
+                    <XAxis dataKey="period" />
                     <YAxis />
                     <Tooltip 
-                      formatter={(value: any, name: string) => [
-                        `${value}%`, 
-                        name === 'ratio' ? '비율' : '변화율'
-                      ]}
+                      formatter={(value: any) => [`${value}`, '검색 비율']}
                     />
                     <Bar dataKey="ratio" fill="#8B5CF6" radius={[4, 4, 0, 0]} />
                   </BarChart>
@@ -209,95 +209,37 @@ const ShoppingInsight = () => {
             </CardContent>
           </Card>
 
-          {/* 연령대별 분포 */}
-          <Card>
+          {/* 상세 분석 요약 */}
+          <Card className="lg:col-span-2">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <PieChartIcon className="h-5 w-5" />
-                연령대별 분포
-              </CardTitle>
+              <CardTitle>분석 요약</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="h-80">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={ageData}
-                      cx="50%"
-                      cy="50%"
-                      labelLine={false}
-                      label={({ ageGroup, ratio }) => `${ageGroup} ${ratio}%`}
-                      outerRadius={80}
-                      fill="#8884d8"
-                      dataKey="ratio"
-                    >
-                      {ageData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                      ))}
-                    </Pie>
-                    <Tooltip formatter={(value: any) => [`${value}%`, '비율']} />
-                  </PieChart>
-                </ResponsiveContainer>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* 성별 분포 */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <PieChartIcon className="h-5 w-5" />
-                성별 분포
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="h-80">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={genderData}
-                      cx="50%"
-                      cy="50%"
-                      labelLine={false}
-                      label={({ gender, ratio }) => `${gender} ${ratio}%`}
-                      outerRadius={80}
-                      fill="#8884d8"
-                      dataKey="ratio"
-                    >
-                      {genderData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                      ))}
-                    </Pie>
-                    <Tooltip formatter={(value: any) => [`${value}%`, '비율']} />
-                  </PieChart>
-                </ResponsiveContainer>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* 트렌드 변화 */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <TrendingUp className="h-5 w-5" />
-                전월 대비 변화율
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {insightData.map((item, index) => (
-                  <div key={index} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-                    <span className="font-medium">{item.category}</span>
-                    <div className="flex items-center gap-2">
-                      <span className="text-lg font-bold">{item.ratio}%</span>
-                      <span className={`text-sm font-medium ${
-                        item.change > 0 ? 'text-green-600' : 'text-red-600'
-                      }`}>
-                        {item.change > 0 ? '+' : ''}{item.change}%
-                      </span>
-                    </div>
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="p-4 bg-purple-50 rounded-lg">
+                  <div className="text-2xl font-bold text-purple-600">
+                    {insightData.length}
                   </div>
-                ))}
+                  <div className="text-sm text-gray-600">분석 기간</div>
+                </div>
+                <div className="p-4 bg-blue-50 rounded-lg">
+                  <div className="text-2xl font-bold text-blue-600">
+                    {Math.max(...insightData.map(d => d.ratio)).toFixed(1)}
+                  </div>
+                  <div className="text-sm text-gray-600">최고 검색 비율</div>
+                </div>
+                <div className="p-4 bg-green-50 rounded-lg">
+                  <div className="text-2xl font-bold text-green-600">
+                    {Math.min(...insightData.map(d => d.ratio)).toFixed(1)}
+                  </div>
+                  <div className="text-sm text-gray-600">최저 검색 비율</div>
+                </div>
+                <div className="p-4 bg-orange-50 rounded-lg">
+                  <div className="text-2xl font-bold text-orange-600">
+                    {(insightData.reduce((sum, d) => sum + d.ratio, 0) / insightData.length).toFixed(1)}
+                  </div>
+                  <div className="text-sm text-gray-600">평균 검색 비율</div>
+                </div>
               </div>
             </CardContent>
           </Card>

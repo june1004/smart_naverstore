@@ -5,7 +5,8 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
-import { TrendingUp, Calendar, Plus, X } from "lucide-react";
+import { TrendingUp, Plus, X } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 
 interface TrendData {
   period: string;
@@ -13,14 +14,15 @@ interface TrendData {
 }
 
 interface KeywordTrend {
-  keyword: string;
+  title: string;
+  keywords: string[];
   data: TrendData[];
 }
 
 const SearchTrend = () => {
   const [keywords, setKeywords] = useState<string[]>([""]);
-  const [startDate, setStartDate] = useState<Date>();
-  const [endDate, setEndDate] = useState<Date>();
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
   const [trendData, setTrendData] = useState<KeywordTrend[]>([]);
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
@@ -73,35 +75,37 @@ const SearchTrend = () => {
     setLoading(true);
 
     try {
-      // 네이버 통합검색어 트렌드 API 호출 시뮬레이션
-      const mockTrendData: KeywordTrend[] = validKeywords.map((keyword, index) => ({
-        keyword,
-        data: [
-          { period: "2024-01", ratio: 80 + Math.random() * 20 },
-          { period: "2024-02", ratio: 85 + Math.random() * 15 },
-          { period: "2024-03", ratio: 75 + Math.random() * 25 },
-          { period: "2024-04", ratio: 90 + Math.random() * 10 },
-          { period: "2024-05", ratio: 95 + Math.random() * 5 },
-          { period: "2024-06", ratio: 88 + Math.random() * 12 },
-        ]
-      }));
+      const { data, error } = await supabase.functions.invoke('naver-datalab-trend', {
+        body: {
+          keywords: validKeywords,
+          startDate,
+          endDate,
+          timeUnit: 'month',
+          device: '',
+          ages: [],
+          gender: ''
+        }
+      });
 
-      setTimeout(() => {
-        setTrendData(mockTrendData);
-        setLoading(false);
-        toast({
-          title: "트렌드 분석 완료",
-          description: `${validKeywords.length}개 키워드의 트렌드 데이터를 가져왔습니다.`,
-        });
-      }, 1500);
+      if (error) {
+        throw new Error(error.message);
+      }
+
+      setTrendData(data.results || []);
+      toast({
+        title: "트렌드 분석 완료",
+        description: `${validKeywords.length}개 키워드의 트렌드 데이터를 가져왔습니다.`,
+      });
 
     } catch (error) {
-      setLoading(false);
+      console.error('트렌드 분석 오류:', error);
       toast({
         title: "분석 실패",
-        description: "트렌드 분석 중 오류가 발생했습니다.",
+        description: "트렌드 분석 중 오류가 발생했습니다. API 키 설정을 확인해주세요.",
         variant: "destructive",
       });
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -159,25 +163,21 @@ const SearchTrend = () => {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="text-sm font-medium mb-2 block">시작일</label>
-              <div className="relative">
-                <Input
-                  type="date"
-                  value={startDate ? startDate.toISOString().split('T')[0] : ''}
-                  onChange={(e) => setStartDate(new Date(e.target.value))}
-                />
-                <Calendar className="absolute right-3 top-3 h-4 w-4 text-gray-400 pointer-events-none" />
-              </div>
+              <input
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+              />
             </div>
             <div>
               <label className="text-sm font-medium mb-2 block">종료일</label>
-              <div className="relative">
-                <Input
-                  type="date"
-                  value={endDate ? endDate.toISOString().split('T')[0] : ''}
-                  onChange={(e) => setEndDate(new Date(e.target.value))}
-                />
-                <Calendar className="absolute right-3 top-3 h-4 w-4 text-gray-400 pointer-events-none" />
-              </div>
+              <input
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+              />
             </div>
           </div>
 
@@ -212,10 +212,10 @@ const SearchTrend = () => {
                   <Tooltip />
                   {trendData.map((trend, index) => (
                     <Line
-                      key={trend.keyword}
+                      key={trend.title}
                       dataKey="ratio"
                       data={trend.data}
-                      name={trend.keyword}
+                      name={trend.title}
                       stroke={colors[index % colors.length]}
                       strokeWidth={3}
                       dot={{ fill: colors[index % colors.length], strokeWidth: 2, r: 4 }}
@@ -228,12 +228,12 @@ const SearchTrend = () => {
             {/* 범례 */}
             <div className="flex flex-wrap gap-4 mt-4 justify-center">
               {trendData.map((trend, index) => (
-                <div key={trend.keyword} className="flex items-center gap-2">
+                <div key={trend.title} className="flex items-center gap-2">
                   <div 
                     className="w-4 h-4 rounded-full"
                     style={{ backgroundColor: colors[index % colors.length] }}
                   />
-                  <span className="text-sm font-medium">{trend.keyword}</span>
+                  <span className="text-sm font-medium">{trend.title}</span>
                 </div>
               ))}
             </div>

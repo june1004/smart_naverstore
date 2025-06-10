@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -5,6 +6,7 @@ import KeywordSearch from "@/components/KeywordSearch";
 import SearchTrend from "@/components/SearchTrend";
 import ShoppingInsight from "@/components/ShoppingInsight";
 import AutoKeywordAnalyzer from "@/components/AutoKeywordAnalyzer";
+import ApiKeyManager from "@/components/ApiKeyManager";
 import { ShoppingCart, TrendingUp, BarChart3, Sparkles } from "lucide-react";
 
 const Index = () => {
@@ -21,6 +23,9 @@ const Index = () => {
             키워드 분석, 검색 트렌드, 쇼핑 인사이트를 통해 데이터 기반의 쇼핑몰 운영 전략을 수립하세요
           </p>
         </div>
+
+        {/* API 키 관리 */}
+        <ApiKeyManager />
 
         {/* Main Tabs */}
         <Tabs defaultValue="auto-analyzer" className="w-full">

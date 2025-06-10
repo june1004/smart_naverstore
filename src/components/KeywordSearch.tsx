@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { Search, Download, ExternalLink } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 
 interface ShoppingItem {
   title: string;
@@ -43,59 +44,34 @@ const KeywordSearch = () => {
     setLoading(true);
     
     try {
-      // 네이버 쇼핑 검색 API 호출 시뮬레이션
-      // 실제 구현시 백엔드 API를 통해 호출해야 합니다
-      const mockData: ShoppingItem[] = [
-        {
-          title: "1등급지 육성지진 10kg 신선한 충남부경",
-          link: "https://example.com/product1",
-          image: "/placeholder.svg",
-          lprice: "45900",
-          hprice: "50000",
-          mallName: "식품-김치-육성지",
-          productId: "1",
-          productType: "일반상품",
-          brand: "충남부경",
-          maker: "충남부경",
-          category1: "식품",
-          category2: "김치",
-          category3: "육성지",
-          category4: ""
-        },
-        {
-          title: "무진식품 국산 전라도 특품지 육성지진 2kg",
-          link: "https://example.com/product2",
-          image: "/placeholder.svg",
-          lprice: "19500",
-          hprice: "25000",
-          mallName: "무진식품",
-          productId: "2",
-          productType: "일반상품",
-          brand: "무진식품",
-          maker: "무진식품",
-          category1: "식품",
-          category2: "김치",
-          category3: "육성지",
-          category4: ""
+      const { data, error } = await supabase.functions.invoke('naver-shopping-search', {
+        body: { 
+          keyword: keyword.trim(),
+          display: 20,
+          start: 1,
+          sort: 'sim'
         }
-      ];
+      });
 
-      setTimeout(() => {
-        setResults(mockData);
-        setLoading(false);
-        toast({
-          title: "검색 완료",
-          description: `'${keyword}' 검색 결과 ${mockData.length}개를 찾았습니다.`,
-        });
-      }, 1000);
+      if (error) {
+        throw new Error(error.message);
+      }
+
+      setResults(data.items || []);
+      toast({
+        title: "검색 완료",
+        description: `'${keyword}' 검색 결과 ${data.items?.length || 0}개를 찾았습니다.`,
+      });
 
     } catch (error) {
-      setLoading(false);
+      console.error('쇼핑 검색 오류:', error);
       toast({
         title: "검색 실패",
-        description: "검색 중 오류가 발생했습니다. 다시 시도해주세요.",
+        description: "검색 중 오류가 발생했습니다. API 키 설정을 확인해주세요.",
         variant: "destructive",
       });
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -186,6 +162,7 @@ const KeywordSearch = () => {
                     <h3 
                       className="font-semibold text-lg line-clamp-2 cursor-pointer hover:text-blue-600"
                       dangerouslySetInnerHTML={{ __html: item.title }}
+                      onClick={() => window.open(item.link, '_blank')}
                     />
                     <ExternalLink className="h-4 w-4 text-gray-400 cursor-pointer hover:text-blue-600" />
                   </div>
@@ -198,16 +175,16 @@ const KeywordSearch = () => {
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-4">
                       <div className="text-xl font-bold text-red-600">
-                        {parseInt(item.lprice).toLocaleString()}원
+                        {parseInt(item.lprice || '0').toLocaleString()}원
                       </div>
-                      {item.hprice !== item.lprice && (
+                      {item.hprice !== item.lprice && item.hprice && (
                         <div className="text-sm text-gray-500 line-through">
                           {parseInt(item.hprice).toLocaleString()}원
                         </div>
                       )}
                     </div>
                     <div className="text-sm text-gray-600">
-                      {item.category1} {"> "} {item.category2} {"> "} {item.category3}
+                      {item.category1} {item.category2 && `> ${item.category2}`} {item.category3 && `> ${item.category3}`}
                     </div>
                   </div>
                 </div>
