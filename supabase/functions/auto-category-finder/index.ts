@@ -7,20 +7,6 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// 네이버 쇼핑 카테고리 매핑
-const categoryMapping = {
-  "패션의류": "50000000",
-  "패션잡화": "50000001", 
-  "화장품/미용": "50000002",
-  "디지털/가전": "50000003",
-  "가구/인테리어": "50000004",
-  "출산/육아": "50000005",
-  "식품": "50000006",
-  "스포츠/레저": "50000007",
-  "생활/건강": "50000008",
-  "여가/생활편의": "50000009"
-};
-
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -39,11 +25,11 @@ serve(async (req) => {
       });
     }
 
-    // 1단계: 쇼핑 검색으로 카테고리 정보 수집
+    // 네이버 쇼핑 검색으로 키워드의 카테고리 정보 수집
     const encodedKeyword = encodeURIComponent(keyword);
-    const searchUrl = `https://openapi.naver.com/v1/search/shop.json?query=${encodedKeyword}&display=100&sort=sim`;
+    const url = `https://openapi.naver.com/v1/search/shop.json?query=${encodedKeyword}&display=100&start=1&sort=sim`;
 
-    const searchResponse = await fetch(searchUrl, {
+    const response = await fetch(url, {
       method: 'GET',
       headers: {
         'X-Naver-Client-Id': clientId,
@@ -51,65 +37,29 @@ serve(async (req) => {
       },
     });
 
-    if (!searchResponse.ok) {
-      throw new Error(`네이버 검색 API 오류: ${searchResponse.status}`);
+    if (!response.ok) {
+      throw new Error(`네이버 API 오류: ${response.status}`);
     }
 
-    const searchData = await searchResponse.json();
+    const data = await response.json();
     
-    // 2단계: 카테고리 분석 및 추천
-    const categoryAnalysis = analyzeCategoriesFromItems(searchData.items);
+    // 카테고리 분석
+    const categoryAnalysis = analyzeCategoryFromItems(data.items);
     
-    // 3단계: 추천된 카테고리로 인사이트 데이터 가져오기 (최근 6개월)
-    const endDate = new Date().toISOString().slice(0, 7);
-    const startDate = new Date(Date.now() - 6 * 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 7);
-    
-    const insights = await Promise.all(
-      categoryAnalysis.recommendedCategories.slice(0, 3).map(async (cat: any) => {
-        try {
-          const insightResponse = await fetch('https://openapi.naver.com/v1/datalab/shopping/categories', {
-            method: 'POST',
-            headers: {
-              'X-Naver-Client-Id': clientId,
-              'X-Naver-Client-Secret': clientSecret,
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              startDate,
-              endDate,
-              timeUnit: 'month',
-              category: cat.code,
-              device: '',
-              ages: [],
-              gender: ''
-            }),
-          });
-
-          if (insightResponse.ok) {
-            const insightData = await insightResponse.json();
-            return {
-              category: cat,
-              insight: insightData
-            };
-          }
-          return null;
-        } catch (error) {
-          console.error(`카테고리 ${cat.name} 인사이트 조회 실패:`, error);
-          return null;
-        }
-      })
-    );
+    // 가장 적합한 카테고리 찾기
+    const bestCategory = findBestCategoryMatch(categoryAnalysis);
 
     return new Response(JSON.stringify({
       keyword,
+      suggestedCategory: bestCategory,
       categoryAnalysis,
-      insights: insights.filter(Boolean)
+      totalItems: data.total
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
 
   } catch (error) {
-    console.error('자동 카테고리 분석 오류:', error);
+    console.error('카테고리 자동 찾기 오류:', error);
     return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -117,53 +67,53 @@ serve(async (req) => {
   }
 });
 
-function analyzeCategoriesFromItems(items: any[]) {
-  const categoryCount = new Map();
-  const categoryInfo = new Map();
-
+function analyzeCategoryFromItems(items: any[]) {
+  const categoryMap = new Map();
+  
   items.forEach(item => {
     if (item.category1) {
-      const fullCategory = `${item.category1}>${item.category2 || ''}>${item.category3 || ''}`;
-      const mainCategory = item.category1;
-      
-      categoryCount.set(fullCategory, (categoryCount.get(fullCategory) || 0) + 1);
-      
-      if (!categoryInfo.has(fullCategory)) {
-        categoryInfo.set(fullCategory, {
-          name: fullCategory,
-          code: getCategoryCode(mainCategory),
-          level1: item.category1,
-          level2: item.category2 || '',
-          level3: item.category3 || '',
-          items: []
-        });
-      }
-      
-      categoryInfo.get(fullCategory).items.push(item);
+      const key = `${item.category1}>${item.category2 || ''}>${item.category3 || ''}`;
+      categoryMap.set(key, (categoryMap.get(key) || 0) + 1);
     }
   });
 
-  const sortedCategories = Array.from(categoryCount.entries())
+  const sortedCategories = Array.from(categoryMap.entries())
     .sort((a, b) => b[1] - a[1])
-    .map(([category, count]) => ({
-      ...categoryInfo.get(category),
-      count,
-      percentage: (count / items.length * 100).toFixed(1)
-    }));
+    .slice(0, 10);
 
   return {
-    totalItems: items.length,
-    recommendedCategories: sortedCategories.slice(0, 5),
+    mainCategory: sortedCategories[0] || null,
     allCategories: sortedCategories
   };
 }
 
-function getCategoryCode(categoryName: string): string {
-  // 카테고리명을 기반으로 코드 매핑
-  for (const [name, code] of Object.entries(categoryMapping)) {
-    if (categoryName.includes(name) || name.includes(categoryName)) {
-      return code;
+function findBestCategoryMatch(categoryAnalysis: any) {
+  const categoryMapping: { [key: string]: string } = {
+    '패션의류': '50000000',
+    '패션잡화': '50000001', 
+    '화장품': '50000002',
+    '미용': '50000002',
+    '디지털': '50000003',
+    '가전': '50000003',
+    '가구': '50000004',
+    '인테리어': '50000004',
+    '출산': '50000005',
+    '육아': '50000005',
+    '식품': '50000006',
+    '스포츠': '50000007',
+    '레저': '50000007'
+  };
+
+  if (!categoryAnalysis.mainCategory) return '50000000'; // 기본값
+
+  const mainCategoryText = categoryAnalysis.mainCategory[0];
+  
+  // 키워드 매칭으로 카테고리 찾기
+  for (const [keyword, categoryId] of Object.entries(categoryMapping)) {
+    if (mainCategoryText.includes(keyword)) {
+      return categoryId;
     }
   }
-  return "50000000"; // 기본값: 패션의류
+
+  return '50000000'; // 기본값
 }
