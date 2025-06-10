@@ -207,7 +207,7 @@ const KeywordSearch = () => {
                       )}
                     </div>
                     <div className="text-sm text-gray-600">
-                      {item.category1} > {item.category2} > {item.category3}
+                      {item.category1} {"> "} {item.category2} {"> "} {item.category3}
                     </div>
                   </div>
                 </div>
