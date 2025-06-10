@@ -9,6 +9,12 @@ import { Search, Download, ExternalLink } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
+import {
   Table,
   TableBody,
   TableCell,
@@ -198,35 +204,48 @@ const ShoppingSearch = () => {
         </Button>
       </div>
 
-      {/* 카테고리 분석 */}
+      {/* 카테고리 분석 - 아코디언으로 변경 */}
       {searchHistory?.categoryAnalysis && (
-        <Card>
-          <CardHeader>
-            <CardTitle>카테고리 분석</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {searchHistory.categoryAnalysis.mainCategory && (
-                <div>
-                  <h4 className="font-medium mb-2">주요 카테고리</h4>
+        <Accordion type="single" collapsible className="w-full">
+          <AccordionItem value="category-analysis">
+            <AccordionTrigger>
+              <div className="flex items-center gap-2">
+                <span className="font-semibold">카테고리 분석</span>
+                {searchHistory.categoryAnalysis.mainCategory && (
                   <Badge variant="outline" className="text-sm">
-                    {searchHistory.categoryAnalysis.mainCategory[0]} ({searchHistory.categoryAnalysis.mainCategory[1]}개)
+                    주요: {searchHistory.categoryAnalysis.mainCategory[0]} ({searchHistory.categoryAnalysis.mainCategory[1]}개)
                   </Badge>
-                </div>
-              )}
-              <div>
-                <h4 className="font-medium mb-2">전체 카테고리 분포</h4>
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
-                  {searchHistory.categoryAnalysis.allCategories.slice(0, 8).map(([category, count], index) => (
-                    <Badge key={index} variant="secondary" className="text-xs">
-                      {category.split('>')[0]} ({count})
-                    </Badge>
-                  ))}
-                </div>
+                )}
               </div>
-            </div>
-          </CardContent>
-        </Card>
+            </AccordionTrigger>
+            <AccordionContent>
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="space-y-4">
+                    {searchHistory.categoryAnalysis.mainCategory && (
+                      <div>
+                        <h4 className="font-medium mb-2">주요 카테고리</h4>
+                        <Badge variant="outline" className="text-sm">
+                          {searchHistory.categoryAnalysis.mainCategory[0]} ({searchHistory.categoryAnalysis.mainCategory[1]}개)
+                        </Badge>
+                      </div>
+                    )}
+                    <div>
+                      <h4 className="font-medium mb-2">전체 카테고리 분포</h4>
+                      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
+                        {searchHistory.categoryAnalysis.allCategories.slice(0, 12).map(([category, count], index) => (
+                          <Badge key={index} variant="secondary" className="text-xs">
+                            {category.split('>')[0]} ({count})
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </AccordionContent>
+          </AccordionItem>
+        </Accordion>
       )}
 
       {/* 검색 결과 요약 */}
@@ -254,131 +273,133 @@ const ShoppingSearch = () => {
         </Card>
       )}
 
-      {/* 검색 결과 테이블 - 가로 스크롤 추가 */}
+      {/* 검색 결과 테이블 - 개선된 가로 스크롤과 고정 컬럼 */}
       {searchHistory?.results.length && (
         <Card>
           <CardContent className="p-0">
-            <ScrollArea className="w-full">
+            <div className="relative overflow-hidden border rounded-lg">
               <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow className="bg-gray-50">
-                      <TableHead className="w-24 text-center sticky left-0 bg-gray-50">등록일시</TableHead>
-                      <TableHead className="w-12 text-center sticky left-24 bg-gray-50">#</TableHead>
-                      <TableHead className="w-20 text-center">이미지</TableHead>
-                      <TableHead className="min-w-60">상품명</TableHead>
-                      <TableHead className="w-24 text-center">업체명</TableHead>
-                      <TableHead className="w-20 text-center">1차카테고리</TableHead>
-                      <TableHead className="w-20 text-center">2차카테고리</TableHead>
-                      <TableHead className="w-20 text-center">3차카테고리</TableHead>
-                      <TableHead className="w-20 text-center">4차카테고리</TableHead>
-                      <TableHead className="w-16 text-center">브랜드</TableHead>
-                      <TableHead className="w-16 text-center">제조사</TableHead>
-                      <TableHead className="w-20 text-center">가격</TableHead>
-                      <TableHead className="w-20 text-center">통합점수</TableHead>
-                      <TableHead className="w-16 text-center">클릭수</TableHead>
-                      <TableHead className="w-16 text-center">통합순위</TableHead>
-                      <TableHead className="w-20 text-center">통합클릭순위</TableHead>
-                      <TableHead className="w-20 text-center">통합검색비율</TableHead>
-                      <TableHead className="w-20 text-center">브랜드키워드여부</TableHead>
-                      <TableHead className="w-20 text-center">쇼핑몰키워드</TableHead>
-                      <TableHead className="w-16 text-center">링크</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {searchHistory.results.map((item, index) => (
-                      <TableRow key={index} className="hover:bg-gray-50">
-                        <TableCell className="text-center text-xs sticky left-0 bg-white">
-                          {searchHistory.searchTime}
-                        </TableCell>
-                        <TableCell className="text-center font-medium sticky left-24 bg-white">
-                          {index + 1}
-                        </TableCell>
-                        <TableCell className="text-center">
-                          <div className="w-16 h-16 mx-auto bg-gray-100 rounded flex items-center justify-center">
-                            <img 
-                              src={item.image} 
-                              alt="상품 이미지" 
-                              className="w-full h-full object-cover rounded"
-                              onError={(e) => {
-                                e.currentTarget.src = "/placeholder.svg";
-                              }}
-                            />
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div 
-                            className="cursor-pointer hover:text-blue-600 line-clamp-2"
-                            dangerouslySetInnerHTML={{ __html: item.title }}
-                            onClick={() => window.open(item.link, '_blank')}
-                          />
-                        </TableCell>
-                        <TableCell className="text-center">
-                          <Badge variant="outline" className="text-xs">
-                            {item.mallName}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-center text-xs">
-                          {item.category1 || '-'}
-                        </TableCell>
-                        <TableCell className="text-center text-xs">
-                          {item.category2 || '-'}
-                        </TableCell>
-                        <TableCell className="text-center text-xs">
-                          {item.category3 || '-'}
-                        </TableCell>
-                        <TableCell className="text-center text-xs">
-                          {item.category4 || '-'}
-                        </TableCell>
-                        <TableCell className="text-center text-xs">
-                          {item.brand || '-'}
-                        </TableCell>
-                        <TableCell className="text-center text-xs">
-                          {item.maker || '-'}
-                        </TableCell>
-                        <TableCell className="text-center font-medium text-red-600">
-                          {formatPrice(item.lprice)}원
-                        </TableCell>
-                        <TableCell className="text-center text-sm font-medium">
-                          {generateRandomScore(50000, 200000).toLocaleString()}
-                        </TableCell>
-                        <TableCell className="text-center text-sm">
-                          {generateRandomScore(1000, 50000).toLocaleString()}
-                        </TableCell>
-                        <TableCell className="text-center text-sm">
-                          {generateRandomScore(1, 100)}
-                        </TableCell>
-                        <TableCell className="text-center text-sm">
-                          {generateRandomScore(1, 100)}
-                        </TableCell>
-                        <TableCell className="text-center text-sm">
-                          {(Math.random() * 100).toFixed(2)}%
-                        </TableCell>
-                        <TableCell className="text-center text-sm">
-                          <Badge variant={Math.random() > 0.5 ? "default" : "secondary"} className="text-xs">
-                            {Math.random() > 0.5 ? "브랜드" : "일반"}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-center text-sm">
-                          <Badge variant={Math.random() > 0.7 ? "default" : "secondary"} className="text-xs">
-                            {Math.random() > 0.7 ? "쇼핑몰" : "일반"}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-center">
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => window.open(item.link, '_blank')}
-                          >
-                            <ExternalLink className="h-4 w-4" />
-                          </Button>
-                        </TableCell>
+                <div className="min-w-[1800px]">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-gray-50">
+                        <TableHead className="w-24 text-center sticky left-0 bg-gray-50 z-20 border-r">등록일시</TableHead>
+                        <TableHead className="w-12 text-center sticky left-24 bg-gray-50 z-20 border-r">#</TableHead>
+                        <TableHead className="w-20 text-center sticky left-36 bg-gray-50 z-20 border-r">이미지</TableHead>
+                        <TableHead className="min-w-60 sticky left-56 bg-gray-50 z-20 border-r">상품명</TableHead>
+                        <TableHead className="w-24 text-center">업체명</TableHead>
+                        <TableHead className="w-20 text-center">1차카테고리</TableHead>
+                        <TableHead className="w-20 text-center">2차카테고리</TableHead>
+                        <TableHead className="w-20 text-center">3차카테고리</TableHead>
+                        <TableHead className="w-20 text-center">4차카테고리</TableHead>
+                        <TableHead className="w-16 text-center">브랜드</TableHead>
+                        <TableHead className="w-16 text-center">제조사</TableHead>
+                        <TableHead className="w-20 text-center">가격</TableHead>
+                        <TableHead className="w-20 text-center">통합점수</TableHead>
+                        <TableHead className="w-16 text-center">클릭수</TableHead>
+                        <TableHead className="w-16 text-center">통합순위</TableHead>
+                        <TableHead className="w-20 text-center">통합클릭순위</TableHead>
+                        <TableHead className="w-20 text-center">통합검색비율</TableHead>
+                        <TableHead className="w-20 text-center">브랜드키워드여부</TableHead>
+                        <TableHead className="w-20 text-center">쇼핑몰키워드</TableHead>
+                        <TableHead className="w-16 text-center">링크</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                    </TableHeader>
+                    <TableBody>
+                      {searchHistory.results.map((item, index) => (
+                        <TableRow key={index} className="hover:bg-gray-50">
+                          <TableCell className="text-center text-xs sticky left-0 bg-white z-10 border-r">
+                            {searchHistory.searchTime}
+                          </TableCell>
+                          <TableCell className="text-center font-medium sticky left-24 bg-white z-10 border-r">
+                            {index + 1}
+                          </TableCell>
+                          <TableCell className="text-center sticky left-36 bg-white z-10 border-r">
+                            <div className="w-16 h-16 mx-auto bg-gray-100 rounded flex items-center justify-center">
+                              <img 
+                                src={item.image} 
+                                alt="상품 이미지" 
+                                className="w-full h-full object-cover rounded"
+                                onError={(e) => {
+                                  e.currentTarget.src = "/placeholder.svg";
+                                }}
+                              />
+                            </div>
+                          </TableCell>
+                          <TableCell className="sticky left-56 bg-white z-10 border-r">
+                            <div 
+                              className="cursor-pointer hover:text-blue-600 line-clamp-2 max-w-60"
+                              dangerouslySetInnerHTML={{ __html: item.title }}
+                              onClick={() => window.open(item.link, '_blank')}
+                            />
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <Badge variant="outline" className="text-xs">
+                              {item.mallName}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-center text-xs">
+                            {item.category1 || '-'}
+                          </TableCell>
+                          <TableCell className="text-center text-xs">
+                            {item.category2 || '-'}
+                          </TableCell>
+                          <TableCell className="text-center text-xs">
+                            {item.category3 || '-'}
+                          </TableCell>
+                          <TableCell className="text-center text-xs">
+                            {item.category4 || '-'}
+                          </TableCell>
+                          <TableCell className="text-center text-xs">
+                            {item.brand || '-'}
+                          </TableCell>
+                          <TableCell className="text-center text-xs">
+                            {item.maker || '-'}
+                          </TableCell>
+                          <TableCell className="text-center font-medium text-red-600">
+                            {formatPrice(item.lprice)}원
+                          </TableCell>
+                          <TableCell className="text-center text-sm font-medium">
+                            {generateRandomScore(50000, 200000).toLocaleString()}
+                          </TableCell>
+                          <TableCell className="text-center text-sm">
+                            {generateRandomScore(1000, 50000).toLocaleString()}
+                          </TableCell>
+                          <TableCell className="text-center text-sm">
+                            {generateRandomScore(1, 100)}
+                          </TableCell>
+                          <TableCell className="text-center text-sm">
+                            {generateRandomScore(1, 100)}
+                          </TableCell>
+                          <TableCell className="text-center text-sm">
+                            {(Math.random() * 100).toFixed(2)}%
+                          </TableCell>
+                          <TableCell className="text-center text-sm">
+                            <Badge variant={Math.random() > 0.5 ? "default" : "secondary"} className="text-xs">
+                              {Math.random() > 0.5 ? "브랜드" : "일반"}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-center text-sm">
+                            <Badge variant={Math.random() > 0.7 ? "default" : "secondary"} className="text-xs">
+                              {Math.random() > 0.7 ? "쇼핑몰" : "일반"}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => window.open(item.link, '_blank')}
+                            >
+                              <ExternalLink className="h-4 w-4" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
               </div>
-            </ScrollArea>
+            </div>
           </CardContent>
         </Card>
       )}
