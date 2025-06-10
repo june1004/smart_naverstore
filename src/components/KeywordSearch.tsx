@@ -139,50 +139,6 @@ const KeywordSearch = () => {
     return Math.floor(Math.random() * (max - min + 1)) + min;
   };
 
-  const searchProducts = async () => {
-    if (!keyword.trim()) {
-      toast({
-        title: "키워드를 입력해주세요",
-        description: "검색할 상품 키워드를 입력해주세요.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setLoading(true);
-    
-    try {
-      const { data, error } = await supabase.functions.invoke('naver-shopping-search', {
-        body: { 
-          keyword: keyword.trim(),
-          display: 30,
-          start: 1,
-          sort: 'sim'
-        }
-      });
-
-      if (error) {
-        throw new Error(error.message);
-      }
-
-      setResults(data.items || []);
-      toast({
-        title: "검색 완료",
-        description: `'${keyword}' 검색 결과 ${data.items?.length || 0}개를 찾았습니다.`,
-      });
-
-    } catch (error) {
-      console.error('쇼핑 검색 오류:', error);
-      toast({
-        title: "검색 실패",
-        description: "검색 중 오류가 발생했습니다. API 키 설정을 확인해주세요.",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
   return (
     <div className="space-y-6">
       {/* 검색 영역 */}
