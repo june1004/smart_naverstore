@@ -74,13 +74,15 @@ const AutoKeywordAnalyzer = () => {
 
       setAnalysisResult(data);
 
-      // 분석 결과 저장
+      // 분석 결과 저장 - 익명 사용자를 위한 임시 ID 생성
+      const tempUserId = `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      
       const { error: saveError } = await supabase
         .from('keyword_analysis')
         .insert({
           keyword: keyword.trim(),
           analysis_data: data,
-          user_id: 'anonymous' // 실제로는 인증된 사용자 ID 사용
+          user_id: tempUserId
         });
 
       if (saveError) {
@@ -163,7 +165,7 @@ const AutoKeywordAnalyzer = () => {
               <CardHeader>
                 <CardTitle>'{analysisResult.keyword}' 카테고리 분석 결과</CardTitle>
                 <p className="text-sm text-gray-600">
-                  총 {analysisResult.categoryAnalysis.totalItems}개 상품 분석
+                  총 {analysisResult.categoryAnalysis?.totalItems || 0}개 상품 분석
                 </p>
               </CardHeader>
               <CardContent>
@@ -178,7 +180,7 @@ const AutoKeywordAnalyzer = () => {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {analysisResult.categoryAnalysis.recommendedCategories.map((category, index) => (
+                    {(analysisResult.categoryAnalysis?.recommendedCategories || []).map((category, index) => (
                       <TableRow key={index}>
                         <TableCell>{index + 1}</TableCell>
                         <TableCell>
@@ -206,20 +208,20 @@ const AutoKeywordAnalyzer = () => {
           </TabsContent>
 
           <TabsContent value="insights" className="space-y-4">
-            {analysisResult.insights.map((insight, index) => (
+            {(analysisResult.insights || []).map((insight, index) => (
               <Card key={index}>
                 <CardHeader>
                   <CardTitle className="text-lg">
-                    {insight.category.level1} 카테고리 인사이트
+                    {insight.category?.level1 || '키워드'} 인사이트
                   </CardTitle>
                   <p className="text-sm text-gray-600">
-                    카테고리 코드: {insight.category.code} | 비율: {insight.category.percentage}%
+                    카테고리 코드: {insight.category?.code || 'N/A'} | 비율: {insight.category?.percentage || 'N/A'}%
                   </p>
                 </CardHeader>
                 <CardContent>
                   <div className="h-80">
                     <ResponsiveContainer width="100%" height="100%">
-                      <LineChart data={insight.insight.results[0]?.data || []}>
+                      <LineChart data={insight.insight?.results?.[0]?.data || []}>
                         <CartesianGrid strokeDasharray="3 3" />
                         <XAxis dataKey="period" />
                         <YAxis />
@@ -250,7 +252,7 @@ const AutoKeywordAnalyzer = () => {
               <CardContent>
                 <div className="h-80">
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={analysisResult.categoryAnalysis.recommendedCategories.slice(0, 8)}>
+                    <BarChart data={(analysisResult.categoryAnalysis?.recommendedCategories || []).slice(0, 8)}>
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis 
                         dataKey="level1" 
@@ -277,25 +279,25 @@ const AutoKeywordAnalyzer = () => {
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                   <div className="p-4 bg-blue-50 rounded-lg">
                     <div className="text-2xl font-bold text-blue-600">
-                      {analysisResult.categoryAnalysis.totalItems}
+                      {analysisResult.categoryAnalysis?.totalItems || 0}
                     </div>
                     <div className="text-sm text-gray-600">총 분석 상품</div>
                   </div>
                   <div className="p-4 bg-green-50 rounded-lg">
                     <div className="text-2xl font-bold text-green-600">
-                      {analysisResult.categoryAnalysis.recommendedCategories.length}
+                      {(analysisResult.categoryAnalysis?.recommendedCategories || []).length}
                     </div>
                     <div className="text-sm text-gray-600">발견된 카테고리</div>
                   </div>
                   <div className="p-4 bg-purple-50 rounded-lg">
                     <div className="text-2xl font-bold text-purple-600">
-                      {analysisResult.insights.length}
+                      {(analysisResult.insights || []).length}
                     </div>
                     <div className="text-sm text-gray-600">인사이트 차트</div>
                   </div>
                   <div className="p-4 bg-orange-50 rounded-lg">
                     <div className="text-2xl font-bold text-orange-600">
-                      {analysisResult.categoryAnalysis.recommendedCategories[0]?.percentage || 0}%
+                      {analysisResult.categoryAnalysis?.recommendedCategories?.[0]?.percentage || 0}%
                     </div>
                     <div className="text-sm text-gray-600">주요 카테고리 비율</div>
                   </div>
