@@ -7,8 +7,8 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from "recharts";
-import { Search, Sparkles, TrendingUp, ShoppingBag, BarChart3 } from "lucide-react";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell } from "recharts";
+import { Search, Sparkles, TrendingUp, ShoppingBag, BarChart3, Target, Calendar, Users } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
 interface CategoryInfo {
@@ -21,28 +21,48 @@ interface CategoryInfo {
   percentage: string;
 }
 
-interface InsightData {
-  category: CategoryInfo;
-  insight: {
-    title: string;
-    results: Array<{
-      title: string;
-      data: Array<{
-        period: string;
-        ratio: number;
-      }>;
-    }>;
-  };
-}
-
 interface AnalysisResult {
   keyword: string;
   categoryAnalysis: {
     totalItems: number;
     recommendedCategories: CategoryInfo[];
-    allCategories: CategoryInfo[];
   };
-  insights: InsightData[];
+  insights: Array<{
+    category: CategoryInfo;
+    insight: {
+      title: string;
+      results: Array<{
+        title: string;
+        data: Array<{
+          period: string;
+          ratio: number;
+        }>;
+      }>;
+    };
+  }>;
+  monthlySearchStats: {
+    keyword: string;
+    monthlyData: Array<{
+      period: string;
+      ratio: number;
+    }>;
+    competitiveness: string;
+    validity: string;
+  };
+  priceAnalysis: Array<{
+    range: string;
+    count: number;
+    percentage: string;
+  }>;
+  clickTrends: Array<{
+    period: string;
+    ratio: number;
+  }>;
+  demographicAnalysis: {
+    age: Array<{ range: string; percentage: number }>;
+    gender: Array<{ type: string; percentage: number }>;
+    device: Array<{ type: string; percentage: number }>;
+  };
 }
 
 const AutoKeywordAnalyzer = () => {
@@ -74,24 +94,9 @@ const AutoKeywordAnalyzer = () => {
 
       setAnalysisResult(data);
 
-      // 분석 결과 저장 - 익명 사용자를 위한 임시 ID 생성
-      const tempUserId = `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-      
-      const { error: saveError } = await supabase
-        .from('keyword_analysis')
-        .insert({
-          keyword: keyword.trim(),
-          analysis_data: data,
-          user_id: tempUserId
-        });
-
-      if (saveError) {
-        console.error('분석 결과 저장 실패:', saveError);
-      }
-
       toast({
         title: "분석 완료",
-        description: `'${keyword}' 키워드 분석이 완료되었습니다.`,
+        description: `'${keyword}' 키워드 AI 자동 분석이 완료되었습니다.`,
       });
 
     } catch (error) {
@@ -118,7 +123,7 @@ const AutoKeywordAnalyzer = () => {
             AI 키워드 자동 분석
           </CardTitle>
           <p className="text-sm text-gray-600">
-            키워드를 입력하면 자동으로 카테고리를 찾아 트렌드와 인사이트를 분석해드립니다.
+            키워드를 입력하면 자동으로 카테고리, 검색량, 경쟁률, 트렌드 등을 종합 분석해드립니다.
           </p>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -148,7 +153,7 @@ const AutoKeywordAnalyzer = () => {
           <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="categories" className="flex items-center gap-2">
               <ShoppingBag className="h-4 w-4" />
-              카테고리 분석
+              카테고리 & 검색량
             </TabsTrigger>
             <TabsTrigger value="insights" className="flex items-center gap-2">
               <BarChart3 className="h-4 w-4" />
@@ -161,6 +166,7 @@ const AutoKeywordAnalyzer = () => {
           </TabsList>
 
           <TabsContent value="categories" className="space-y-4">
+            {/* 키워드 및 카테고리 분석 */}
             <Card>
               <CardHeader>
                 <CardTitle>'{analysisResult.keyword}' 카테고리 분석 결과</CardTitle>
@@ -205,75 +211,197 @@ const AutoKeywordAnalyzer = () => {
                 </Table>
               </CardContent>
             </Card>
+
+            {/* 월별 검색량과 경쟁률 */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Calendar className="h-5 w-5" />
+                  12개월 검색량 추이 및 경쟁률
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 gap-4 mb-6">
+                  <div className="p-4 bg-blue-50 rounded-lg">
+                    <div className="text-sm text-gray-600">경쟁률</div>
+                    <div className="text-2xl font-bold text-blue-600">
+                      {analysisResult.monthlySearchStats?.competitiveness || 'N/A'}
+                    </div>
+                  </div>
+                  <div className="p-4 bg-green-50 rounded-lg">
+                    <div className="text-sm text-gray-600">검색어 유효성</div>
+                    <div className="text-2xl font-bold text-green-600">
+                      {analysisResult.monthlySearchStats?.validity || 'N/A'}
+                    </div>
+                  </div>
+                </div>
+                <div className="h-80">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={analysisResult.monthlySearchStats?.monthlyData || []}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="period" />
+                      <YAxis />
+                      <Tooltip 
+                        formatter={(value: any) => [`${value}`, '검색량 지수']}
+                        labelFormatter={(label) => `기간: ${label}`}
+                      />
+                      <Line 
+                        type="monotone" 
+                        dataKey="ratio" 
+                        stroke="#3B82F6" 
+                        strokeWidth={3}
+                        dot={{ fill: "#3B82F6", strokeWidth: 2, r: 4 }}
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              </CardContent>
+            </Card>
           </TabsContent>
 
           <TabsContent value="insights" className="space-y-4">
-            {(analysisResult.insights || []).map((insight, index) => (
-              <Card key={index}>
-                <CardHeader>
-                  <CardTitle className="text-lg">
-                    {insight.category?.level1 || '키워드'} 인사이트
-                  </CardTitle>
-                  <p className="text-sm text-gray-600">
-                    카테고리 코드: {insight.category?.code || 'N/A'} | 비율: {insight.category?.percentage || 'N/A'}%
-                  </p>
-                </CardHeader>
-                <CardContent>
-                  <div className="h-80">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <LineChart data={insight.insight?.results?.[0]?.data || []}>
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis dataKey="period" />
-                        <YAxis />
-                        <Tooltip 
-                          formatter={(value: any) => [`${value}`, '검색 비율']}
-                          labelFormatter={(label) => `기간: ${label}`}
-                        />
-                        <Line 
-                          type="monotone" 
-                          dataKey="ratio" 
-                          stroke={colors[index % colors.length]} 
-                          strokeWidth={3}
-                          dot={{ fill: colors[index % colors.length], strokeWidth: 2, r: 4 }}
-                        />
-                      </LineChart>
-                    </ResponsiveContainer>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </TabsContent>
-
-          <TabsContent value="trends" className="space-y-4">
+            {/* 가격대별 검색 비중 분석 */}
             <Card>
               <CardHeader>
-                <CardTitle>카테고리별 상품 분포</CardTitle>
+                <CardTitle>가격대별 검색 비중 분석</CardTitle>
+                <p className="text-sm text-gray-600">시장 가격대 추정을 위한 분석</p>
               </CardHeader>
               <CardContent>
                 <div className="h-80">
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={(analysisResult.categoryAnalysis?.recommendedCategories || []).slice(0, 8)}>
+                    <BarChart data={analysisResult.priceAnalysis || []}>
                       <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis 
-                        dataKey="level1" 
-                        angle={-45}
-                        textAnchor="end"
-                        height={80}
-                      />
+                      <XAxis dataKey="range" />
                       <YAxis />
                       <Tooltip 
                         formatter={(value: any) => [`${value}개`, '상품 수']}
                       />
-                      <Bar dataKey="count" fill="#8B5CF6" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="count" fill="#10B981" radius={[4, 4, 0, 0]} />
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
               </CardContent>
             </Card>
 
+            {/* 실시간 검색 클릭 추이 */}
             <Card>
               <CardHeader>
-                <CardTitle>상세 분석 요약</CardTitle>
+                <CardTitle>실시간 검색 클릭 추이 분석</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="h-80">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={analysisResult.clickTrends || []}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="period" />
+                      <YAxis />
+                      <Tooltip 
+                        formatter={(value: any) => [`${value}`, '클릭 지수']}
+                        labelFormatter={(label) => `기간: ${label}`}
+                      />
+                      <Line 
+                        type="monotone" 
+                        dataKey="ratio" 
+                        stroke="#F59E0B" 
+                        strokeWidth={3}
+                        dot={{ fill: "#F59E0B", strokeWidth: 2, r: 4 }}
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="trends" className="space-y-4">
+            {/* 연령/성별/기기별 검색 패턴 분석 */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* 연령별 분석 */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <Users className="h-4 w-4" />
+                    연령별 검색 패턴
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="h-48">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={analysisResult.demographicAnalysis?.age || []}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="range" />
+                        <YAxis />
+                        <Tooltip formatter={(value: any) => `${value}%`} />
+                        <Bar dataKey="percentage" fill="#3B82F6" radius={[4, 4, 0, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* 성별 분석 */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">성별 검색 패턴</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="h-48">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={analysisResult.demographicAnalysis?.gender || []}
+                          cx="50%"
+                          cy="50%"
+                          innerRadius={40}
+                          outerRadius={80}
+                          dataKey="percentage"
+                          label={({ type, percentage }) => `${type} ${percentage}%`}
+                        >
+                          {(analysisResult.demographicAnalysis?.gender || []).map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={colors[index]} />
+                          ))}
+                        </Pie>
+                        <Tooltip formatter={(value: any) => `${value}%`} />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* 기기별 분석 */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">기기별 검색 패턴</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="h-48">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={analysisResult.demographicAnalysis?.device || []}
+                          cx="50%"
+                          cy="50%"
+                          innerRadius={40}
+                          outerRadius={80}
+                          dataKey="percentage"
+                          label={({ type, percentage }) => `${type} ${percentage}%`}
+                        >
+                          {(analysisResult.demographicAnalysis?.device || []).map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={colors[index + 2]} />
+                          ))}
+                        </Pie>
+                        <Tooltip formatter={(value: any) => `${value}%`} />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* 종합 분석 요약 */}
+            <Card>
+              <CardHeader>
+                <CardTitle>종합 분석 요약</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -291,9 +419,9 @@ const AutoKeywordAnalyzer = () => {
                   </div>
                   <div className="p-4 bg-purple-50 rounded-lg">
                     <div className="text-2xl font-bold text-purple-600">
-                      {(analysisResult.insights || []).length}
+                      {analysisResult.monthlySearchStats?.competitiveness || 'N/A'}
                     </div>
-                    <div className="text-sm text-gray-600">인사이트 차트</div>
+                    <div className="text-sm text-gray-600">경쟁률</div>
                   </div>
                   <div className="p-4 bg-orange-50 rounded-lg">
                     <div className="text-2xl font-bold text-orange-600">
@@ -312,8 +440,8 @@ const AutoKeywordAnalyzer = () => {
       {loading && (
         <div className="text-center py-8">
           <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
-          <p className="mt-4 text-gray-600">AI가 키워드를 분석하고 있습니다...</p>
-          <p className="text-sm text-gray-500">카테고리 추천 및 인사이트 수집 중</p>
+          <p className="mt-4 text-gray-600">AI가 키워드를 종합 분석하고 있습니다...</p>
+          <p className="text-sm text-gray-500">카테고리, 검색량, 경쟁률, 트렌드 분석 중</p>
         </div>
       )}
     </div>
