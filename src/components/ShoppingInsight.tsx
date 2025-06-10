@@ -2,7 +2,6 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell } from "recharts";
@@ -22,27 +21,31 @@ interface CategoryAnalysis {
 
 const ShoppingInsight = () => {
   const [keyword, setKeyword] = useState("");
-  const [category, setCategory] = useState("");
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
+  const [selectedPeriod, setSelectedPeriod] = useState<"1month" | "3months" | "1year">("1month");
   const [insightData, setInsightData] = useState<InsightData[]>([]);
   const [categoryAnalysis, setCategoryAnalysis] = useState<CategoryAnalysis | null>(null);
+  const [foundCategory, setFoundCategory] = useState("");
   const [loading, setLoading] = useState(false);
-  const [searchingCategory, setSearchingCategory] = useState(false);
   const { toast } = useToast();
 
-  const categories = [
-    { value: "50000000", label: "패션의류" },
-    { value: "50000001", label: "패션잡화" },
-    { value: "50000002", label: "화장품/미용" },
-    { value: "50000003", label: "디지털/가전" },
-    { value: "50000004", label: "가구/인테리어" },
-    { value: "50000005", label: "출산/육아" },
-    { value: "50000006", label: "식품" },
-    { value: "50000007", label: "스포츠/레저" }
+  const periodOptions = [
+    { value: "1month", label: "1개월", months: 1 },
+    { value: "3months", label: "3개월", months: 3 },
+    { value: "1year", label: "1년", months: 12 }
   ];
 
-  const findCategoryByKeyword = async () => {
+  const getDateRange = (months: number) => {
+    const endDate = new Date();
+    const startDate = new Date();
+    startDate.setMonth(endDate.getMonth() - months);
+    
+    return {
+      startDate: `${startDate.getFullYear()}-${String(startDate.getMonth() + 1).padStart(2, '0')}`,
+      endDate: `${endDate.getFullYear()}-${String(endDate.getMonth() + 1).padStart(2, '0')}`
+    };
+  };
+
+  const analyzeKeywordInsight = async () => {
     if (!keyword.trim()) {
       toast({
         title: "키워드를 입력해주세요",
@@ -52,60 +55,26 @@ const ShoppingInsight = () => {
       return;
     }
 
-    setSearchingCategory(true);
-
-    try {
-      const { data, error } = await supabase.functions.invoke('auto-category-finder', {
-        body: { keyword: keyword.trim() }
-      });
-
-      if (error) throw new Error(error.message);
-
-      setCategory(data.suggestedCategory);
-      setCategoryAnalysis(data.categoryAnalysis);
-      
-      toast({
-        title: "카테고리 자동 선택 완료",
-        description: `"${keyword}" 키워드에 가장 적합한 카테고리를 찾았습니다.`,
-      });
-
-    } catch (error) {
-      console.error('카테고리 찾기 오류:', error);
-      toast({
-        title: "카테고리 찾기 실패",
-        description: "카테고리를 찾는 중 오류가 발생했습니다.",
-        variant: "destructive",
-      });
-    } finally {
-      setSearchingCategory(false);
-    }
-  };
-
-  const getInsight = async () => {
-    if (!category) {
-      toast({
-        title: "카테고리를 선택해주세요",
-        description: "먼저 키워드로 카테고리를 찾거나 직접 선택해주세요.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (!startDate || !endDate) {
-      toast({
-        title: "날짜를 선택해주세요",
-        description: "분석 기간을 설정해주세요.",
-        variant: "destructive",
-      });
-      return;
-    }
-
     setLoading(true);
 
     try {
-      const { data, error } = await supabase.functions.invoke('naver-shopping-insight', {
+      // 1단계: 키워드로 카테고리 찾기
+      const { data: categoryData, error: categoryError } = await supabase.functions.invoke('auto-category-finder', {
+        body: { keyword: keyword.trim() }
+      });
+
+      if (categoryError) throw new Error(categoryError.message);
+
+      setFoundCategory(categoryData.suggestedCategory);
+      setCategoryAnalysis(categoryData.categoryAnalysis);
+
+      // 2단계: 찾은 카테고리로 인사이트 분석
+      const selectedPeriodOption = periodOptions.find(p => p.value === selectedPeriod);
+      const { startDate, endDate } = getDateRange(selectedPeriodOption?.months || 1);
+
+      const { data: insightData, error: insightError } = await supabase.functions.invoke('naver-shopping-insight', {
         body: {
-          category,
+          category: categoryData.suggestedCategory,
           startDate,
           endDate,
           timeUnit: 'month',
@@ -115,12 +84,13 @@ const ShoppingInsight = () => {
         }
       });
 
-      if (error) throw new Error(error.message);
+      if (insightError) throw new Error(insightError.message);
 
-      setInsightData(data.results?.[0]?.data || []);
+      setInsightData(insightData.results?.[0]?.data || []);
+      
       toast({
         title: "인사이트 분석 완료",
-        description: "쇼핑 인사이트 데이터를 성공적으로 가져왔습니다.",
+        description: `"${keyword}" 키워드의 ${selectedPeriodOption?.label} 인사이트 분석이 완료되었습니다.`,
       });
 
     } catch (error) {
@@ -157,7 +127,7 @@ const ShoppingInsight = () => {
 
   return (
     <div className="space-y-6">
-      {/* 키워드 기반 카테고리 찾기 */}
+      {/* 키워드 기반 인사이트 분석 */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -166,27 +136,57 @@ const ShoppingInsight = () => {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex gap-2">
-            <Input
-              placeholder="분석할 키워드를 입력하세요 (예: 기타청소용품)"
-              value={keyword}
-              onChange={(e) => setKeyword(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && findCategoryByKeyword()}
-              className="flex-1"
-            />
-            <Button 
-              onClick={findCategoryByKeyword}
-              disabled={searchingCategory}
-              className="bg-blue-600 hover:bg-blue-700"
-            >
-              {searchingCategory ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Search className="h-4 w-4" />
-              )}
-              카테고리 찾기
-            </Button>
+          <Input
+            placeholder="분석할 키워드를 입력하세요 (예: 프라이팬)"
+            value={keyword}
+            onChange={(e) => setKeyword(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && analyzeKeywordInsight()}
+            className="w-full"
+          />
+        </CardContent>
+      </Card>
+
+      {/* 쇼핑인사이트 분석 설정 */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <BarChart3 className="h-5 w-5" />
+            쇼핑인사이트 분석 설정
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* 기간 선택 */}
+          <div>
+            <label className="text-sm font-medium mb-3 block">분석 기간</label>
+            <div className="flex gap-2">
+              {periodOptions.map((period) => (
+                <Button
+                  key={period.value}
+                  variant={selectedPeriod === period.value ? "default" : "outline"}
+                  onClick={() => setSelectedPeriod(period.value as "1month" | "3months" | "1year")}
+                  className="flex-1"
+                >
+                  {period.label}
+                </Button>
+              ))}
+            </div>
           </div>
+
+          <Button 
+            onClick={analyzeKeywordInsight} 
+            disabled={loading || !keyword.trim()}
+            className="w-full bg-purple-600 hover:bg-purple-700"
+          >
+            <Calendar className="h-4 w-4 mr-2" />
+            {loading ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                인사이트 분석 중...
+              </>
+            ) : (
+              "인사이트 분석"
+            )}
+          </Button>
         </CardContent>
       </Card>
 
@@ -226,74 +226,40 @@ const ShoppingInsight = () => {
         </Card>
       )}
 
-      {/* 분석 설정 */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <BarChart3 className="h-5 w-5" />
-            쇼핑인사이트 분석 설정
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {/* 카테고리 선택 */}
-          <div>
-            <label className="text-sm font-medium mb-2 block">카테고리</label>
-            <Select value={category} onValueChange={setCategory}>
-              <SelectTrigger>
-                <SelectValue placeholder="분석할 카테고리를 선택하세요" />
-              </SelectTrigger>
-              <SelectContent>
-                {categories.map((cat) => (
-                  <SelectItem key={cat.value} value={cat.value}>
-                    {cat.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* 날짜 범위 */}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="text-sm font-medium mb-2 block">시작일 (YYYY-MM)</label>
-              <input
-                type="month"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
-              />
-            </div>
-            <div>
-              <label className="text-sm font-medium mb-2 block">종료일 (YYYY-MM)</label>
-              <input
-                type="month"
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
-              />
-            </div>
-          </div>
-
-          <Button 
-            onClick={getInsight} 
-            disabled={loading}
-            className="w-full bg-purple-600 hover:bg-purple-700"
-          >
-            <Calendar className="h-4 w-4 mr-2" />
-            {loading ? "분석중..." : "인사이트 분석"}
-          </Button>
-        </CardContent>
-      </Card>
-
       {/* 분석 결과 */}
       {insightData.length > 0 && (
         <div className="space-y-6">
+          {/* 분석 기간 정보 */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <TrendingUp className="h-5 w-5" />
+                "{keyword}" 키워드 분석 결과
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div>
+                  <span className="font-medium">분석 키워드:</span> {keyword}
+                </div>
+                <div>
+                  <span className="font-medium">분석 기간:</span> {periodOptions.find(p => p.value === selectedPeriod)?.label}
+                </div>
+                {categoryAnalysis?.mainCategory && (
+                  <div className="col-span-2">
+                    <span className="font-medium">발견된 카테고리:</span> {categoryAnalysis.mainCategory[0]}
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
           {/* 트렌드 라인 차트 */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <TrendingUp className="h-5 w-5" />
-                {keyword ? `"${keyword}"` : "카테고리"} 클릭량 추이
+                "{keyword}" 분야의 클릭량 추이
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -325,7 +291,7 @@ const ShoppingInsight = () => {
             {/* PC, 모바일 비율 */}
             <Card>
               <CardHeader>
-                <CardTitle className="text-lg">PC, 모바일</CardTitle>
+                <CardTitle className="text-lg">기기별 비율 (기간함계)</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="h-48">
@@ -354,7 +320,7 @@ const ShoppingInsight = () => {
             {/* 여성, 남성 비율 */}
             <Card>
               <CardHeader>
-                <CardTitle className="text-lg">여성, 남성</CardTitle>
+                <CardTitle className="text-lg">성별 비율 (기간함계)</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="h-48">
@@ -383,7 +349,7 @@ const ShoppingInsight = () => {
             {/* 연령별 비율 */}
             <Card>
               <CardHeader>
-                <CardTitle className="text-lg">연령별</CardTitle>
+                <CardTitle className="text-lg">연령별 비율 (기간함계)</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="h-48">
@@ -442,7 +408,7 @@ const ShoppingInsight = () => {
       {loading && (
         <div className="text-center py-8">
           <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
-          <p className="mt-4 text-gray-600">인사이트 분석 중입니다...</p>
+          <p className="mt-4 text-gray-600">키워드 분석 및 인사이트 분석 중입니다...</p>
         </div>
       )}
     </div>
