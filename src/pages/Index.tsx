@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,10 +7,8 @@ import ShoppingInsight from "@/components/ShoppingInsight";
 import AutoKeywordAnalyzer from "@/components/AutoKeywordAnalyzer";
 import ApiKeyManager from "@/components/ApiKeyManager";
 import { ShoppingCart, TrendingUp, BarChart3, Sparkles } from "lucide-react";
-
 const Index = () => {
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50">
+  return <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50">
       <div className="container mx-auto px-4 py-8">
         {/* Header */}
         <div className="text-center mb-8">
@@ -19,9 +16,7 @@ const Index = () => {
             <ShoppingCart className="h-10 w-10 text-blue-600" />
             네이버 쇼핑몰 분석 도구
           </h1>
-          <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-            키워드 분석, 검색 트렌드, 쇼핑 인사이트를 통해 데이터 기반의 쇼핑몰 운영 전략을 수립하세요
-          </p>
+          <p className="text-xl text-gray-600 max-w-2xl mx-auto">키워드 분석, 검색 트렌드, 쇼핑 인사이트를 통해 데이터 기반의 쇼핑몰 운영 전략을 수립하세요</p>
         </div>
 
         {/* API 키 관리 */}
@@ -30,31 +25,19 @@ const Index = () => {
         {/* Main Tabs */}
         <Tabs defaultValue="auto-analyzer" className="w-full">
           <TabsList className="grid w-full grid-cols-4 mb-8 bg-white shadow-lg rounded-lg p-1">
-            <TabsTrigger 
-              value="auto-analyzer" 
-              className="flex items-center gap-2 py-3 px-6 data-[state=active]:bg-purple-600 data-[state=active]:text-white"
-            >
+            <TabsTrigger value="auto-analyzer" className="flex items-center gap-2 py-3 px-6 data-[state=active]:bg-purple-600 data-[state=active]:text-white">
               <Sparkles className="h-4 w-4" />
               AI 자동분석
             </TabsTrigger>
-            <TabsTrigger 
-              value="keyword" 
-              className="flex items-center gap-2 py-3 px-6 data-[state=active]:bg-blue-600 data-[state=active]:text-white"
-            >
+            <TabsTrigger value="keyword" className="flex items-center gap-2 py-3 px-6 data-[state=active]:bg-blue-600 data-[state=active]:text-white">
               <ShoppingCart className="h-4 w-4" />
               키워드 조회
             </TabsTrigger>
-            <TabsTrigger 
-              value="trend" 
-              className="flex items-center gap-2 py-3 px-6 data-[state=active]:bg-green-600 data-[state=active]:text-white"
-            >
+            <TabsTrigger value="trend" className="flex items-center gap-2 py-3 px-6 data-[state=active]:bg-green-600 data-[state=active]:text-white">
               <TrendingUp className="h-4 w-4" />
               통합검색어 트렌드
             </TabsTrigger>
-            <TabsTrigger 
-              value="insight" 
-              className="flex items-center gap-2 py-3 px-6 data-[state=active]:bg-purple-600 data-[state=active]:text-white"
-            >
+            <TabsTrigger value="insight" className="flex items-center gap-2 py-3 px-6 data-[state=active]:bg-purple-600 data-[state=active]:text-white">
               <BarChart3 className="h-4 w-4" />
               쇼핑인사이트
             </TabsTrigger>
@@ -129,8 +112,6 @@ const Index = () => {
           </TabsContent>
         </Tabs>
       </div>
-    </div>
-  );
+    </div>;
 };
-
 export default Index;
