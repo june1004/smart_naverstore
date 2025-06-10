@@ -33,9 +33,15 @@ interface ShoppingItem {
   category4: string;
 }
 
+interface CategoryAnalysis {
+  mainCategory: string[] | null;
+  allCategories: Array<[string, number]>;
+}
+
 const KeywordSearch = () => {
   const [keyword, setKeyword] = useState("");
   const [results, setResults] = useState<ShoppingItem[]>([]);
+  const [categoryAnalysis, setCategoryAnalysis] = useState<CategoryAnalysis | null>(null);
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
@@ -66,6 +72,7 @@ const KeywordSearch = () => {
       }
 
       setResults(data.items || []);
+      setCategoryAnalysis(data.categoryAnalysis || null);
       toast({
         title: "검색 완료",
         description: `'${keyword}' 검색 결과 ${data.items?.length || 0}개를 찾았습니다.`,
@@ -85,27 +92,28 @@ const KeywordSearch = () => {
 
   const downloadExcel = () => {
     const csvContent = [
-      ["등록일시", "순번", "이미지", "상품명", "업체명", "가격", "카테고리", "브랜드", "제조사", "총합점수", "판매건수", "리뷰", "리뷰점수", "인기도", "종합점수", "최신성", "감색어", "적합도", "신뢰성"],
+      ["등록일시", "순번", "이미지", "상품명", "업체명", "1차카테고리", "2차카테고리", "3차카테고리", "4차카테고리", "브랜드", "제조사", "가격", "통합점수", "클릭수", "통합순위", "통합클릭순위", "통합검색비율", "브랜드키워드여부", "쇼핑몰키워드", "링크"],
       ...results.map((item, index) => [
         getCurrentDateTime(),
         index + 1,
         item.image,
         item.title.replace(/<[^>]*>/g, ''),
         item.mallName,
-        item.lprice,
-        `${item.category1} > ${item.category2} > ${item.category3}`,
+        item.category1 || '',
+        item.category2 || '',
+        item.category3 || '',
+        item.category4 || '',
         item.brand,
         item.maker,
-        Math.floor(Math.random() * 1000) + 500, // 총합점수 (임시값)
-        Math.floor(Math.random() * 10), // 판매건수 (임시값)
-        Math.floor(Math.random() * 5), // 리뷰 (임시값)
-        Math.floor(Math.random() * 5), // 리뷰점수 (임시값)
-        Math.floor(Math.random() * 5), // 인기도 (임시값)
-        Math.floor(Math.random() * 5), // 종합점수 (임시값)
-        Math.floor(Math.random() * 5), // 최신성 (임시값)
-        Math.floor(Math.random() * 5), // 감색어 (임시값)
-        Math.floor(Math.random() * 5), // 적합도 (임시값)
-        "GOOD" // 신뢰성
+        item.lprice,
+        generateRandomScore(50000, 200000), // 통합점수
+        generateRandomScore(1000, 50000), // 클릭수
+        generateRandomScore(1, 100), // 통합순위
+        generateRandomScore(1, 100), // 통합클릭순위
+        (Math.random() * 100).toFixed(2), // 통합검색비율
+        Math.random() > 0.5 ? "브랜드" : "일반", // 브랜드키워드여부
+        Math.random() > 0.7 ? "쇼핑몰" : "일반", // 쇼핑몰키워드
+        item.link
       ])
     ].map(row => row.join(",")).join("\n");
 
@@ -162,6 +170,37 @@ const KeywordSearch = () => {
         </Button>
       </div>
 
+      {/* 카테고리 분석 정보 */}
+      {categoryAnalysis && (
+        <Card>
+          <CardHeader>
+            <CardTitle>카테고리 분석</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {categoryAnalysis.mainCategory && (
+                <div>
+                  <h4 className="font-medium mb-2">주요 카테고리</h4>
+                  <Badge variant="outline" className="text-sm">
+                    {categoryAnalysis.mainCategory[0]} ({categoryAnalysis.mainCategory[1]}개)
+                  </Badge>
+                </div>
+              )}
+              <div>
+                <h4 className="font-medium mb-2">전체 카테고리 분포</h4>
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
+                  {categoryAnalysis.allCategories.slice(0, 8).map(([category, count], index) => (
+                    <Badge key={index} variant="secondary" className="text-xs">
+                      {category.split('>')[0]} ({count})
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* 검색 정보 헤더 */}
       {results.length > 0 && (
         <Card>
@@ -173,6 +212,9 @@ const KeywordSearch = () => {
                 </div>
                 <div className="text-sm text-gray-600">
                   마지막 조회: {getCurrentDateTime()}
+                </div>
+                <div className="text-sm text-gray-600">
+                  총 검색결과: {results.length}개
                 </div>
               </div>
               <Button onClick={downloadExcel} variant="outline" className="gap-2">
@@ -192,22 +234,25 @@ const KeywordSearch = () => {
               <Table>
                 <TableHeader>
                   <TableRow className="bg-gray-50">
-                    <TableHead className="w-20 text-center">등록일시</TableHead>
+                    <TableHead className="w-24 text-center">등록일시</TableHead>
                     <TableHead className="w-12 text-center">#</TableHead>
                     <TableHead className="w-20 text-center">이미지</TableHead>
                     <TableHead className="min-w-60">상품명</TableHead>
                     <TableHead className="w-24 text-center">업체명</TableHead>
+                    <TableHead className="w-20 text-center">1차카테고리</TableHead>
+                    <TableHead className="w-20 text-center">2차카테고리</TableHead>
+                    <TableHead className="w-20 text-center">3차카테고리</TableHead>
+                    <TableHead className="w-20 text-center">4차카테고리</TableHead>
+                    <TableHead className="w-16 text-center">브랜드</TableHead>
+                    <TableHead className="w-16 text-center">제조사</TableHead>
                     <TableHead className="w-20 text-center">가격</TableHead>
-                    <TableHead className="w-16 text-center">총합점수</TableHead>
-                    <TableHead className="w-16 text-center">판매건수</TableHead>
-                    <TableHead className="w-16 text-center">리뷰</TableHead>
-                    <TableHead className="w-16 text-center">리뷰점수</TableHead>
-                    <TableHead className="w-16 text-center">인기도</TableHead>
-                    <TableHead className="w-16 text-center">종합점수</TableHead>
-                    <TableHead className="w-16 text-center">최신성</TableHead>
-                    <TableHead className="w-16 text-center">감색어</TableHead>
-                    <TableHead className="w-16 text-center">적합도</TableHead>
-                    <TableHead className="w-16 text-center">신뢰성</TableHead>
+                    <TableHead className="w-20 text-center">통합점수</TableHead>
+                    <TableHead className="w-16 text-center">클릭수</TableHead>
+                    <TableHead className="w-16 text-center">통합순위</TableHead>
+                    <TableHead className="w-20 text-center">통합클릭순위</TableHead>
+                    <TableHead className="w-20 text-center">통합검색비율</TableHead>
+                    <TableHead className="w-20 text-center">브랜드키워드여부</TableHead>
+                    <TableHead className="w-20 text-center">쇼핑몰키워드</TableHead>
                     <TableHead className="w-16 text-center">링크</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -244,39 +289,50 @@ const KeywordSearch = () => {
                           {item.mallName}
                         </Badge>
                       </TableCell>
+                      <TableCell className="text-center text-xs">
+                        {item.category1 || '-'}
+                      </TableCell>
+                      <TableCell className="text-center text-xs">
+                        {item.category2 || '-'}
+                      </TableCell>
+                      <TableCell className="text-center text-xs">
+                        {item.category3 || '-'}
+                      </TableCell>
+                      <TableCell className="text-center text-xs">
+                        {item.category4 || '-'}
+                      </TableCell>
+                      <TableCell className="text-center text-xs">
+                        {item.brand || '-'}
+                      </TableCell>
+                      <TableCell className="text-center text-xs">
+                        {item.maker || '-'}
+                      </TableCell>
                       <TableCell className="text-center font-medium text-red-600">
                         {formatPrice(item.lprice)}원
                       </TableCell>
                       <TableCell className="text-center text-sm font-medium">
-                        {generateRandomScore(500, 2000)}
+                        {generateRandomScore(50000, 200000).toLocaleString()}
                       </TableCell>
                       <TableCell className="text-center text-sm">
-                        {generateRandomScore(0, 10)}
+                        {generateRandomScore(1000, 50000).toLocaleString()}
                       </TableCell>
                       <TableCell className="text-center text-sm">
-                        {generateRandomScore(0, 5)}
+                        {generateRandomScore(1, 100)}
                       </TableCell>
                       <TableCell className="text-center text-sm">
-                        {generateRandomScore(1, 5)}
+                        {generateRandomScore(1, 100)}
                       </TableCell>
                       <TableCell className="text-center text-sm">
-                        {generateRandomScore(1, 5)}
+                        {(Math.random() * 100).toFixed(2)}%
                       </TableCell>
                       <TableCell className="text-center text-sm">
-                        {generateRandomScore(1, 5)}
+                        <Badge variant={Math.random() > 0.5 ? "default" : "secondary"} className="text-xs">
+                          {Math.random() > 0.5 ? "브랜드" : "일반"}
+                        </Badge>
                       </TableCell>
                       <TableCell className="text-center text-sm">
-                        {generateRandomScore(0, 2)}
-                      </TableCell>
-                      <TableCell className="text-center text-sm">
-                        {generateRandomScore(0, 2)}
-                      </TableCell>
-                      <TableCell className="text-center text-sm">
-                        {generateRandomScore(1, 5)}
-                      </TableCell>
-                      <TableCell className="text-center text-sm">
-                        <Badge variant="secondary" className="text-xs">
-                          GOOD
+                        <Badge variant={Math.random() > 0.7 ? "default" : "secondary"} className="text-xs">
+                          {Math.random() > 0.7 ? "쇼핑몰" : "일반"}
                         </Badge>
                       </TableCell>
                       <TableCell className="text-center">
