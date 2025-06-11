@@ -1,4 +1,5 @@
 
+
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -174,7 +175,7 @@ const ShoppingSearch = () => {
         item.brand,
         item.maker,
         item.lprice,
-        item.reviewCount,
+        item.reviewCount || 0,
         generateRandomScore(50000, 200000),
         generateRandomScore(1000, 50000),
         generateRandomScore(1, 100),
@@ -191,7 +192,7 @@ const ShoppingSearch = () => {
     const link = document.createElement("a");
     const url = URL.createObjectURL(blob);
     link.setAttribute("href", url);
-    link.setAttribute("download", `${searchHistory.keyword}_쇼핑검색결과.csv`);
+    link.setAttribute("download", `${searchHistory?.keyword}_쇼핑검색결과.csv`);
     link.style.visibility = 'hidden';
     document.body.appendChild(link);
     link.click();
@@ -478,7 +479,7 @@ const ShoppingSearch = () => {
                                 onClick={() => window.open(item.reviewUrl, '_blank')}
                               >
                                 <Star className="h-3 w-3 text-yellow-500" />
-                                <span className="text-xs ml-1">{item.reviewCount.toLocaleString()}</span>
+                                <span className="text-xs ml-1">{(item.reviewCount || 0).toLocaleString()}</span>
                               </Button>
                             </div>
                           </TableCell>
@@ -549,3 +550,4 @@ const ShoppingSearch = () => {
 };
 
 export default ShoppingSearch;
+
