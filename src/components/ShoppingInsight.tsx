@@ -273,7 +273,7 @@ const ShoppingInsight = () => {
                 </AccordionTrigger>
                 <AccordionContent>
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                    {categoryAnalysis.allCategories.map(([cat, count], index) => (
+                    {(categoryAnalysis.allCategories || []).map(([cat, count], index) => (
                       <Badge 
                         key={index} 
                         variant={index === 0 ? "default" : "secondary"} 
@@ -447,19 +447,25 @@ const ShoppingInsight = () => {
                 </div>
                 <div className="p-4 bg-blue-50 rounded-lg">
                   <div className="text-2xl font-bold text-blue-600">
-                    {Math.max(...insightData.map(d => d.ratio)).toFixed(1)}
+                    {insightData && insightData.length > 0 
+                      ? Math.max(...insightData.map(d => d.ratio)).toFixed(1)
+                      : '0'}
                   </div>
                   <div className="text-sm text-gray-600">최고 {analysisType === "category" ? "클릭량" : "검색량"}</div>
                 </div>
                 <div className="p-4 bg-green-50 rounded-lg">
                   <div className="text-2xl font-bold text-green-600">
-                    {Math.min(...insightData.map(d => d.ratio)).toFixed(1)}
+                    {insightData && insightData.length > 0
+                      ? Math.min(...insightData.map(d => d.ratio)).toFixed(1)
+                      : '0'}
                   </div>
                   <div className="text-sm text-gray-600">최저 {analysisType === "category" ? "클릭량" : "검색량"}</div>
                 </div>
                 <div className="p-4 bg-orange-50 rounded-lg">
                   <div className="text-2xl font-bold text-orange-600">
-                    {(insightData.reduce((sum, d) => sum + d.ratio, 0) / insightData.length).toFixed(1)}
+                    {insightData && insightData.length > 0
+                      ? (insightData.reduce((sum, d) => sum + d.ratio, 0) / insightData.length).toFixed(1)
+                      : '0'}
                   </div>
                   <div className="text-sm text-gray-600">평균 {analysisType === "category" ? "클릭량" : "검색량"}</div>
                 </div>
