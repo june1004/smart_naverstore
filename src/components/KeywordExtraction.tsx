@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Search, TrendingUp, Hash } from "lucide-react";
+import { Search, TrendingUp, Hash, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -15,6 +15,7 @@ interface RelatedKeyword {
   relKeyword: string;
   monthlyPcQcCnt: number;
   monthlyMobileQcCnt: number;
+  totalSearchVolume: number;
   plAvgDepth: number;
   compIdx: string;
 }
@@ -23,6 +24,9 @@ interface AutocompleteKeyword {
   keyword: string;
   searchVolume: number;
   competition: string;
+  competitionScore: number;
+  trend: string;
+  cpc: number;
 }
 
 interface KeywordData {
@@ -30,9 +34,16 @@ interface KeywordData {
   autocompleteKeywords: AutocompleteKeyword[];
 }
 
+type SortField = 'keyword' | 'searchVolume' | 'competition' | 'totalSearchVolume' | 'pcCount' | 'mobileCount' | 'compIdx';
+type SortDirection = 'asc' | 'desc';
+
 const KeywordExtraction = () => {
   const [keyword, setKeyword] = useState("");
   const [searchTriggered, setSearchTriggered] = useState(false);
+  const [relatedSortField, setRelatedSortField] = useState<SortField>('totalSearchVolume');
+  const [relatedSortDirection, setRelatedSortDirection] = useState<SortDirection>('desc');
+  const [autocompleteSortField, setAutocompleteSortField] = useState<SortField>('searchVolume');
+  const [autocompleteSortDirection, setAutocompleteSortDirection] = useState<SortDirection>('desc');
 
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['keyword-extraction', keyword],
@@ -62,6 +73,59 @@ const KeywordExtraction = () => {
     refetch();
   };
 
+  const handleSort = (field: SortField, type: 'related' | 'autocomplete') => {
+    if (type === 'related') {
+      if (relatedSortField === field) {
+        setRelatedSortDirection(relatedSortDirection === 'asc' ? 'desc' : 'asc');
+      } else {
+        setRelatedSortField(field);
+        setRelatedSortDirection('desc');
+      }
+    } else {
+      if (autocompleteSortField === field) {
+        setAutocompleteSortDirection(autocompleteSortDirection === 'asc' ? 'desc' : 'asc');
+      } else {
+        setAutocompleteSortField(field);
+        setAutocompleteSortDirection('desc');
+      }
+    }
+  };
+
+  const sortRelatedKeywords = (keywords: RelatedKeyword[]) => {
+    return [...keywords].sort((a, b) => {
+      let aValue: any = a[relatedSortField as keyof RelatedKeyword];
+      let bValue: any = b[relatedSortField as keyof RelatedKeyword];
+      
+      if (relatedSortField === 'compIdx') {
+        aValue = parseFloat(aValue) || 0;
+        bValue = parseFloat(bValue) || 0;
+      }
+      
+      if (typeof aValue === 'string') {
+        return relatedSortDirection === 'asc' 
+          ? aValue.localeCompare(bValue)
+          : bValue.localeCompare(aValue);
+      }
+      
+      return relatedSortDirection === 'asc' ? aValue - bValue : bValue - aValue;
+    });
+  };
+
+  const sortAutocompleteKeywords = (keywords: AutocompleteKeyword[]) => {
+    return [...keywords].sort((a, b) => {
+      let aValue: any = a[autocompleteSortField as keyof AutocompleteKeyword];
+      let bValue: any = b[autocompleteSortField as keyof AutocompleteKeyword];
+      
+      if (typeof aValue === 'string') {
+        return autocompleteSortDirection === 'asc' 
+          ? aValue.localeCompare(bValue)
+          : bValue.localeCompare(aValue);
+      }
+      
+      return autocompleteSortDirection === 'asc' ? aValue - bValue : bValue - aValue;
+    });
+  };
+
   const formatNumber = (num: number) => {
     return new Intl.NumberFormat('ko-KR').format(num);
   };
@@ -73,6 +137,15 @@ const KeywordExtraction = () => {
       '낮음': 'bg-green-100 text-green-800'
     };
     return colors[competition as keyof typeof colors] || 'bg-gray-100 text-gray-800';
+  };
+
+  const getTrendBadge = (trend: string) => {
+    return trend === '상승' ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800';
+  };
+
+  const SortIcon = ({ field, currentField, direction }: { field: SortField, currentField: SortField, direction: SortDirection }) => {
+    if (field !== currentField) return <ArrowUpDown className="h-4 w-4" />;
+    return direction === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />;
   };
 
   return (
@@ -146,15 +219,55 @@ const KeywordExtraction = () => {
                       <Table>
                         <TableHeader>
                           <TableRow>
-                            <TableHead>키워드</TableHead>
-                            <TableHead className="text-right">PC 월간검색량</TableHead>
-                            <TableHead className="text-right">모바일 월간검색량</TableHead>
-                            <TableHead className="text-right">총 검색량</TableHead>
-                            <TableHead className="text-right">경쟁지수</TableHead>
+                            <TableHead 
+                              className="cursor-pointer hover:bg-muted/50"
+                              onClick={() => handleSort('relKeyword', 'related')}
+                            >
+                              <div className="flex items-center gap-1">
+                                키워드
+                                <SortIcon field="relKeyword" currentField={relatedSortField} direction={relatedSortDirection} />
+                              </div>
+                            </TableHead>
+                            <TableHead 
+                              className="text-right cursor-pointer hover:bg-muted/50"
+                              onClick={() => handleSort('monthlyPcQcCnt', 'related')}
+                            >
+                              <div className="flex items-center justify-end gap-1">
+                                PC 월간검색량
+                                <SortIcon field="pcCount" currentField={relatedSortField} direction={relatedSortDirection} />
+                              </div>
+                            </TableHead>
+                            <TableHead 
+                              className="text-right cursor-pointer hover:bg-muted/50"
+                              onClick={() => handleSort('monthlyMobileQcCnt', 'related')}
+                            >
+                              <div className="flex items-center justify-end gap-1">
+                                모바일 월간검색량
+                                <SortIcon field="mobileCount" currentField={relatedSortField} direction={relatedSortDirection} />
+                              </div>
+                            </TableHead>
+                            <TableHead 
+                              className="text-right cursor-pointer hover:bg-muted/50"
+                              onClick={() => handleSort('totalSearchVolume', 'related')}
+                            >
+                              <div className="flex items-center justify-end gap-1">
+                                총 검색량
+                                <SortIcon field="totalSearchVolume" currentField={relatedSortField} direction={relatedSortDirection} />
+                              </div>
+                            </TableHead>
+                            <TableHead 
+                              className="text-right cursor-pointer hover:bg-muted/50"
+                              onClick={() => handleSort('compIdx', 'related')}
+                            >
+                              <div className="flex items-center justify-end gap-1">
+                                경쟁지수
+                                <SortIcon field="compIdx" currentField={relatedSortField} direction={relatedSortDirection} />
+                              </div>
+                            </TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {data.relatedKeywords.map((item, index) => (
+                          {sortRelatedKeywords(data.relatedKeywords).map((item, index) => (
                             <TableRow key={index}>
                               <TableCell className="font-medium">
                                 {item.relKeyword}
@@ -166,7 +279,7 @@ const KeywordExtraction = () => {
                                 {formatNumber(item.monthlyMobileQcCnt)}
                               </TableCell>
                               <TableCell className="text-right font-semibold">
-                                {formatNumber(item.monthlyPcQcCnt + item.monthlyMobileQcCnt)}
+                                {formatNumber(item.totalSearchVolume)}
                               </TableCell>
                               <TableCell className="text-right">
                                 {item.compIdx}
@@ -197,13 +310,39 @@ const KeywordExtraction = () => {
                       <Table>
                         <TableHeader>
                           <TableRow>
-                            <TableHead>키워드</TableHead>
-                            <TableHead className="text-right">검색량</TableHead>
-                            <TableHead className="text-center">경쟁도</TableHead>
+                            <TableHead 
+                              className="cursor-pointer hover:bg-muted/50"
+                              onClick={() => handleSort('keyword', 'autocomplete')}
+                            >
+                              <div className="flex items-center gap-1">
+                                키워드
+                                <SortIcon field="keyword" currentField={autocompleteSortField} direction={autocompleteSortDirection} />
+                              </div>
+                            </TableHead>
+                            <TableHead 
+                              className="text-right cursor-pointer hover:bg-muted/50"
+                              onClick={() => handleSort('searchVolume', 'autocomplete')}
+                            >
+                              <div className="flex items-center justify-end gap-1">
+                                검색량
+                                <SortIcon field="searchVolume" currentField={autocompleteSortField} direction={autocompleteSortDirection} />
+                              </div>
+                            </TableHead>
+                            <TableHead 
+                              className="text-center cursor-pointer hover:bg-muted/50"
+                              onClick={() => handleSort('competition', 'autocomplete')}
+                            >
+                              <div className="flex items-center justify-center gap-1">
+                                경쟁도
+                                <SortIcon field="competition" currentField={autocompleteSortField} direction={autocompleteSortDirection} />
+                              </div>
+                            </TableHead>
+                            <TableHead className="text-center">트렌드</TableHead>
+                            <TableHead className="text-right">CPC (원)</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {data.autocompleteKeywords.map((item, index) => (
+                          {sortAutocompleteKeywords(data.autocompleteKeywords).map((item, index) => (
                             <TableRow key={index}>
                               <TableCell className="font-medium">
                                 {item.keyword}
@@ -213,8 +352,16 @@ const KeywordExtraction = () => {
                               </TableCell>
                               <TableCell className="text-center">
                                 <Badge className={getCompetitionBadge(item.competition)}>
-                                  {item.competition}
+                                  {item.competition} ({item.competitionScore})
                                 </Badge>
+                              </TableCell>
+                              <TableCell className="text-center">
+                                <Badge className={getTrendBadge(item.trend)}>
+                                  {item.trend}
+                                </Badge>
+                              </TableCell>
+                              <TableCell className="text-right">
+                                {formatNumber(item.cpc)}
                               </TableCell>
                             </TableRow>
                           ))}

@@ -77,6 +77,7 @@ serve(async (req) => {
           relKeyword: item.relKeyword,
           monthlyPcQcCnt: item.monthlyPcQcCnt || 0,
           monthlyMobileQcCnt: item.monthlyMobileQcCnt || 0,
+          totalSearchVolume: (item.monthlyPcQcCnt || 0) + (item.monthlyMobileQcCnt || 0),
           plAvgDepth: item.plAvgDepth || 0,
           compIdx: item.compIdx || 'N/A'
         }));
@@ -87,14 +88,14 @@ serve(async (req) => {
       relatedKeywords = generateRelatedKeywords(keyword);
     }
 
-    // 자동완성 키워드 처리 (쇼핑 검색 결과에서 추출)
+    // 자동완성 키워드 처리 (쇼핑 검색 결과에서 추출하여 기본 키워드와 조합)
     if (autocompleteResponse.ok) {
       const autocompleteData = await autocompleteResponse.json();
       console.log('자동완성 키워드 응답:', autocompleteData);
       
       if (autocompleteData.items) {
-        // 상품 제목에서 키워드 추출
-        const extractedKeywords = extractKeywordsFromTitles(autocompleteData.items, keyword);
+        // 상품 제목에서 키워드 추출하여 기본 키워드와 조합
+        const extractedKeywords = extractAndCombineKeywords(autocompleteData.items, keyword);
         autocompleteKeywords = extractedKeywords.slice(0, 15); // 상위 15개만
       }
     } else {
@@ -126,8 +127,8 @@ serve(async (req) => {
   }
 });
 
-// 상품 제목에서 키워드 추출하는 함수
-function extractKeywordsFromTitles(items: any[], baseKeyword: string) {
+// 상품 제목에서 키워드 추출하고 기본 키워드와 조합하는 함수
+function extractAndCombineKeywords(items: any[], baseKeyword: string) {
   const keywordCounts = new Map();
   const competitions = ['높음', '중간', '낮음'];
   
@@ -146,12 +147,25 @@ function extractKeywordsFromTitles(items: any[], baseKeyword: string) {
   });
 
   return Array.from(keywordCounts.entries())
-    .map(([keyword, count]) => ({
-      keyword: keyword,
+    .map(([suffix, count]) => ({
+      keyword: `${baseKeyword} ${suffix}`,
       searchVolume: Math.floor(Math.random() * 50000) + count * 1000,
-      competition: competitions[Math.floor(Math.random() * competitions.length)]
+      competition: competitions[Math.floor(Math.random() * competitions.length)],
+      competitionScore: getCompetitionScore(competitions[Math.floor(Math.random() * competitions.length)]),
+      trend: Math.random() > 0.5 ? '상승' : '하락',
+      cpc: Math.floor(Math.random() * 2000) + 100
     }))
     .sort((a, b) => b.searchVolume - a.searchVolume);
+}
+
+// 경쟁도를 숫자로 변환하는 함수
+function getCompetitionScore(competition: string): number {
+  switch (competition) {
+    case '높음': return 80 + Math.floor(Math.random() * 20);
+    case '중간': return 40 + Math.floor(Math.random() * 40);
+    case '낮음': return Math.floor(Math.random() * 40);
+    default: return 50;
+  }
 }
 
 // 연관 키워드 더미 데이터 생성
@@ -162,12 +176,16 @@ function generateRelatedKeywords(baseKeyword: string) {
     relKeyword: `${baseKeyword} ${suffix}`,
     monthlyPcQcCnt: Math.floor(Math.random() * 10000) + 1000,
     monthlyMobileQcCnt: Math.floor(Math.random() * 20000) + 2000,
+    totalSearchVolume: 0,
     plAvgDepth: Math.floor(Math.random() * 5) + 1,
     compIdx: (Math.random() * 100).toFixed(1)
+  })).map(item => ({
+    ...item,
+    totalSearchVolume: item.monthlyPcQcCnt + item.monthlyMobileQcCnt
   }));
 }
 
-// 자동완성 키워드 더미 데이터 생성
+// 자동완성 키워드 더미 데이터 생성 (기본 키워드와 조합)
 function generateAutocompleteKeywords(baseKeyword: string) {
   const suffixes = ['추천', '리뷰', '가격비교', '할인', '세트', '브랜드', '순위', '구매팁', '후기', '베스트'];
   const competitions = ['높음', '중간', '낮음'];
@@ -175,6 +193,9 @@ function generateAutocompleteKeywords(baseKeyword: string) {
   return suffixes.map(suffix => ({
     keyword: `${baseKeyword} ${suffix}`,
     searchVolume: Math.floor(Math.random() * 30000) + 5000,
-    competition: competitions[Math.floor(Math.random() * competitions.length)]
+    competition: competitions[Math.floor(Math.random() * competitions.length)],
+    competitionScore: getCompetitionScore(competitions[Math.floor(Math.random() * competitions.length)]),
+    trend: Math.random() > 0.5 ? '상승' : '하락',
+    cpc: Math.floor(Math.random() * 2000) + 100
   }));
 }
