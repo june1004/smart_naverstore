@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -548,5 +549,3 @@ const ShoppingSearch = () => {
 };
 
 export default ShoppingSearch;
-
-</edits_to_apply>
