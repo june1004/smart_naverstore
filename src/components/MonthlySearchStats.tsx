@@ -78,7 +78,7 @@ const MonthlySearchStats = () => {
       // 실제 상품 데이터를 기반으로 월간 통계 생성 (고정된 값으로)
       const monthlyStats: MonthlyStats[] = (data.items || []).map((item: any, index: number) => {
         // 키워드와 상품명 기반으로 시드 생성하여 일관된 값 보장
-        const seed = hashCode(keyword + item.title + index);
+        const seed = hashCode(keyword + (item.title || '') + index.toString());
         
         return {
           keyword: keyword.trim(),
@@ -89,7 +89,7 @@ const MonthlySearchStats = () => {
           company: item.mallName || `업체${index + 1}`,
           searchVolume: generateConsistentNumber(seed, 10000, 50000),
           clicks: generateConsistentNumber(seed + 1, 500, 5000),
-          clickRate: parseFloat(generateConsistentNumber(seed + 2, 200, 1000) / 100).toFixed(2),
+          clickRate: parseFloat((generateConsistentNumber(seed + 2, 200, 1000) / 100).toFixed(2)),
           cpc: generateConsistentNumber(seed + 3, 100, 500),
           cost: generateConsistentNumber(seed + 4, 20000, 100000),
           lprice: item.lprice || '0',
