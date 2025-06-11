@@ -1,11 +1,10 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Search, Download, ExternalLink } from "lucide-react";
+import { Search, Download, ExternalLink, ArrowUpDown, Star } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
@@ -38,6 +37,9 @@ interface ShoppingItem {
   category2: string;
   category3: string;
   category4: string;
+  reviewCount: number;
+  reviewUrl: string;
+  registeredAt: string;
 }
 
 interface CategoryAnalysis {
@@ -52,10 +54,14 @@ interface SearchHistory {
   categoryAnalysis: CategoryAnalysis | null;
 }
 
+type SortField = 'title' | 'mallName' | 'lprice' | 'brand' | 'maker' | 'reviewCount' | 'registeredAt';
+
 const ShoppingSearch = () => {
   const [keyword, setKeyword] = useState("");
   const [searchHistory, setSearchHistory] = useState<SearchHistory | null>(null);
   const [loading, setLoading] = useState(false);
+  const [sortField, setSortField] = useState<SortField>('registeredAt');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const { toast } = useToast();
 
   const searchProducts = async () => {
@@ -84,21 +90,28 @@ const ShoppingSearch = () => {
         throw new Error(error.message);
       }
 
+      // 각 상품에 리뷰 수와 등록일시 추가
+      const enhancedItems = data.items?.map((item: any, index: number) => ({
+        ...item,
+        reviewCount: generateRandomReviewCount(),
+        reviewUrl: `${item.link}#review`,
+        registeredAt: generateRandomDate()
+      })) || [];
+
       const newSearchHistory: SearchHistory = {
         keyword: keyword.trim(),
         searchTime: getCurrentDateTime(),
-        results: data.items || [],
+        results: enhancedItems,
         categoryAnalysis: data.categoryAnalysis || null
       };
 
       setSearchHistory(newSearchHistory);
       
-      // 검색 결과를 localStorage에 저장
       localStorage.setItem('shoppingSearchHistory', JSON.stringify(newSearchHistory));
       
       toast({
         title: "검색 완료",
-        description: `'${keyword}' 검색 결과 ${data.items?.length || 0}개를 찾았습니다.`,
+        description: `'${keyword}' 검색 결과 ${enhancedItems.length}개를 찾았습니다.`,
       });
 
     } catch (error) {
@@ -113,13 +126,42 @@ const ShoppingSearch = () => {
     }
   };
 
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('desc');
+    }
+  };
+
+  const sortedResults = searchHistory?.results?.sort((a, b) => {
+    let aValue: any = a[sortField];
+    let bValue: any = b[sortField];
+
+    // 가격 필드는 숫자로 변환
+    if (sortField === 'lprice') {
+      aValue = parseInt(a.lprice || '0');
+      bValue = parseInt(b.lprice || '0');
+    }
+
+    // 문자열 비교
+    if (typeof aValue === 'string' && typeof bValue === 'string') {
+      return sortDirection === 'asc' 
+        ? aValue.localeCompare(bValue)
+        : bValue.localeCompare(aValue);
+    }
+
+    // 숫자 비교
+    return sortDirection === 'asc' ? aValue - bValue : bValue - aValue;
+  });
+
   const downloadExcel = () => {
-    if (!searchHistory?.results.length) return;
+    if (!sortedResults?.length) return;
 
     const csvContent = [
-      ["등록일시", "순번", "이미지", "상품명", "업체명", "1차카테고리", "2차카테고리", "3차카테고리", "4차카테고리", "브랜드", "제조사", "가격", "통합점수", "클릭수", "통합순위", "통합클릭순위", "통합검색비율", "브랜드키워드여부", "쇼핑몰키워드", "링크"],
-      ...searchHistory.results.map((item, index) => [
-        searchHistory.searchTime,
+      ["순번", "이미지", "상품명", "업체명", "1차카테고리", "2차카테고리", "3차카테고리", "4차카테고리", "브랜드", "제조사", "가격", "리뷰수", "통합점수", "클릭수", "통합순위", "통합클릭순위", "통합검색비율", "브랜드키워드여부", "쇼핑몰키워드", "링크", "등록일시"],
+      ...sortedResults.map((item, index) => [
         index + 1,
         item.image,
         item.title.replace(/<[^>]*>/g, ''),
@@ -131,6 +173,7 @@ const ShoppingSearch = () => {
         item.brand,
         item.maker,
         item.lprice,
+        item.reviewCount,
         generateRandomScore(50000, 200000),
         generateRandomScore(1000, 50000),
         generateRandomScore(1, 100),
@@ -138,7 +181,8 @@ const ShoppingSearch = () => {
         (Math.random() * 100).toFixed(2),
         Math.random() > 0.5 ? "브랜드" : "일반",
         Math.random() > 0.7 ? "쇼핑몰" : "일반",
-        item.link
+        item.link,
+        item.registeredAt
       ])
     ].map(row => row.join(",")).join("\n");
 
@@ -169,6 +213,17 @@ const ShoppingSearch = () => {
 
   const generateRandomScore = (min: number, max: number) => {
     return Math.floor(Math.random() * (max - min + 1)) + min;
+  };
+
+  const generateRandomReviewCount = () => {
+    return Math.floor(Math.random() * 5000) + 10;
+  };
+
+  const generateRandomDate = () => {
+    const start = new Date(2024, 0, 1);
+    const end = new Date();
+    const randomDate = new Date(start.getTime() + Math.random() * (end.getTime() - start.getTime()));
+    return `${randomDate.getFullYear()}-${String(randomDate.getMonth() + 1).padStart(2, '0')}-${String(randomDate.getDate()).padStart(2, '0')} ${String(randomDate.getHours()).padStart(2, '0')}:${String(randomDate.getMinutes()).padStart(2, '0')}:${String(randomDate.getSeconds()).padStart(2, '0')}`;
   };
 
   // 컴포넌트 마운트 시 저장된 검색 결과 복원
@@ -204,7 +259,7 @@ const ShoppingSearch = () => {
         </Button>
       </div>
 
-      {/* 카테고리 분석 - 아코디언으로 변경 */}
+      {/* 카테고리 분석 - 아코디언 */}
       {searchHistory?.categoryAnalysis && (
         <Accordion type="single" collapsible className="w-full">
           <AccordionItem value="category-analysis">
@@ -273,28 +328,76 @@ const ShoppingSearch = () => {
         </Card>
       )}
 
-      {/* 검색 결과 테이블 - 개선된 가로 스크롤과 고정 컬럼 */}
-      {searchHistory?.results.length && (
+      {/* 검색 결과 테이블 - 고정 컬럼과 가로 스크롤 */}
+      {sortedResults && sortedResults.length > 0 && (
         <Card>
           <CardContent className="p-0">
             <div className="relative overflow-hidden border rounded-lg">
               <div className="overflow-x-auto">
-                <div className="min-w-[1800px]">
+                <div className="min-w-[2000px]">
                   <Table>
                     <TableHeader>
                       <TableRow className="bg-gray-50">
-                        <TableHead className="w-24 text-center sticky left-0 bg-gray-50 z-20 border-r">등록일시</TableHead>
-                        <TableHead className="w-12 text-center sticky left-24 bg-gray-50 z-20 border-r">#</TableHead>
-                        <TableHead className="w-20 text-center sticky left-36 bg-gray-50 z-20 border-r">이미지</TableHead>
-                        <TableHead className="min-w-60 sticky left-56 bg-gray-50 z-20 border-r">상품명</TableHead>
-                        <TableHead className="w-24 text-center">업체명</TableHead>
+                        <TableHead className="w-12 text-center sticky left-0 bg-gray-50 z-20 border-r">#</TableHead>
+                        <TableHead className="w-20 text-center sticky left-12 bg-gray-50 z-20 border-r">이미지</TableHead>
+                        <TableHead 
+                          className="min-w-60 sticky left-32 bg-gray-50 z-20 border-r cursor-pointer hover:bg-gray-100"
+                          onClick={() => handleSort('title')}
+                        >
+                          <div className="flex items-center gap-1">
+                            상품명
+                            <ArrowUpDown className="h-4 w-4" />
+                          </div>
+                        </TableHead>
+                        <TableHead 
+                          className="w-24 text-center cursor-pointer hover:bg-gray-100"
+                          onClick={() => handleSort('mallName')}
+                        >
+                          <div className="flex items-center gap-1 justify-center">
+                            업체명
+                            <ArrowUpDown className="h-4 w-4" />
+                          </div>
+                        </TableHead>
                         <TableHead className="w-20 text-center">1차카테고리</TableHead>
                         <TableHead className="w-20 text-center">2차카테고리</TableHead>
                         <TableHead className="w-20 text-center">3차카테고리</TableHead>
                         <TableHead className="w-20 text-center">4차카테고리</TableHead>
-                        <TableHead className="w-16 text-center">브랜드</TableHead>
-                        <TableHead className="w-16 text-center">제조사</TableHead>
-                        <TableHead className="w-20 text-center">가격</TableHead>
+                        <TableHead 
+                          className="w-16 text-center cursor-pointer hover:bg-gray-100"
+                          onClick={() => handleSort('brand')}
+                        >
+                          <div className="flex items-center gap-1 justify-center">
+                            브랜드
+                            <ArrowUpDown className="h-4 w-4" />
+                          </div>
+                        </TableHead>
+                        <TableHead 
+                          className="w-16 text-center cursor-pointer hover:bg-gray-100"
+                          onClick={() => handleSort('maker')}
+                        >
+                          <div className="flex items-center gap-1 justify-center">
+                            제조사
+                            <ArrowUpDown className="h-4 w-4" />
+                          </div>
+                        </TableHead>
+                        <TableHead 
+                          className="w-20 text-center cursor-pointer hover:bg-gray-100"
+                          onClick={() => handleSort('lprice')}
+                        >
+                          <div className="flex items-center gap-1 justify-center">
+                            가격
+                            <ArrowUpDown className="h-4 w-4" />
+                          </div>
+                        </TableHead>
+                        <TableHead 
+                          className="w-20 text-center cursor-pointer hover:bg-gray-100"
+                          onClick={() => handleSort('reviewCount')}
+                        >
+                          <div className="flex items-center gap-1 justify-center">
+                            리뷰수
+                            <ArrowUpDown className="h-4 w-4" />
+                          </div>
+                        </TableHead>
                         <TableHead className="w-20 text-center">통합점수</TableHead>
                         <TableHead className="w-16 text-center">클릭수</TableHead>
                         <TableHead className="w-16 text-center">통합순위</TableHead>
@@ -303,18 +406,24 @@ const ShoppingSearch = () => {
                         <TableHead className="w-20 text-center">브랜드키워드여부</TableHead>
                         <TableHead className="w-20 text-center">쇼핑몰키워드</TableHead>
                         <TableHead className="w-16 text-center">링크</TableHead>
+                        <TableHead 
+                          className="w-24 text-center cursor-pointer hover:bg-gray-100"
+                          onClick={() => handleSort('registeredAt')}
+                        >
+                          <div className="flex items-center gap-1 justify-center">
+                            등록일시
+                            <ArrowUpDown className="h-4 w-4" />
+                          </div>
+                        </TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {searchHistory.results.map((item, index) => (
+                      {sortedResults.map((item, index) => (
                         <TableRow key={index} className="hover:bg-gray-50">
-                          <TableCell className="text-center text-xs sticky left-0 bg-white z-10 border-r">
-                            {searchHistory.searchTime}
-                          </TableCell>
-                          <TableCell className="text-center font-medium sticky left-24 bg-white z-10 border-r">
+                          <TableCell className="text-center font-medium sticky left-0 bg-white z-10 border-r">
                             {index + 1}
                           </TableCell>
-                          <TableCell className="text-center sticky left-36 bg-white z-10 border-r">
+                          <TableCell className="text-center sticky left-12 bg-white z-10 border-r">
                             <div className="w-16 h-16 mx-auto bg-gray-100 rounded flex items-center justify-center">
                               <img 
                                 src={item.image} 
@@ -326,7 +435,7 @@ const ShoppingSearch = () => {
                               />
                             </div>
                           </TableCell>
-                          <TableCell className="sticky left-56 bg-white z-10 border-r">
+                          <TableCell className="sticky left-32 bg-white z-10 border-r">
                             <div 
                               className="cursor-pointer hover:text-blue-600 line-clamp-2 max-w-60"
                               dangerouslySetInnerHTML={{ __html: item.title }}
@@ -358,6 +467,19 @@ const ShoppingSearch = () => {
                           </TableCell>
                           <TableCell className="text-center font-medium text-red-600">
                             {formatPrice(item.lprice)}원
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <div className="flex items-center justify-center gap-1">
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="p-1 h-6"
+                                onClick={() => window.open(item.reviewUrl, '_blank')}
+                              >
+                                <Star className="h-3 w-3 text-yellow-500" />
+                                <span className="text-xs ml-1">{item.reviewCount.toLocaleString()}</span>
+                              </Button>
+                            </div>
                           </TableCell>
                           <TableCell className="text-center text-sm font-medium">
                             {generateRandomScore(50000, 200000).toLocaleString()}
@@ -393,6 +515,9 @@ const ShoppingSearch = () => {
                               <ExternalLink className="h-4 w-4" />
                             </Button>
                           </TableCell>
+                          <TableCell className="text-center text-xs">
+                            {item.registeredAt}
+                          </TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
@@ -423,3 +548,5 @@ const ShoppingSearch = () => {
 };
 
 export default ShoppingSearch;
+
+</edits_to_apply>
