@@ -32,21 +32,37 @@ serve(async (req) => {
     // Generate timestamp for signature
     const timestamp = Date.now().toString();
     
-    // Create signature
+    // Create signature string - 네이버 검색광고 API 스펙에 맞게 수정
+    const method = 'GET';
+    const uri = '/keywordstool';
+    const signatureString = `${timestamp}.${method}.${uri}`;
+    
+    console.log('Signature string:', signatureString);
+    
+    // Create HMAC signature
     const encoder = new TextEncoder();
-    const data = encoder.encode(`${timestamp}.GET./keywordstool`);
-    const key = await crypto.subtle.importKey(
+    const data = encoder.encode(signatureString);
+    const keyData = encoder.encode(SECRET_KEY);
+    
+    const cryptoKey = await crypto.subtle.importKey(
       'raw',
-      encoder.encode(SECRET_KEY),
+      keyData,
       { name: 'HMAC', hash: 'SHA-256' },
       false,
       ['sign']
     );
-    const signature = await crypto.subtle.sign('HMAC', key, data);
+    
+    const signature = await crypto.subtle.sign('HMAC', cryptoKey, data);
     const signatureBase64 = btoa(String.fromCharCode(...new Uint8Array(signature)));
 
-    // 연관키워드 API 호출
-    const relatedKeywordsResponse = await fetch(`${BASE_URL}/keywordstool`, {
+    console.log('Generated signature:', signatureBase64);
+
+    // 연관키워드 API 호출 - 올바른 파라미터와 함께
+    const apiUrl = `${BASE_URL}/keywordstool?hintKeywords=${encodeURIComponent(keyword)}&showDetail=1`;
+    
+    console.log('API URL:', apiUrl);
+
+    const relatedKeywordsResponse = await fetch(apiUrl, {
       method: 'GET',
       headers: {
         'X-Timestamp': timestamp,
@@ -57,27 +73,31 @@ serve(async (req) => {
       },
     });
 
+    console.log('API Response status:', relatedKeywordsResponse.status);
+
     let relatedKeywords = [];
     let autocompleteKeywords = [];
 
     if (relatedKeywordsResponse.ok) {
       const relatedData = await relatedKeywordsResponse.json();
-      console.log('연관키워드 API 응답:', relatedData);
+      console.log('연관키워드 API 응답:', JSON.stringify(relatedData, null, 2));
       
       // API 응답 구조에 따라 데이터 처리
-      if (relatedData.keywordList) {
+      if (relatedData.keywordList && Array.isArray(relatedData.keywordList)) {
         relatedKeywords = relatedData.keywordList.map((item: any) => ({
-          keyword: item.relKeyword || item.keyword,
+          keyword: item.relKeyword || item.keyword || '',
           searchVolume: item.monthlyQcCnt || Math.floor(Math.random() * 50000) + 1000,
-          competition: getCompetitionLevel(item.compIdx),
+          competition: getCompetitionLevel(item.compIdx || Math.floor(Math.random() * 100)),
           competitionScore: item.compIdx || Math.floor(Math.random() * 100),
           clickCost: item.plAvgCcCnt || Math.floor(Math.random() * 2000) + 100,
-          ctr: item.ctr || (Math.random() * 10).toFixed(2),
+          ctr: item.ctr ? item.ctr.toString() : (Math.random() * 10).toFixed(2),
           trend: Math.random() > 0.5 ? '상승' : '하락'
         }));
       }
     } else {
-      console.error('연관키워드 API 오류:', relatedKeywordsResponse.status);
+      const errorText = await relatedKeywordsResponse.text();
+      console.error('연관키워드 API 오류:', relatedKeywordsResponse.status, errorText);
+      
       // API 오류시 더미 데이터 생성
       relatedKeywords = generateRelatedKeywords(keyword);
     }
@@ -87,19 +107,23 @@ serve(async (req) => {
     const clientSecret = Deno.env.get('NAVER_CLIENT_SECRET');
 
     if (clientId && clientSecret) {
-      const autocompleteResponse = await fetch(`https://openapi.naver.com/v1/search/shop.json?query=${encodeURIComponent(keyword)}&display=20&sort=sim`, {
-        method: 'GET',
-        headers: {
-          'X-Naver-Client-Id': clientId,
-          'X-Naver-Client-Secret': clientSecret,
-        },
-      });
+      try {
+        const autocompleteResponse = await fetch(`https://openapi.naver.com/v1/search/shop.json?query=${encodeURIComponent(keyword)}&display=20&sort=sim`, {
+          method: 'GET',
+          headers: {
+            'X-Naver-Client-Id': clientId,
+            'X-Naver-Client-Secret': clientSecret,
+          },
+        });
 
-      if (autocompleteResponse.ok) {
-        const autocompleteData = await autocompleteResponse.json();
-        if (autocompleteData.items) {
-          autocompleteKeywords = extractAndCombineKeywords(autocompleteData.items, keyword);
+        if (autocompleteResponse.ok) {
+          const autocompleteData = await autocompleteResponse.json();
+          if (autocompleteData.items) {
+            autocompleteKeywords = extractAndCombineKeywords(autocompleteData.items, keyword);
+          }
         }
+      } catch (error) {
+        console.error('자동완성 키워드 API 오류:', error);
       }
     }
 
@@ -109,7 +133,13 @@ serve(async (req) => {
 
     const result = {
       relatedKeywords,
-      autocompleteKeywords
+      autocompleteKeywords,
+      debug: {
+        timestamp,
+        signatureString,
+        apiUrl,
+        responseStatus: relatedKeywordsResponse.status
+      }
     };
 
     console.log('최종 결과:', result);
@@ -122,8 +152,8 @@ serve(async (req) => {
     console.error('키워드 검색 오류:', error);
     return new Response(JSON.stringify({ 
       error: error.message,
-      relatedKeywords: [],
-      autocompleteKeywords: []
+      relatedKeywords: generateRelatedKeywords('기본키워드'),
+      autocompleteKeywords: generateAutocompleteKeywords('기본키워드')
     }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -138,9 +168,14 @@ function getCompetitionLevel(compIdx: number): string {
   return '낮음';
 }
 
-// 연관키워드 더미 데이터 생성
+// 연관키워드 더미 데이터 생성 (API 실패시 대체용)
 function generateRelatedKeywords(baseKeyword: string) {
-  const suffixes = ['추천', '리뷰', '가격', '할인', '세트', '브랜드', '순위', '비교', '구매', '후기', '사용법', '효과', '종류', '판매', '온라인'];
+  const suffixes = [
+    '추천', '리뷰', '가격', '할인', '세트', '브랜드', '순위', '비교', 
+    '구매', '후기', '사용법', '효과', '종류', '판매', '온라인', '베스트',
+    '인기', '신상', '특가', '이벤트', '무료배송', '당일배송', '품질',
+    '성능', '디자인', '컬러', '사이즈', '기능'
+  ];
   
   return suffixes.map(suffix => ({
     keyword: `${baseKeyword} ${suffix}`,
@@ -155,7 +190,10 @@ function generateRelatedKeywords(baseKeyword: string) {
 
 // 자동완성 키워드 생성
 function generateAutocompleteKeywords(baseKeyword: string) {
-  const suffixes = ['추천', '리뷰', '가격비교', '할인', '세트', '브랜드', '순위', '구매팁', '후기', '베스트'];
+  const suffixes = [
+    '추천', '리뷰', '가격비교', '할인', '세트', '브랜드', '순위', 
+    '구매팁', '후기', '베스트', '인기순', '신제품', '특가', '이벤트'
+  ];
   
   return suffixes.map(suffix => ({
     keyword: `${baseKeyword} ${suffix}`,
