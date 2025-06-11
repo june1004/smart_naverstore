@@ -15,14 +15,24 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
 
 interface RelatedKeyword {
-  relKeyword: string;
-  monthlyPcQcCnt: number;
-  monthlyMobileQcCnt: number;
-  totalSearchVolume: number;
-  plAvgDepth: number;
-  compIdx: string;
+  keyword: string;
+  searchVolume: number;
+  competition: string;
+  competitionScore: number;
+  clickCost: number;
+  ctr: string;
+  trend: string;
 }
 
 interface AutocompleteKeyword {
@@ -39,17 +49,27 @@ interface KeywordData {
   autocompleteKeywords: AutocompleteKeyword[];
 }
 
-type RelatedSortField = 'relKeyword' | 'totalSearchVolume' | 'monthlyPcQcCnt' | 'monthlyMobileQcCnt' | 'plAvgDepth' | 'compIdx';
+type RelatedSortField = 'keyword' | 'searchVolume' | 'competition' | 'competitionScore' | 'clickCost' | 'ctr' | 'trend';
 type AutocompleteSortField = 'keyword' | 'searchVolume' | 'competition' | 'competitionScore' | 'trend' | 'cpc';
+
+const ITEMS_PER_PAGE = 20;
 
 const KeywordExtraction = () => {
   const [keyword, setKeyword] = useState("");
   const [keywordData, setKeywordData] = useState<KeywordData | null>(null);
   const [loading, setLoading] = useState(false);
-  const [relatedSortField, setRelatedSortField] = useState<RelatedSortField>('totalSearchVolume');
+  const [activeTab, setActiveTab] = useState("related");
+  
+  // Related keywords state
+  const [relatedSortField, setRelatedSortField] = useState<RelatedSortField>('searchVolume');
   const [relatedSortDirection, setRelatedSortDirection] = useState<'asc' | 'desc'>('desc');
+  const [relatedCurrentPage, setRelatedCurrentPage] = useState(1);
+  
+  // Autocomplete keywords state
   const [autocompleteSortField, setAutocompleteSortField] = useState<AutocompleteSortField>('searchVolume');
   const [autocompleteSortDirection, setAutocompleteSortDirection] = useState<'asc' | 'desc'>('desc');
+  const [autocompleteCurrentPage, setAutocompleteCurrentPage] = useState(1);
+  
   const { toast } = useToast();
 
   const extractKeywords = async () => {
@@ -65,7 +85,7 @@ const KeywordExtraction = () => {
     setLoading(true);
     
     try {
-      const { data, error } = await supabase.functions.invoke('naver-keyword-extraction', {
+      const { data, error } = await supabase.functions.invoke('naver-searchad-keywords', {
         body: { keyword: keyword.trim() }
       });
 
@@ -74,6 +94,8 @@ const KeywordExtraction = () => {
       }
 
       setKeywordData(data);
+      setRelatedCurrentPage(1);
+      setAutocompleteCurrentPage(1);
       
       toast({
         title: "키워드 추출 완료",
@@ -99,6 +121,7 @@ const KeywordExtraction = () => {
       setRelatedSortField(field);
       setRelatedSortDirection('desc');
     }
+    setRelatedCurrentPage(1);
   };
 
   const handleAutocompleteSort = (field: AutocompleteSortField) => {
@@ -108,6 +131,7 @@ const KeywordExtraction = () => {
       setAutocompleteSortField(field);
       setAutocompleteSortDirection('desc');
     }
+    setAutocompleteCurrentPage(1);
   };
 
   const sortedRelatedKeywords = keywordData?.relatedKeywords?.sort((a, b) => {
@@ -142,17 +166,30 @@ const KeywordExtraction = () => {
     return autocompleteSortDirection === 'asc' ? aNum - bNum : bNum - aNum;
   });
 
+  // Pagination for related keywords
+  const relatedTotalPages = Math.ceil((sortedRelatedKeywords?.length || 0) / ITEMS_PER_PAGE);
+  const relatedStartIndex = (relatedCurrentPage - 1) * ITEMS_PER_PAGE;
+  const relatedEndIndex = relatedStartIndex + ITEMS_PER_PAGE;
+  const paginatedRelatedKeywords = sortedRelatedKeywords?.slice(relatedStartIndex, relatedEndIndex);
+
+  // Pagination for autocomplete keywords
+  const autocompleteTotalPages = Math.ceil((sortedAutocompleteKeywords?.length || 0) / ITEMS_PER_PAGE);
+  const autocompleteStartIndex = (autocompleteCurrentPage - 1) * ITEMS_PER_PAGE;
+  const autocompleteEndIndex = autocompleteStartIndex + ITEMS_PER_PAGE;
+  const paginatedAutocompleteKeywords = sortedAutocompleteKeywords?.slice(autocompleteStartIndex, autocompleteEndIndex);
+
   const downloadExcel = () => {
     if (!keywordData) return;
 
     const relatedData = sortedRelatedKeywords?.map((item, index) => [
       index + 1,
-      item.relKeyword,
-      item.monthlyPcQcCnt,
-      item.monthlyMobileQcCnt,
-      item.totalSearchVolume,
-      item.plAvgDepth,
-      item.compIdx
+      item.keyword,
+      item.searchVolume,
+      item.competition,
+      item.competitionScore,
+      item.clickCost,
+      item.ctr,
+      item.trend
     ]) || [];
 
     const autocompleteData = sortedAutocompleteKeywords?.map((item, index) => [
@@ -166,8 +203,8 @@ const KeywordExtraction = () => {
     ]) || [];
 
     const csvContent = [
-      ["=== 통합연관 키워드 ==="],
-      ["순번", "키워드", "PC 검색수", "모바일 검색수", "총 검색량", "평균 깊이", "경쟁지수"],
+      ["=== 연관키워드 ==="],
+      ["순번", "키워드", "검색량", "경쟁도", "경쟁점수", "클릭비용", "CTR", "트렌드"],
       ...relatedData,
       [""],
       ["=== 자동완성 키워드 ==="],
@@ -224,7 +261,7 @@ const KeywordExtraction = () => {
                   분석 키워드: <span className="font-medium">{keyword}</span>
                 </div>
                 <div className="text-sm text-gray-600">
-                  통합연관 키워드: {keywordData.relatedKeywords?.length || 0}개 | 
+                  연관키워드: {keywordData.relatedKeywords?.length || 0}개 | 
                   자동완성 키워드: {keywordData.autocompleteKeywords?.length || 0}개
                 </div>
               </div>
@@ -237,223 +274,330 @@ const KeywordExtraction = () => {
         </Card>
       )}
 
-      {/* 통합연관 키워드 테이블 */}
-      {sortedRelatedKeywords && sortedRelatedKeywords.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg font-semibold text-blue-600">
-              통합연관 키워드 ({sortedRelatedKeywords.length}개)
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-0">
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow className="bg-blue-50">
-                    <TableHead className="w-12 text-center">#</TableHead>
-                    <TableHead 
-                      className="cursor-pointer hover:bg-blue-100 min-w-40"
-                      onClick={() => handleRelatedSort('relKeyword')}
-                    >
-                      <div className="flex items-center gap-1">
-                        키워드
-                        <ArrowUpDown className="h-4 w-4" />
-                      </div>
-                    </TableHead>
-                    <TableHead 
-                      className="cursor-pointer hover:bg-blue-100 text-center w-24"
-                      onClick={() => handleRelatedSort('monthlyPcQcCnt')}
-                    >
-                      <div className="flex items-center gap-1 justify-center">
-                        PC검색수
-                        <ArrowUpDown className="h-4 w-4" />
-                      </div>
-                    </TableHead>
-                    <TableHead 
-                      className="cursor-pointer hover:bg-blue-100 text-center w-24"
-                      onClick={() => handleRelatedSort('monthlyMobileQcCnt')}
-                    >
-                      <div className="flex items-center gap-1 justify-center">
-                        모바일검색수
-                        <ArrowUpDown className="h-4 w-4" />
-                      </div>
-                    </TableHead>
-                    <TableHead 
-                      className="cursor-pointer hover:bg-blue-100 text-center w-24"
-                      onClick={() => handleRelatedSort('totalSearchVolume')}
-                    >
-                      <div className="flex items-center gap-1 justify-center">
-                        총검색량
-                        <ArrowUpDown className="h-4 w-4" />
-                      </div>
-                    </TableHead>
-                    <TableHead 
-                      className="cursor-pointer hover:bg-blue-100 text-center w-20"
-                      onClick={() => handleRelatedSort('plAvgDepth')}
-                    >
-                      <div className="flex items-center gap-1 justify-center">
-                        평균깊이
-                        <ArrowUpDown className="h-4 w-4" />
-                      </div>
-                    </TableHead>
-                    <TableHead 
-                      className="cursor-pointer hover:bg-blue-100 text-center w-20"
-                      onClick={() => handleRelatedSort('compIdx')}
-                    >
-                      <div className="flex items-center gap-1 justify-center">
-                        경쟁지수
-                        <ArrowUpDown className="h-4 w-4" />
-                      </div>
-                    </TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {sortedRelatedKeywords.map((item, index) => (
-                    <TableRow key={index} className="hover:bg-blue-50">
-                      <TableCell className="text-center font-medium">
-                        {index + 1}
-                      </TableCell>
-                      <TableCell className="font-medium">
-                        {item.relKeyword}
-                      </TableCell>
-                      <TableCell className="text-center">
-                        {item.monthlyPcQcCnt?.toLocaleString() || '-'}
-                      </TableCell>
-                      <TableCell className="text-center">
-                        {item.monthlyMobileQcCnt?.toLocaleString() || '-'}
-                      </TableCell>
-                      <TableCell className="text-center font-semibold text-blue-600">
-                        {item.totalSearchVolume?.toLocaleString() || '-'}
-                      </TableCell>
-                      <TableCell className="text-center">
-                        {item.plAvgDepth || '-'}
-                      </TableCell>
-                      <TableCell className="text-center">
-                        <Badge variant="outline" className="text-xs">
-                          {item.compIdx || '-'}
-                        </Badge>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+      {/* 키워드 탭 */}
+      {keywordData && (
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="related">연관키워드 ({keywordData.relatedKeywords?.length || 0})</TabsTrigger>
+            <TabsTrigger value="autocomplete">자동완성키워드 ({keywordData.autocompleteKeywords?.length || 0})</TabsTrigger>
+          </TabsList>
 
-      {/* 자동완성 키워드 테이블 */}
-      {sortedAutocompleteKeywords && sortedAutocompleteKeywords.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg font-semibold text-green-600">
-              자동완성 키워드 ({sortedAutocompleteKeywords.length}개)
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-0">
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow className="bg-green-50">
-                    <TableHead className="w-12 text-center">#</TableHead>
-                    <TableHead 
-                      className="cursor-pointer hover:bg-green-100 min-w-40"
-                      onClick={() => handleAutocompleteSort('keyword')}
-                    >
-                      <div className="flex items-center gap-1">
-                        키워드
-                        <ArrowUpDown className="h-4 w-4" />
-                      </div>
-                    </TableHead>
-                    <TableHead 
-                      className="cursor-pointer hover:bg-green-100 text-center w-24"
-                      onClick={() => handleAutocompleteSort('searchVolume')}
-                    >
-                      <div className="flex items-center gap-1 justify-center">
-                        검색량
-                        <ArrowUpDown className="h-4 w-4" />
-                      </div>
-                    </TableHead>
-                    <TableHead 
-                      className="cursor-pointer hover:bg-green-100 text-center w-20"
-                      onClick={() => handleAutocompleteSort('competition')}
-                    >
-                      <div className="flex items-center gap-1 justify-center">
-                        경쟁도
-                        <ArrowUpDown className="h-4 w-4" />
-                      </div>
-                    </TableHead>
-                    <TableHead 
-                      className="cursor-pointer hover:bg-green-100 text-center w-20"
-                      onClick={() => handleAutocompleteSort('competitionScore')}
-                    >
-                      <div className="flex items-center gap-1 justify-center">
-                        경쟁점수
-                        <ArrowUpDown className="h-4 w-4" />
-                      </div>
-                    </TableHead>
-                    <TableHead 
-                      className="cursor-pointer hover:bg-green-100 text-center w-16"
-                      onClick={() => handleAutocompleteSort('trend')}
-                    >
-                      <div className="flex items-center gap-1 justify-center">
-                        트렌드
-                        <ArrowUpDown className="h-4 w-4" />
-                      </div>
-                    </TableHead>
-                    <TableHead 
-                      className="cursor-pointer hover:bg-green-100 text-center w-20"
-                      onClick={() => handleAutocompleteSort('cpc')}
-                    >
-                      <div className="flex items-center gap-1 justify-center">
-                        CPC
-                        <ArrowUpDown className="h-4 w-4" />
-                      </div>
-                    </TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {sortedAutocompleteKeywords.map((item, index) => (
-                    <TableRow key={index} className="hover:bg-green-50">
-                      <TableCell className="text-center font-medium">
-                        {index + 1}
-                      </TableCell>
-                      <TableCell className="font-medium">
-                        {item.keyword}
-                      </TableCell>
-                      <TableCell className="text-center font-semibold text-green-600">
-                        {item.searchVolume?.toLocaleString() || '-'}
-                      </TableCell>
-                      <TableCell className="text-center">
-                        <Badge 
-                          variant={item.competition === '높음' ? 'destructive' : 
-                                  item.competition === '중간' ? 'default' : 'secondary'}
-                          className="text-xs"
+          {/* 연관키워드 탭 */}
+          <TabsContent value="related">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg font-semibold text-blue-600">
+                  연관키워드
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-0">
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-blue-50">
+                        <TableHead className="w-12 text-center">#</TableHead>
+                        <TableHead 
+                          className="cursor-pointer hover:bg-blue-100 min-w-40"
+                          onClick={() => handleRelatedSort('keyword')}
                         >
-                          {item.competition}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-center">
-                        {item.competitionScore || '-'}
-                      </TableCell>
-                      <TableCell className="text-center">
-                        <Badge 
-                          variant={item.trend === '상승' ? 'default' : 'secondary'}
-                          className="text-xs"
+                          <div className="flex items-center gap-1">
+                            키워드
+                            <ArrowUpDown className="h-4 w-4" />
+                          </div>
+                        </TableHead>
+                        <TableHead 
+                          className="cursor-pointer hover:bg-blue-100 text-center w-24"
+                          onClick={() => handleRelatedSort('searchVolume')}
                         >
-                          {item.trend}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-center">
-                        {item.cpc ? `${item.cpc.toLocaleString()}원` : '-'}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          </CardContent>
-        </Card>
+                          <div className="flex items-center gap-1 justify-center">
+                            검색량
+                            <ArrowUpDown className="h-4 w-4" />
+                          </div>
+                        </TableHead>
+                        <TableHead 
+                          className="cursor-pointer hover:bg-blue-100 text-center w-20"
+                          onClick={() => handleRelatedSort('competition')}
+                        >
+                          <div className="flex items-center gap-1 justify-center">
+                            경쟁도
+                            <ArrowUpDown className="h-4 w-4" />
+                          </div>
+                        </TableHead>
+                        <TableHead 
+                          className="cursor-pointer hover:bg-blue-100 text-center w-20"
+                          onClick={() => handleRelatedSort('competitionScore')}
+                        >
+                          <div className="flex items-center gap-1 justify-center">
+                            경쟁점수
+                            <ArrowUpDown className="h-4 w-4" />
+                          </div>
+                        </TableHead>
+                        <TableHead 
+                          className="cursor-pointer hover:bg-blue-100 text-center w-20"
+                          onClick={() => handleRelatedSort('clickCost')}
+                        >
+                          <div className="flex items-center gap-1 justify-center">
+                            클릭비용
+                            <ArrowUpDown className="h-4 w-4" />
+                          </div>
+                        </TableHead>
+                        <TableHead 
+                          className="cursor-pointer hover:bg-blue-100 text-center w-16"
+                          onClick={() => handleRelatedSort('ctr')}
+                        >
+                          <div className="flex items-center gap-1 justify-center">
+                            CTR
+                            <ArrowUpDown className="h-4 w-4" />
+                          </div>
+                        </TableHead>
+                        <TableHead 
+                          className="cursor-pointer hover:bg-blue-100 text-center w-16"
+                          onClick={() => handleRelatedSort('trend')}
+                        >
+                          <div className="flex items-center gap-1 justify-center">
+                            트렌드
+                            <ArrowUpDown className="h-4 w-4" />
+                          </div>
+                        </TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {paginatedRelatedKeywords?.map((item, index) => (
+                        <TableRow key={index} className="hover:bg-blue-50">
+                          <TableCell className="text-center font-medium">
+                            {relatedStartIndex + index + 1}
+                          </TableCell>
+                          <TableCell className="font-medium">
+                            {item.keyword}
+                          </TableCell>
+                          <TableCell className="text-center font-semibold text-blue-600">
+                            {item.searchVolume?.toLocaleString() || '-'}
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <Badge 
+                              variant={item.competition === '높음' ? 'destructive' : 
+                                      item.competition === '중간' ? 'default' : 'secondary'}
+                              className="text-xs"
+                            >
+                              {item.competition}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-center">
+                            {item.competitionScore || '-'}
+                          </TableCell>
+                          <TableCell className="text-center">
+                            {item.clickCost ? `${item.clickCost.toLocaleString()}원` : '-'}
+                          </TableCell>
+                          <TableCell className="text-center">
+                            {item.ctr}%
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <Badge 
+                              variant={item.trend === '상승' ? 'default' : 'secondary'}
+                              className="text-xs"
+                            >
+                              {item.trend}
+                            </Badge>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+                
+                {/* 연관키워드 페이지네이션 */}
+                {relatedTotalPages > 1 && (
+                  <div className="p-4 border-t">
+                    <Pagination>
+                      <PaginationContent>
+                        <PaginationItem>
+                          <PaginationPrevious 
+                            onClick={() => setRelatedCurrentPage(Math.max(1, relatedCurrentPage - 1))}
+                            className={relatedCurrentPage === 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                          />
+                        </PaginationItem>
+                        
+                        {Array.from({ length: Math.min(5, relatedTotalPages) }, (_, i) => {
+                          const pageNum = Math.max(1, Math.min(relatedTotalPages - 4, relatedCurrentPage - 2)) + i;
+                          return (
+                            <PaginationItem key={pageNum}>
+                              <PaginationLink
+                                onClick={() => setRelatedCurrentPage(pageNum)}
+                                isActive={pageNum === relatedCurrentPage}
+                                className="cursor-pointer"
+                              >
+                                {pageNum}
+                              </PaginationLink>
+                            </PaginationItem>
+                          );
+                        })}
+                        
+                        <PaginationItem>
+                          <PaginationNext 
+                            onClick={() => setRelatedCurrentPage(Math.min(relatedTotalPages, relatedCurrentPage + 1))}
+                            className={relatedCurrentPage === relatedTotalPages ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                          />
+                        </PaginationItem>
+                      </PaginationContent>
+                    </Pagination>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* 자동완성키워드 탭 */}
+          <TabsContent value="autocomplete">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg font-semibold text-green-600">
+                  자동완성키워드
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-0">
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-green-50">
+                        <TableHead className="w-12 text-center">#</TableHead>
+                        <TableHead 
+                          className="cursor-pointer hover:bg-green-100 min-w-40"
+                          onClick={() => handleAutocompleteSort('keyword')}
+                        >
+                          <div className="flex items-center gap-1">
+                            키워드
+                            <ArrowUpDown className="h-4 w-4" />
+                          </div>
+                        </TableHead>
+                        <TableHead 
+                          className="cursor-pointer hover:bg-green-100 text-center w-24"
+                          onClick={() => handleAutocompleteSort('searchVolume')}
+                        >
+                          <div className="flex items-center gap-1 justify-center">
+                            검색량
+                            <ArrowUpDown className="h-4 w-4" />
+                          </div>
+                        </TableHead>
+                        <TableHead 
+                          className="cursor-pointer hover:bg-green-100 text-center w-20"
+                          onClick={() => handleAutocompleteSort('competition')}
+                        >
+                          <div className="flex items-center gap-1 justify-center">
+                            경쟁도
+                            <ArrowUpDown className="h-4 w-4" />
+                          </div>
+                        </TableHead>
+                        <TableHead 
+                          className="cursor-pointer hover:bg-green-100 text-center w-20"
+                          onClick={() => handleAutocompleteSort('competitionScore')}
+                        >
+                          <div className="flex items-center gap-1 justify-center">
+                            경쟁점수
+                            <ArrowUpDown className="h-4 w-4" />
+                          </div>
+                        </TableHead>
+                        <TableHead 
+                          className="cursor-pointer hover:bg-green-100 text-center w-16"
+                          onClick={() => handleAutocompleteSort('trend')}
+                        >
+                          <div className="flex items-center gap-1 justify-center">
+                            트렌드
+                            <ArrowUpDown className="h-4 w-4" />
+                          </div>
+                        </TableHead>
+                        <TableHead 
+                          className="cursor-pointer hover:bg-green-100 text-center w-20"
+                          onClick={() => handleAutocompleteSort('cpc')}
+                        >
+                          <div className="flex items-center gap-1 justify-center">
+                            CPC
+                            <ArrowUpDown className="h-4 w-4" />
+                          </div>
+                        </TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {paginatedAutocompleteKeywords?.map((item, index) => (
+                        <TableRow key={index} className="hover:bg-green-50">
+                          <TableCell className="text-center font-medium">
+                            {autocompleteStartIndex + index + 1}
+                          </TableCell>
+                          <TableCell className="font-medium">
+                            {item.keyword}
+                          </TableCell>
+                          <TableCell className="text-center font-semibold text-green-600">
+                            {item.searchVolume?.toLocaleString() || '-'}
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <Badge 
+                              variant={item.competition === '높음' ? 'destructive' : 
+                                      item.competition === '중간' ? 'default' : 'secondary'}
+                              className="text-xs"
+                            >
+                              {item.competition}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-center">
+                            {item.competitionScore || '-'}
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <Badge 
+                              variant={item.trend === '상승' ? 'default' : 'secondary'}
+                              className="text-xs"
+                            >
+                              {item.trend}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-center">
+                            {item.cpc ? `${item.cpc.toLocaleString()}원` : '-'}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+                
+                {/* 자동완성키워드 페이지네이션 */}
+                {autocompleteTotalPages > 1 && (
+                  <div className="p-4 border-t">
+                    <Pagination>
+                      <PaginationContent>
+                        <PaginationItem>
+                          <PaginationPrevious 
+                            onClick={() => setAutocompleteCurrentPage(Math.max(1, autocompleteCurrentPage - 1))}
+                            className={autocompleteCurrentPage === 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                          />
+                        </PaginationItem>
+                        
+                        {Array.from({ length: Math.min(5, autocompleteTotalPages) }, (_, i) => {
+                          const pageNum = Math.max(1, Math.min(autocompleteTotalPages - 4, autocompleteCurrentPage - 2)) + i;
+                          return (
+                            <PaginationItem key={pageNum}>
+                              <PaginationLink
+                                onClick={() => setAutocompleteCurrentPage(pageNum)}
+                                isActive={pageNum === autocompleteCurrentPage}
+                                className="cursor-pointer"
+                              >
+                                {pageNum}
+                              </PaginationLink>
+                            </PaginationItem>
+                          );
+                        })}
+                        
+                        <PaginationItem>
+                          <PaginationNext 
+                            onClick={() => setAutocompleteCurrentPage(Math.min(autocompleteTotalPages, autocompleteCurrentPage + 1))}
+                            className={autocompleteCurrentPage === autocompleteTotalPages ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                          />
+                        </PaginationItem>
+                      </PaginationContent>
+                    </Pagination>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
       )}
 
       {loading && (
