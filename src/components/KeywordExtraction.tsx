@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -46,12 +45,19 @@ interface RelatedKeyword {
 
 interface AutocompleteKeyword {
   keyword: string;
+  monthlyPcSearchCount?: number;
+  monthlyMobileSearchCount?: number;
+  totalSearchCount?: number;
 }
 
 interface KeywordData {
   relatedKeywords: RelatedKeyword[];
-  autocompleteKeywords: AutocompleteKeyword[];
+  autocompleteKeywordsByKeyword: { [key: string]: AutocompleteKeyword[] };
   searchKeywords: string[];
+  searchPeriod?: string;
+  debug?: {
+    isMultiKeyword: boolean;
+  };
 }
 
 type RelatedSortField = 'keyword' | 'searchKeyword' | 'totalSearchCount' | 'totalAvgClick' | 'avgCtr' | 'competition' | 'competitionScore' | 'plAvgDepth' | 'originalIndex';
@@ -71,7 +77,7 @@ const KeywordExtraction = () => {
   const [relatedCurrentPage, setRelatedCurrentPage] = useState(1);
   
   // Autocomplete keywords state
-  const [autocompleteCurrentPage, setAutocompleteCurrentPage] = useState(1);
+  const [autocompleteActiveTab, setAutocompleteActiveTab] = useState("");
   
   // Modal state
   const [selectedKeyword, setSelectedKeyword] = useState<RelatedKeyword | null>(null);
@@ -121,6 +127,11 @@ const KeywordExtraction = () => {
       setAutocompleteCurrentPage(1);
       setRelatedSortField('originalIndex');
       setRelatedSortDirection('asc');
+      
+      // 첫 번째 키워드를 자동완성 탭 기본값으로 설정
+      if (keywords.length > 0) {
+        setAutocompleteActiveTab(keywords[0]);
+      }
       
       toast({
         title: "키워드 추출 완료",
@@ -229,11 +240,14 @@ const KeywordExtraction = () => {
   const relatedEndIndex = relatedStartIndex + ITEMS_PER_PAGE;
   const paginatedRelatedKeywords = sortedRelatedKeywords?.slice(relatedStartIndex, relatedEndIndex);
 
+  // Autocomplete keywords by current tab
+  const currentAutocompleteKeywords = keywordData?.autocompleteKeywordsByKeyword?.[autocompleteActiveTab] || [];
+  
   // Pagination for autocomplete keywords
-  const autocompleteTotalPages = Math.ceil((keywordData?.autocompleteKeywords?.length || 0) / ITEMS_PER_PAGE);
+  const autocompleteTotalPages = Math.ceil(currentAutocompleteKeywords.length / ITEMS_PER_PAGE);
   const autocompleteStartIndex = (autocompleteCurrentPage - 1) * ITEMS_PER_PAGE;
   const autocompleteEndIndex = autocompleteStartIndex + ITEMS_PER_PAGE;
-  const paginatedAutocompleteKeywords = keywordData?.autocompleteKeywords?.slice(autocompleteStartIndex, autocompleteEndIndex);
+  const paginatedAutocompleteKeywords = currentAutocompleteKeywords.slice(autocompleteStartIndex, autocompleteEndIndex);
 
   const downloadExcel = () => {
     if (!keywordData) return;
@@ -252,18 +266,28 @@ const KeywordExtraction = () => {
       item.plAvgDepth
     ]) || [];
 
-    const autocompleteData = keywordData.autocompleteKeywords?.map((item, index) => [
-      index + 1,
-      item.keyword
-    ]) || [];
+    // 각 키워드별 자동완성 데이터 추가
+    let autocompleteData = [];
+    Object.keys(keywordData.autocompleteKeywordsByKeyword || {}).forEach(keyword => {
+      autocompleteData.push([`=== ${keyword} 자동완성키워드 ===`]);
+      autocompleteData.push(["순번", "키워드", "월간PC검색수", "월간모바일검색수", "월간전체검색수"]);
+      keywordData.autocompleteKeywordsByKeyword[keyword]?.forEach((item, index) => {
+        autocompleteData.push([
+          index + 1,
+          item.keyword,
+          item.monthlyPcSearchCount || '-',
+          item.monthlyMobileSearchCount || '-',
+          item.totalSearchCount || '-'
+        ]);
+      });
+      autocompleteData.push([""]);
+    });
 
     const csvContent = [
       ["=== 연관키워드 ==="],
       ["순번", "키워드", "검색키워드", "월간PC검색수", "월간모바일검색수", "월간전체검색수", "월평균클릭수", "월평균클릭률", "경쟁정도", "경쟁점수", "월평균노출광고수"],
       ...relatedData,
       [""],
-      ["=== 자동완성 키워드 ==="],
-      ["순번", "키워드"],
       ...autocompleteData
     ].map(row => row.join(",")).join("\n");
 
@@ -319,8 +343,11 @@ const KeywordExtraction = () => {
                   분석 키워드: <span className="font-medium">{keywordData.searchKeywords?.join(', ')}</span>
                 </div>
                 <div className="text-sm text-gray-600">
+                  분석 기간: <span className="font-medium">{keywordData.searchPeriod || '2025-06-12'}</span>
+                </div>
+                <div className="text-sm text-gray-600">
                   연관키워드: {keywordData.relatedKeywords?.length || 0}개 | 
-                  자동완성 키워드: {keywordData.autocompleteKeywords?.length || 0}개
+                  자동완성 키워드: {Object.values(keywordData.autocompleteKeywordsByKeyword || {}).reduce((total, keywords) => total + keywords.length, 0)}개
                 </div>
               </div>
               <div className="flex gap-2">
@@ -343,7 +370,9 @@ const KeywordExtraction = () => {
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="related">연관키워드 ({keywordData.relatedKeywords?.length || 0})</TabsTrigger>
-            <TabsTrigger value="autocomplete">자동완성키워드 ({keywordData.autocompleteKeywords?.length || 0})</TabsTrigger>
+            <TabsTrigger value="autocomplete">
+              자동완성키워드 ({Object.values(keywordData.autocompleteKeywordsByKeyword || {}).reduce((total, keywords) => total + keywords.length, 0)})
+            </TabsTrigger>
           </TabsList>
 
           {/* 연관키워드 탭 */}
@@ -549,6 +578,37 @@ const KeywordExtraction = () => {
                 <CardTitle className="text-lg font-semibold text-green-600">
                   자동완성키워드 (네이버 스타일)
                 </CardTitle>
+                
+                {/* 키워드별 탭 */}
+                {keywordData.searchKeywords && keywordData.searchKeywords.length > 1 && (
+                  <Tabs value={autocompleteActiveTab} onValueChange={(value) => {
+                    setAutocompleteActiveTab(value);
+                    setAutocompleteCurrentPage(1);
+                  }} className="w-full">
+                    <TabsList className="grid w-full grid-cols-5" style={{ gridTemplateColumns: `repeat(${Math.min(keywordData.searchKeywords.length, 5)}, 1fr)` }}>
+                      {keywordData.searchKeywords.slice(0, 5).map((keyword) => (
+                        <TabsTrigger key={keyword} value={keyword} className="text-xs">
+                          {keyword} ({keywordData.autocompleteKeywordsByKeyword?.[keyword]?.length || 0})
+                        </TabsTrigger>
+                      ))}
+                    </TabsList>
+                    
+                    {keywordData.searchKeywords.slice(0, 5).map((keyword) => (
+                      <TabsContent key={keyword} value={keyword} className="mt-4">
+                        <div className="text-sm text-gray-600 mb-4">
+                          "{keyword}"의 자동완성키워드 | 분석기간: {keywordData.searchPeriod || '2025-06-12'}
+                        </div>
+                      </TabsContent>
+                    ))}
+                  </Tabs>
+                )}
+                
+                {/* 단일 키워드인 경우 */}
+                {keywordData.searchKeywords && keywordData.searchKeywords.length === 1 && (
+                  <div className="text-sm text-gray-600">
+                    "{keywordData.searchKeywords[0]}"의 상위 클릭수 연관키워드 | 분석기간: {keywordData.searchPeriod || '2025-06-12'}
+                  </div>
+                )}
               </CardHeader>
               <CardContent className="p-0">
                 <div className="overflow-x-auto">
@@ -557,6 +617,7 @@ const KeywordExtraction = () => {
                       <TableRow className="bg-green-50">
                         <TableHead className="w-12 text-center">#</TableHead>
                         <TableHead className="min-w-40">키워드</TableHead>
+                        <TableHead className="text-center w-32">월간검색수</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -567,6 +628,29 @@ const KeywordExtraction = () => {
                           </TableCell>
                           <TableCell className="font-medium">
                             {item.keyword}
+                          </TableCell>
+                          <TableCell className="text-center">
+                            {item.monthlyPcSearchCount !== undefined ? (
+                              <div className="space-y-1">
+                                <div className="flex items-center justify-center gap-1 text-sm">
+                                  <Monitor className="h-3 w-3 text-blue-500" />
+                                  <span className="text-blue-600 font-semibold">
+                                    {item.monthlyPcSearchCount?.toLocaleString() || '-'}
+                                  </span>
+                                </div>
+                                <div className="flex items-center justify-center gap-1 text-sm">
+                                  <Smartphone className="h-3 w-3 text-green-500" />
+                                  <span className="text-green-600 font-semibold">
+                                    {item.monthlyMobileSearchCount?.toLocaleString() || '-'}
+                                  </span>
+                                </div>
+                                <div className="text-xs text-gray-500 border-t pt-1">
+                                  전체: {item.totalSearchCount?.toLocaleString() || '-'}
+                                </div>
+                              </div>
+                            ) : (
+                              <span className="text-gray-400">-</span>
+                            )}
                           </TableCell>
                         </TableRow>
                       ))}

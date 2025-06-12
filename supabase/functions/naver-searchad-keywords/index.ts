@@ -1,4 +1,3 @@
-
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
@@ -33,6 +32,7 @@ serve(async (req) => {
     console.log('연관키워드 검색 요청:', keywordList);
 
     const allResults = [];
+    const autocompleteKeywordsByKeyword = {};
 
     // 각 키워드별로 개별 요청
     for (const keyword of keywordList) {
@@ -116,28 +116,38 @@ serve(async (req) => {
           keywordResults = generateRelatedKeywords(keyword);
         }
 
+        // 각 키워드별로 자동완성키워드 생성
+        if (keywordList.length > 1) {
+          // 멀티키워드인 경우 각 키워드별로 자동완성키워드 생성
+          autocompleteKeywordsByKeyword[keyword] = generateNaverStyleAutocompleteByKeyword(keyword);
+        } else {
+          // 단일키워드인 경우 상위 클릭수 연관키워드 4개를 자동완성으로 사용
+          const topClickKeywords = keywordResults
+            .sort((a, b) => b.totalAvgClick - a.totalAvgClick)
+            .slice(0, 4)
+            .map(item => ({ keyword: item.keyword }));
+          autocompleteKeywordsByKeyword[keyword] = topClickKeywords;
+        }
+
         allResults.push(...keywordResults);
       } catch (error) {
         console.error(`키워드 "${keyword}" 처리 중 오류:`, error);
         // 오류 발생시 더미 데이터 추가
-        allResults.push(...generateRelatedKeywords(keyword));
+        const dummyResults = generateRelatedKeywords(keyword);
+        allResults.push(...dummyResults);
+        autocompleteKeywordsByKeyword[keyword] = generateNaverStyleAutocompleteByKeyword(keyword);
       }
     }
 
-    // 자동완성 키워드는 첫 번째 키워드로만 생성 (네이버 스타일)
-    let autocompleteKeywords = [];
-    const firstKeyword = keywordList[0];
-    
-    // 네이버 스타일 자동완성키워드 생성
-    autocompleteKeywords = generateNaverStyleAutocomplete(firstKeyword);
-
     const result = {
       relatedKeywords: allResults,
-      autocompleteKeywords,
+      autocompleteKeywordsByKeyword,
       searchKeywords: keywordList,
+      searchPeriod: new Date().toISOString().split('T')[0], // 현재 날짜
       debug: {
         searchKeywords: keywordList,
-        totalResults: allResults.length
+        totalResults: allResults.length,
+        isMultiKeyword: keywordList.length > 1
       }
     };
 
@@ -152,7 +162,7 @@ serve(async (req) => {
     return new Response(JSON.stringify({ 
       error: error.message,
       relatedKeywords: [],
-      autocompleteKeywords: []
+      autocompleteKeywordsByKeyword: {}
     }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -194,20 +204,28 @@ function generateRelatedKeywords(baseKeyword: string) {
   }));
 }
 
-// 네이버 스타일 자동완성키워드 생성
-function generateNaverStyleAutocomplete(baseKeyword: string) {
+// 키워드별 네이버 스타일 자동완성키워드 생성
+function generateNaverStyleAutocompleteByKeyword(baseKeyword: string) {
   const suggestions = [
     baseKeyword,
-    `${baseKeyword} 듀라코트`,
-    `${baseKeyword} 코팅제`,
-    `${baseKeyword} 공구`,
-    `${baseKeyword} 답정`,
-    `${baseKeyword} 코팅`,
-    `${baseKeyword} 후기`,
-    `${baseKeyword} 내돈`,
-    `${baseKeyword} 주방`,
-    `${baseKeyword} 연마제`
+    `${baseKeyword} 추천`,
+    `${baseKeyword} 가격`,
+    `${baseKeyword} 리뷰`,
+    `${baseKeyword} 할인`,
+    `${baseKeyword} 세트`,
+    `${baseKeyword} 브랜드`,
+    `${baseKeyword} 순위`,
+    `${baseKeyword} 비교`,
+    `${baseKeyword} 구매`
   ];
   
-  return suggestions.map(suggestion => ({ keyword: suggestion }));
+  return suggestions.map(suggestion => ({ 
+    keyword: suggestion,
+    monthlyPcSearchCount: Math.floor(Math.random() * 5000) + 100,
+    monthlyMobileSearchCount: Math.floor(Math.random() * 15000) + 500,
+    totalSearchCount: 0
+  })).map(item => ({
+    ...item,
+    totalSearchCount: item.monthlyPcSearchCount + item.monthlyMobileSearchCount
+  }));
 }
