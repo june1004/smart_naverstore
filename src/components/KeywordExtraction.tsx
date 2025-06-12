@@ -1,11 +1,10 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Search, Download, ArrowUpDown, RotateCcw, Hash, Desktop, Mobile } from "lucide-react";
+import { Search, Download, ArrowUpDown, RotateCcw, Hash, Monitor, Smartphone } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import {
   Table,
@@ -447,13 +446,13 @@ const KeywordExtraction = () => {
                           <TableCell className="text-center">
                             <div className="space-y-1">
                               <div className="flex items-center justify-center gap-1 text-sm">
-                                <Desktop className="h-3 w-3 text-blue-500" />
+                                <Monitor className="h-3 w-3 text-blue-500" />
                                 <span className="text-blue-600 font-semibold">
                                   {item.monthlyPcSearchCount?.toLocaleString() || '-'}
                                 </span>
                               </div>
                               <div className="flex items-center justify-center gap-1 text-sm">
-                                <Mobile className="h-3 w-3 text-green-500" />
+                                <Smartphone className="h-3 w-3 text-green-500" />
                                 <span className="text-green-600 font-semibold">
                                   {item.monthlyMobileSearchCount?.toLocaleString() || '-'}
                                 </span>

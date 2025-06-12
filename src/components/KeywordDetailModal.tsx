@@ -1,4 +1,3 @@
-
 import React from "react";
 import {
   Dialog,
@@ -9,7 +8,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, BarChart, Bar } from 'recharts';
-import { Desktop, Mobile } from "lucide-react";
+import { Monitor, Smartphone } from "lucide-react";
 
 interface RelatedKeyword {
   keyword: string;
@@ -88,14 +87,14 @@ const KeywordDetailModal = ({ keyword, isOpen, onClose }: KeywordDetailModalProp
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <Desktop className="h-4 w-4 text-blue-500" />
+                      <Monitor className="h-4 w-4 text-blue-500" />
                       <span className="text-sm">PC</span>
                     </div>
                     <span className="font-semibold">{keyword.monthlyPcSearchCount.toLocaleString()}</span>
                   </div>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <Mobile className="h-4 w-4 text-green-500" />
+                      <Smartphone className="h-4 w-4 text-green-500" />
                       <span className="text-sm">모바일</span>
                     </div>
                     <span className="font-semibold">{keyword.monthlyMobileSearchCount.toLocaleString()}</span>
@@ -118,14 +117,14 @@ const KeywordDetailModal = ({ keyword, isOpen, onClose }: KeywordDetailModalProp
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <Desktop className="h-4 w-4 text-blue-500" />
+                      <Monitor className="h-4 w-4 text-blue-500" />
                       <span className="text-sm">PC</span>
                     </div>
                     <span className="font-semibold">{keyword.monthlyAvgPcClick.toLocaleString()}</span>
                   </div>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <Mobile className="h-4 w-4 text-green-500" />
+                      <Smartphone className="h-4 w-4 text-green-500" />
                       <span className="text-sm">모바일</span>
                     </div>
                     <span className="font-semibold">{keyword.monthlyAvgMobileClick.toLocaleString()}</span>
