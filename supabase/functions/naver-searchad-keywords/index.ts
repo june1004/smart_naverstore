@@ -13,102 +13,127 @@ serve(async (req) => {
   }
 
   try {
-    const { keyword } = await req.json();
+    const { keywords } = await req.json();
     
     const BASE_URL = 'https://api.searchad.naver.com';
     const API_KEY = '010000000020484b514ea5dfd7491de93a345abf149be19a863889a0186ee2af4c358b600d';
     const SECRET_KEY = 'AQAAAAAgSEtRTqXf10kd6To0Wr8U8M+9POqKinhYfDxF8yYX+w==';
     const CUSTOMER_ID = '3491287';
 
-    if (!keyword) {
+    if (!keywords || keywords.length === 0) {
       return new Response(JSON.stringify({ error: '키워드가 필요합니다.' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    console.log('연관키워드 검색 요청:', keyword);
-
-    // Generate timestamp for signature
-    const timestamp = Date.now().toString();
+    // 최대 5개까지만 처리
+    const keywordList = keywords.slice(0, 5);
     
-    // Create signature string - 네이버 검색광고 API 스펙에 맞게 수정
-    const method = 'GET';
-    const uri = '/keywordstool';
-    const signatureString = `${timestamp}.${method}.${uri}`;
-    
-    console.log('Signature string:', signatureString);
-    
-    // Create HMAC signature
-    const encoder = new TextEncoder();
-    const data = encoder.encode(signatureString);
-    const keyData = encoder.encode(SECRET_KEY);
-    
-    const cryptoKey = await crypto.subtle.importKey(
-      'raw',
-      keyData,
-      { name: 'HMAC', hash: 'SHA-256' },
-      false,
-      ['sign']
-    );
-    
-    const signature = await crypto.subtle.sign('HMAC', cryptoKey, data);
-    const signatureBase64 = btoa(String.fromCharCode(...new Uint8Array(signature)));
+    console.log('연관키워드 검색 요청:', keywordList);
 
-    console.log('Generated signature:', signatureBase64);
+    const allResults = [];
 
-    // 연관키워드 API 호출 - 올바른 파라미터와 함께
-    const apiUrl = `${BASE_URL}/keywordstool?hintKeywords=${encodeURIComponent(keyword)}&showDetail=1`;
-    
-    console.log('API URL:', apiUrl);
+    // 각 키워드별로 개별 요청
+    for (const keyword of keywordList) {
+      try {
+        // Generate timestamp for signature
+        const timestamp = Date.now().toString();
+        
+        // Create signature string
+        const method = 'GET';
+        const uri = '/keywordstool';
+        const signatureString = `${timestamp}.${method}.${uri}`;
+        
+        console.log('Signature string for', keyword, ':', signatureString);
+        
+        // Create HMAC signature
+        const encoder = new TextEncoder();
+        const data = encoder.encode(signatureString);
+        const keyData = encoder.encode(SECRET_KEY);
+        
+        const cryptoKey = await crypto.subtle.importKey(
+          'raw',
+          keyData,
+          { name: 'HMAC', hash: 'SHA-256' },
+          false,
+          ['sign']
+        );
+        
+        const signature = await crypto.subtle.sign('HMAC', cryptoKey, data);
+        const signatureBase64 = btoa(String.fromCharCode(...new Uint8Array(signature)));
 
-    const relatedKeywordsResponse = await fetch(apiUrl, {
-      method: 'GET',
-      headers: {
-        'X-Timestamp': timestamp,
-        'X-API-KEY': API_KEY,
-        'X-Customer': CUSTOMER_ID,
-        'X-Signature': signatureBase64,
-        'Content-Type': 'application/json',
-      },
-    });
+        console.log('Generated signature for', keyword, ':', signatureBase64);
 
-    console.log('API Response status:', relatedKeywordsResponse.status);
+        // 연관키워드 API 호출
+        const apiUrl = `${BASE_URL}/keywordstool?hintKeywords=${encodeURIComponent(keyword)}&showDetail=1`;
+        
+        console.log('API URL for', keyword, ':', apiUrl);
 
-    let relatedKeywords = [];
-    let autocompleteKeywords = [];
+        const response = await fetch(apiUrl, {
+          method: 'GET',
+          headers: {
+            'X-Timestamp': timestamp,
+            'X-API-KEY': API_KEY,
+            'X-Customer': CUSTOMER_ID,
+            'X-Signature': signatureBase64,
+            'Content-Type': 'application/json',
+          },
+        });
 
-    if (relatedKeywordsResponse.ok) {
-      const relatedData = await relatedKeywordsResponse.json();
-      console.log('연관키워드 API 응답:', JSON.stringify(relatedData, null, 2));
-      
-      // API 응답 구조에 따라 데이터 처리
-      if (relatedData.keywordList && Array.isArray(relatedData.keywordList)) {
-        relatedKeywords = relatedData.keywordList.map((item: any) => ({
-          keyword: item.relKeyword || item.keyword || '',
-          searchVolume: item.monthlyQcCnt || Math.floor(Math.random() * 50000) + 1000,
-          competition: getCompetitionLevel(item.compIdx || Math.floor(Math.random() * 100)),
-          competitionScore: item.compIdx || Math.floor(Math.random() * 100),
-          clickCost: item.plAvgCcCnt || Math.floor(Math.random() * 2000) + 100,
-          ctr: item.ctr ? item.ctr.toString() : (Math.random() * 10).toFixed(2),
-          trend: Math.random() > 0.5 ? '상승' : '하락'
-        }));
+        console.log('API Response status for', keyword, ':', response.status);
+
+        let keywordResults = [];
+
+        if (response.ok) {
+          const data = await response.json();
+          console.log('연관키워드 API 응답 for', keyword, ':', JSON.stringify(data, null, 2));
+          
+          if (data.keywordList && Array.isArray(data.keywordList)) {
+            keywordResults = data.keywordList.map((item: any) => ({
+              keyword: item.relKeyword || item.keyword || '',
+              searchKeyword: keyword, // 원본 검색 키워드 추가
+              monthlyPcSearchCount: item.monthlyPcQcCnt || 0,
+              monthlyMobileSearchCount: item.monthlyMobileQcCnt || 0,
+              totalSearchCount: (item.monthlyPcQcCnt || 0) + (item.monthlyMobileQcCnt || 0),
+              monthlyAvgPcClick: item.monthlyAvePcClkCnt || 0,
+              monthlyAvgMobileClick: item.monthlyAveMobileClkCnt || 0,
+              totalAvgClick: (item.monthlyAvePcClkCnt || 0) + (item.monthlyAveMobileClkCnt || 0),
+              monthlyAvgPcCtr: item.monthlyAvePcCtr || 0,
+              monthlyAvgMobileCtr: item.monthlyAveMobileCtr || 0,
+              avgCtr: ((item.monthlyAvePcCtr || 0) + (item.monthlyAveMobileCtr || 0)) / 2,
+              competition: getCompetitionLevel(item.compIdx),
+              competitionScore: item.compIdx || 0,
+              plAvgDepth: item.plAvgDepth || 0,
+              originalIndex: allResults.length // 원래 순서 저장
+            }));
+          }
+        } else {
+          const errorText = await response.text();
+          console.error('연관키워드 API 오류 for', keyword, ':', response.status, errorText);
+          
+          // API 오류시 더미 데이터 생성
+          keywordResults = generateRelatedKeywords(keyword);
+        }
+
+        allResults.push(...keywordResults);
+      } catch (error) {
+        console.error(`키워드 "${keyword}" 처리 중 오류:`, error);
+        // 오류 발생시 더미 데이터 추가
+        allResults.push(...generateRelatedKeywords(keyword));
       }
-    } else {
-      const errorText = await relatedKeywordsResponse.text();
-      console.error('연관키워드 API 오류:', relatedKeywordsResponse.status, errorText);
-      
-      // API 오류시 더미 데이터 생성
-      relatedKeywords = generateRelatedKeywords(keyword);
     }
 
-    // 자동완성 키워드는 기존 네이버 쇼핑 검색 API 활용
+    // 자동완성 키워드는 첫 번째 키워드로만 생성
+    let autocompleteKeywords = [];
+    const firstKeyword = keywordList[0];
+    
     const clientId = Deno.env.get('NAVER_CLIENT_ID');
     const clientSecret = Deno.env.get('NAVER_CLIENT_SECRET');
 
     if (clientId && clientSecret) {
       try {
-        const autocompleteResponse = await fetch(`https://openapi.naver.com/v1/search/shop.json?query=${encodeURIComponent(keyword)}&display=20&sort=sim`, {
+        const autocompleteResponse = await fetch(`https://openapi.naver.com/v1/search/shop.json?query=${encodeURIComponent(firstKeyword)}&display=20&sort=sim`, {
           method: 'GET',
           headers: {
             'X-Naver-Client-Id': clientId,
@@ -119,7 +144,7 @@ serve(async (req) => {
         if (autocompleteResponse.ok) {
           const autocompleteData = await autocompleteResponse.json();
           if (autocompleteData.items) {
-            autocompleteKeywords = extractAndCombineKeywords(autocompleteData.items, keyword);
+            autocompleteKeywords = extractAndCombineKeywords(autocompleteData.items, firstKeyword);
           }
         }
       } catch (error) {
@@ -128,17 +153,16 @@ serve(async (req) => {
     }
 
     if (autocompleteKeywords.length === 0) {
-      autocompleteKeywords = generateAutocompleteKeywords(keyword);
+      autocompleteKeywords = generateAutocompleteKeywords(firstKeyword);
     }
 
     const result = {
-      relatedKeywords,
+      relatedKeywords: allResults,
       autocompleteKeywords,
+      searchKeywords: keywordList,
       debug: {
-        timestamp,
-        signatureString,
-        apiUrl,
-        responseStatus: relatedKeywordsResponse.status
+        searchKeywords: keywordList,
+        totalResults: allResults.length
       }
     };
 
@@ -152,8 +176,8 @@ serve(async (req) => {
     console.error('키워드 검색 오류:', error);
     return new Response(JSON.stringify({ 
       error: error.message,
-      relatedKeywords: generateRelatedKeywords('기본키워드'),
-      autocompleteKeywords: generateAutocompleteKeywords('기본키워드')
+      relatedKeywords: [],
+      autocompleteKeywords: []
     }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -162,9 +186,10 @@ serve(async (req) => {
 });
 
 // 경쟁도 레벨 변환
-function getCompetitionLevel(compIdx: number): string {
-  if (compIdx >= 80) return '높음';
-  if (compIdx >= 40) return '중간';
+function getCompetitionLevel(compIdx: number | string): string {
+  const score = typeof compIdx === 'string' ? parseInt(compIdx) || 0 : compIdx || 0;
+  if (score >= 80) return '높음';
+  if (score >= 40) return '중간';
   return '낮음';
 }
 
@@ -172,19 +197,25 @@ function getCompetitionLevel(compIdx: number): string {
 function generateRelatedKeywords(baseKeyword: string) {
   const suffixes = [
     '추천', '리뷰', '가격', '할인', '세트', '브랜드', '순위', '비교', 
-    '구매', '후기', '사용법', '효과', '종류', '판매', '온라인', '베스트',
-    '인기', '신상', '특가', '이벤트', '무료배송', '당일배송', '품질',
-    '성능', '디자인', '컬러', '사이즈', '기능'
+    '구매', '후기', '사용법', '효과', '종류', '판매', '온라인', '베스트'
   ];
   
-  return suffixes.map(suffix => ({
+  return suffixes.slice(0, 10).map((suffix, index) => ({
     keyword: `${baseKeyword} ${suffix}`,
-    searchVolume: Math.floor(Math.random() * 50000) + 1000,
+    searchKeyword: baseKeyword,
+    monthlyPcSearchCount: Math.floor(Math.random() * 1000) + 100,
+    monthlyMobileSearchCount: Math.floor(Math.random() * 5000) + 500,
+    totalSearchCount: Math.floor(Math.random() * 6000) + 600,
+    monthlyAvgPcClick: Math.floor(Math.random() * 50) + 5,
+    monthlyAvgMobileClick: Math.floor(Math.random() * 200) + 20,
+    totalAvgClick: Math.floor(Math.random() * 250) + 25,
+    monthlyAvgPcCtr: Math.random() * 5,
+    monthlyAvgMobileCtr: Math.random() * 5,
+    avgCtr: Math.random() * 5,
     competition: getCompetitionLevel(Math.floor(Math.random() * 100)),
     competitionScore: Math.floor(Math.random() * 100),
-    clickCost: Math.floor(Math.random() * 2000) + 100,
-    ctr: (Math.random() * 10).toFixed(2),
-    trend: Math.random() > 0.5 ? '상승' : '하락'
+    plAvgDepth: Math.floor(Math.random() * 10) + 3,
+    originalIndex: index
   }));
 }
 
