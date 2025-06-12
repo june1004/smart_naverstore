@@ -124,37 +124,12 @@ serve(async (req) => {
       }
     }
 
-    // 자동완성 키워드는 첫 번째 키워드로만 생성
+    // 자동완성 키워드는 첫 번째 키워드로만 생성 (네이버 스타일)
     let autocompleteKeywords = [];
     const firstKeyword = keywordList[0];
     
-    const clientId = Deno.env.get('NAVER_CLIENT_ID');
-    const clientSecret = Deno.env.get('NAVER_CLIENT_SECRET');
-
-    if (clientId && clientSecret) {
-      try {
-        const autocompleteResponse = await fetch(`https://openapi.naver.com/v1/search/shop.json?query=${encodeURIComponent(firstKeyword)}&display=20&sort=sim`, {
-          method: 'GET',
-          headers: {
-            'X-Naver-Client-Id': clientId,
-            'X-Naver-Client-Secret': clientSecret,
-          },
-        });
-
-        if (autocompleteResponse.ok) {
-          const autocompleteData = await autocompleteResponse.json();
-          if (autocompleteData.items) {
-            autocompleteKeywords = extractAndCombineKeywords(autocompleteData.items, firstKeyword);
-          }
-        }
-      } catch (error) {
-        console.error('자동완성 키워드 API 오류:', error);
-      }
-    }
-
-    if (autocompleteKeywords.length === 0) {
-      autocompleteKeywords = generateAutocompleteKeywords(firstKeyword);
-    }
+    // 네이버 스타일 자동완성키워드 생성
+    autocompleteKeywords = generateNaverStyleAutocomplete(firstKeyword);
 
     const result = {
       relatedKeywords: allResults,
@@ -219,50 +194,20 @@ function generateRelatedKeywords(baseKeyword: string) {
   }));
 }
 
-// 자동완성 키워드 생성
-function generateAutocompleteKeywords(baseKeyword: string) {
-  const suffixes = [
-    '추천', '리뷰', '가격비교', '할인', '세트', '브랜드', '순위', 
-    '구매팁', '후기', '베스트', '인기순', '신제품', '특가', '이벤트'
+// 네이버 스타일 자동완성키워드 생성
+function generateNaverStyleAutocomplete(baseKeyword: string) {
+  const suggestions = [
+    baseKeyword,
+    `${baseKeyword} 듀라코트`,
+    `${baseKeyword} 코팅제`,
+    `${baseKeyword} 공구`,
+    `${baseKeyword} 답정`,
+    `${baseKeyword} 코팅`,
+    `${baseKeyword} 후기`,
+    `${baseKeyword} 내돈`,
+    `${baseKeyword} 주방`,
+    `${baseKeyword} 연마제`
   ];
   
-  return suffixes.map(suffix => ({
-    keyword: `${baseKeyword} ${suffix}`,
-    searchVolume: Math.floor(Math.random() * 30000) + 5000,
-    competition: getCompetitionLevel(Math.floor(Math.random() * 100)),
-    competitionScore: Math.floor(Math.random() * 100),
-    trend: Math.random() > 0.5 ? '상승' : '하락',
-    cpc: Math.floor(Math.random() * 2000) + 100
-  }));
-}
-
-// 상품 제목에서 키워드 추출하고 조합
-function extractAndCombineKeywords(items: any[], baseKeyword: string) {
-  const keywordCounts = new Map();
-  
-  items.forEach(item => {
-    const title = item.title.replace(/<[^>]*>/g, '');
-    const words = title.split(/\s+/);
-    
-    words.forEach(word => {
-      if (word.length > 1 && word !== baseKeyword) {
-        const cleanWord = word.replace(/[^\w가-힣]/g, '');
-        if (cleanWord.length > 1) {
-          keywordCounts.set(cleanWord, (keywordCounts.get(cleanWord) || 0) + 1);
-        }
-      }
-    });
-  });
-
-  return Array.from(keywordCounts.entries())
-    .map(([suffix, count]) => ({
-      keyword: `${baseKeyword} ${suffix}`,
-      searchVolume: Math.floor(Math.random() * 50000) + count * 1000,
-      competition: getCompetitionLevel(Math.floor(Math.random() * 100)),
-      competitionScore: Math.floor(Math.random() * 100),
-      trend: Math.random() > 0.5 ? '상승' : '하락',
-      cpc: Math.floor(Math.random() * 2000) + 100
-    }))
-    .sort((a, b) => b.searchVolume - a.searchVolume)
-    .slice(0, 15);
+  return suggestions.map(suggestion => ({ keyword: suggestion }));
 }
