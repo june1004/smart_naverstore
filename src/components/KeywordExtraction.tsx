@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Search, Download, ArrowUpDown, RotateCcw, Hash } from "lucide-react";
+import { Search, Download, ArrowUpDown, RotateCcw, Hash, Desktop, Mobile } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import {
   Table,
@@ -24,6 +24,7 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination";
+import KeywordDetailModal from "./KeywordDetailModal";
 
 interface RelatedKeyword {
   keyword: string;
@@ -79,6 +80,10 @@ const KeywordExtraction = () => {
   const [autocompleteSortField, setAutocompleteSortField] = useState<AutocompleteSortField>('searchVolume');
   const [autocompleteSortDirection, setAutocompleteSortDirection] = useState<'asc' | 'desc'>('desc');
   const [autocompleteCurrentPage, setAutocompleteCurrentPage] = useState(1);
+  
+  // Modal state
+  const [selectedKeyword, setSelectedKeyword] = useState<RelatedKeyword | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
   
   const { toast } = useToast();
 
@@ -156,6 +161,11 @@ const KeywordExtraction = () => {
     }
   };
 
+  const handleKeywordClick = (keyword: RelatedKeyword) => {
+    setSelectedKeyword(keyword);
+    setIsModalOpen(true);
+  };
+
   const handleRelatedSort = (field: RelatedSortField) => {
     if (relatedSortField === field) {
       setRelatedSortDirection(relatedSortDirection === 'asc' ? 'desc' : 'asc');
@@ -227,6 +237,8 @@ const KeywordExtraction = () => {
       index + 1,
       item.keyword,
       item.searchKeyword,
+      item.monthlyPcSearchCount,
+      item.monthlyMobileSearchCount,
       item.totalSearchCount,
       item.totalAvgClick,
       `${item.avgCtr.toFixed(2)}%`,
@@ -247,7 +259,7 @@ const KeywordExtraction = () => {
 
     const csvContent = [
       ["=== 연관키워드 ==="],
-      ["순번", "키워드", "검색키워드", "월간검색수", "월평균클릭수", "월평균클릭률", "경쟁정도", "경쟁점수", "월평균노출광고수"],
+      ["순번", "키워드", "검색키워드", "월간PC검색수", "월간모바일검색수", "월간전체검색수", "월평균클릭수", "월평균클릭률", "경쟁정도", "경쟁점수", "월평균노출광고수"],
       ...relatedData,
       [""],
       ["=== 자동완성 키워드 ==="],
@@ -367,7 +379,7 @@ const KeywordExtraction = () => {
                           </div>
                         </TableHead>
                         <TableHead 
-                          className="cursor-pointer hover:bg-blue-100 text-center w-28"
+                          className="cursor-pointer hover:bg-blue-100 text-center w-32"
                           onClick={() => handleRelatedSort('totalSearchCount')}
                         >
                           <div className="flex items-center gap-1 justify-center">
@@ -420,15 +432,36 @@ const KeywordExtraction = () => {
                             {relatedStartIndex + index + 1}
                           </TableCell>
                           <TableCell className="font-medium">
-                            {item.keyword}
+                            <button
+                              onClick={() => handleKeywordClick(item)}
+                              className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer text-left"
+                            >
+                              {item.keyword}
+                            </button>
                           </TableCell>
                           <TableCell className="text-center">
                             <Badge variant="outline" className="text-xs">
                               {item.searchKeyword}
                             </Badge>
                           </TableCell>
-                          <TableCell className="text-center font-semibold text-blue-600">
-                            {item.totalSearchCount?.toLocaleString() || '-'}
+                          <TableCell className="text-center">
+                            <div className="space-y-1">
+                              <div className="flex items-center justify-center gap-1 text-sm">
+                                <Desktop className="h-3 w-3 text-blue-500" />
+                                <span className="text-blue-600 font-semibold">
+                                  {item.monthlyPcSearchCount?.toLocaleString() || '-'}
+                                </span>
+                              </div>
+                              <div className="flex items-center justify-center gap-1 text-sm">
+                                <Mobile className="h-3 w-3 text-green-500" />
+                                <span className="text-green-600 font-semibold">
+                                  {item.monthlyMobileSearchCount?.toLocaleString() || '-'}
+                                </span>
+                              </div>
+                              <div className="text-xs text-gray-500 border-t pt-1">
+                                전체: {item.totalSearchCount?.toLocaleString() || '-'}
+                              </div>
+                            </div>
                           </TableCell>
                           <TableCell className="text-center">
                             {item.totalAvgClick?.toLocaleString() || '-'}
@@ -648,6 +681,13 @@ const KeywordExtraction = () => {
           </TabsContent>
         </Tabs>
       )}
+
+      {/* 키워드 상세 모달 */}
+      <KeywordDetailModal
+        keyword={selectedKeyword}
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+      />
 
       {loading && (
         <div className="text-center py-8">
