@@ -1,5 +1,3 @@
-
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -92,7 +90,6 @@ const ShoppingSearch = () => {
         throw new Error(error.message);
       }
 
-      // 각 상품에 리뷰 수와 등록일시 추가
       const enhancedItems = data.items?.map((item: any, index: number) => ({
         ...item,
         reviewCount: generateRandomReviewCount(),
@@ -141,20 +138,17 @@ const ShoppingSearch = () => {
     let aValue: any = a[sortField];
     let bValue: any = b[sortField];
 
-    // 가격 필드는 숫자로 변환
     if (sortField === 'lprice') {
       aValue = parseInt(a.lprice || '0');
       bValue = parseInt(b.lprice || '0');
     }
 
-    // 문자열 비교
     if (typeof aValue === 'string' && typeof bValue === 'string') {
       return sortDirection === 'asc' 
         ? aValue.localeCompare(bValue)
         : bValue.localeCompare(aValue);
     }
 
-    // 숫자 비교
     return sortDirection === 'asc' ? aValue - bValue : bValue - aValue;
   });
 
@@ -228,7 +222,6 @@ const ShoppingSearch = () => {
     return `${randomDate.getFullYear()}-${String(randomDate.getMonth() + 1).padStart(2, '0')}-${String(randomDate.getDate()).padStart(2, '0')} ${String(randomDate.getHours()).padStart(2, '0')}:${String(randomDate.getMinutes()).padStart(2, '0')}:${String(randomDate.getSeconds()).padStart(2, '0')}`;
   };
 
-  // 컴포넌트 마운트 시 저장된 검색 결과 복원
   useState(() => {
     const savedHistory = localStorage.getItem('shoppingSearchHistory');
     if (savedHistory) {
@@ -550,4 +543,3 @@ const ShoppingSearch = () => {
 };
 
 export default ShoppingSearch;
-

@@ -97,7 +97,6 @@ const KeywordExtraction = () => {
       return;
     }
 
-    // 쉼표로 구분하여 키워드 배열 생성 (최대 5개)
     const keywords = keywordInput.split(',')
       .map(k => k.trim())
       .filter(k => k.length > 0)
@@ -124,13 +123,12 @@ const KeywordExtraction = () => {
       }
 
       setKeywordData(data);
-      setOriginalKeywordData(data); // 원본 데이터 저장
+      setOriginalKeywordData(data);
       setRelatedCurrentPage(1);
       setAutocompleteCurrentPage(1);
       setRelatedSortField('originalIndex');
       setRelatedSortDirection('asc');
       
-      // 첫 번째 키워드를 자동완성 탭 기본값으로 설정
       if (keywords.length > 0) {
         setAutocompleteActiveTab(keywords[0]);
       }
@@ -164,7 +162,6 @@ const KeywordExtraction = () => {
         throw new Error(error.message);
       }
 
-      // 기존 데이터에 새로운 연관키워드 추가
       if (keywordData && data.relatedKeywords) {
         const updatedData = {
           ...keywordData,
@@ -261,7 +258,7 @@ const KeywordExtraction = () => {
   const downloadExcel = () => {
     if (!keywordData) return;
 
-    const relatedData = sortedRelatedKeywords?.map((item, index) => [
+    const relatedData = filteredAndSortedRelatedKeywords?.map((item, index) => [
       index + 1,
       item.keyword,
       item.searchKeyword,
@@ -275,7 +272,6 @@ const KeywordExtraction = () => {
       item.plAvgDepth
     ]) || [];
 
-    // 각 키워드별 자동완성 데이터 추가
     let autocompleteData = [];
     Object.keys(keywordData.autocompleteKeywordsByKeyword || {}).forEach(keyword => {
       autocompleteData.push([`=== ${keyword} 자동완성키워드 ===`]);
