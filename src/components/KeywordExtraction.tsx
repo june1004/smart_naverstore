@@ -78,6 +78,7 @@ const KeywordExtraction = () => {
   
   // Autocomplete keywords state
   const [autocompleteActiveTab, setAutocompleteActiveTab] = useState("");
+  const [autocompleteCurrentPage, setAutocompleteCurrentPage] = useState(1);
   
   // Modal state
   const [selectedKeyword, setSelectedKeyword] = useState<RelatedKeyword | null>(null);
