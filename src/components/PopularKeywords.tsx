@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -77,13 +76,12 @@ const PopularKeywords = () => {
 
   const getDateRange = (unit: TimeUnit) => {
     const today = new Date();
-    let startDate: Date;
     let periods: { start: Date; end: Date; label: string }[] = [];
 
     switch (unit) {
       case 'date':
-        // 일간: 지난 7일간
-        for (let i = 6; i >= 0; i--) {
+        // 일간: 최근 4일간 (오늘부터 역순)
+        for (let i = 0; i < 4; i++) {
           const date = new Date(today);
           date.setDate(date.getDate() - i);
           periods.push({
@@ -91,13 +89,13 @@ const PopularKeywords = () => {
             end: new Date(date),
             label: i === 0 ? `${date.getMonth() + 1}/${date.getDate()} (오늘)` : 
                    i === 1 ? `${date.getMonth() + 1}/${date.getDate()} (어제)` :
-                   date.toLocaleDateString('ko-KR', { month: 'numeric', day: 'numeric', weekday: 'short' })
+                   `${date.getMonth() + 1}/${date.getDate()}`
           });
         }
         break;
       case 'week':
-        // 주간: 지난 4주간
-        for (let i = 3; i >= 0; i--) {
+        // 주간: 최근 4주간
+        for (let i = 0; i < 4; i++) {
           const endDate = new Date(today);
           endDate.setDate(endDate.getDate() - (i * 7));
           const startDate = new Date(endDate);
@@ -112,8 +110,8 @@ const PopularKeywords = () => {
         }
         break;
       case 'month':
-        // 월간: 지난 4개월간
-        for (let i = 3; i >= 0; i--) {
+        // 월간: 최근 4개월간
+        for (let i = 0; i < 4; i++) {
           const date = new Date(today.getFullYear(), today.getMonth() - i, 1);
           const endDate = new Date(date.getFullYear(), date.getMonth() + 1, 0);
           
@@ -138,21 +136,23 @@ const PopularKeywords = () => {
 
       for (const period of periods) {
         try {
-          // 카테고리별 검색어 분석 요청
-          const requestBody = {
-            category: selectedCategory === "전체" ? "" : getCategoryCode(selectedCategory),
+          console.log('인기 검색어 API 요청:', {
+            category: selectedCategory === "전체" ? "" : selectedCategory,
             startDate: period.start.toISOString().split('T')[0],
             endDate: period.end.toISOString().split('T')[0],
-            timeUnit: timeUnit,
-            device: '',
-            ages: [],
-            gender: ''
-          };
+            timeUnit: timeUnit
+          });
 
-          console.log('네이버 쇼핑인사이트 API 요청:', requestBody);
-
-          const { data, error } = await supabase.functions.invoke('naver-shopping-insight', {
-            body: requestBody
+          const { data, error } = await supabase.functions.invoke('naver-popular-keywords', {
+            body: {
+              category: selectedCategory === "전체" ? "" : selectedCategory,
+              startDate: period.start.toISOString().split('T')[0],
+              endDate: period.end.toISOString().split('T')[0],
+              timeUnit: timeUnit,
+              device: '',
+              ages: [],
+              gender: ''
+            }
           });
 
           if (error) {
@@ -162,67 +162,17 @@ const PopularKeywords = () => {
 
           console.log('API 응답:', data);
 
-          // 응답 데이터를 키워드 형태로 변환
-          const keywords: KeywordData[] = [];
+          let keywords: KeywordData[] = [];
           
-          if (data && data.results && data.results[0] && data.results[0].data) {
-            // 실제 API 데이터를 기반으로 인기 키워드 생성
-            data.results[0].data.slice(0, 10).forEach((item: any, index: number) => {
-              keywords.push({
-                rank: index + 1,
-                keyword: `인기키워드${index + 1}`, // 실제로는 API에서 키워드를 제공해야 함
-                category: selectedCategory === "전체" ? categories[Math.floor(Math.random() * (categories.length - 1)) + 1] : selectedCategory,
-                ratio: item.ratio || Math.floor(Math.random() * 100),
-                period: period.label,
-                monthlyPcSearchCount: Math.floor(Math.random() * 50000) + 10000,
-                monthlyMobileSearchCount: Math.floor(Math.random() * 150000) + 30000,
-                totalSearchCount: 0,
-                monthlyAvgPcClick: Math.floor(Math.random() * 5000) + 500,
-                monthlyAvgMobileClick: Math.floor(Math.random() * 15000) + 2000,
-                totalAvgClick: 0,
-                monthlyAvgPcCtr: Math.random() * 10 + 5,
-                monthlyAvgMobileCtr: Math.random() * 15 + 5,
-                avgCtr: 0,
-                competition: Math.random() > 0.6 ? "높음" : Math.random() > 0.3 ? "중간" : "낮음",
-                competitionScore: Math.floor(Math.random() * 100),
-                plAvgDepth: Math.floor(Math.random() * 8) + 3
-              });
-            });
-          } else {
-            // API 데이터가 없는 경우 샘플 데이터 생성
-            const baseSampleKeywords = getCategoryKeywords(selectedCategory);
-            
-            for (let j = 0; j < 10; j++) {
-              const baseKeyword = baseSampleKeywords[j] || baseSampleKeywords[Math.floor(Math.random() * baseSampleKeywords.length)];
-              
-              keywords.push({
-                rank: j + 1,
-                keyword: baseKeyword,
-                category: selectedCategory === "전체" ? categories[Math.floor(Math.random() * (categories.length - 1)) + 1] : selectedCategory,
-                ratio: Math.floor(Math.random() * 100),
-                period: period.label,
-                monthlyPcSearchCount: Math.floor(Math.random() * 50000) + 10000,
-                monthlyMobileSearchCount: Math.floor(Math.random() * 150000) + 30000,
-                totalSearchCount: 0,
-                monthlyAvgPcClick: Math.floor(Math.random() * 5000) + 500,
-                monthlyAvgMobileClick: Math.floor(Math.random() * 15000) + 2000,
-                totalAvgClick: 0,
-                monthlyAvgPcCtr: Math.random() * 10 + 5,
-                monthlyAvgMobileCtr: Math.random() * 15 + 5,
-                avgCtr: 0,
-                competition: Math.random() > 0.6 ? "높음" : Math.random() > 0.3 ? "중간" : "낮음",
-                competitionScore: Math.floor(Math.random() * 100),
-                plAvgDepth: Math.floor(Math.random() * 8) + 3
-              });
-            }
+          if (data && data.keywords && Array.isArray(data.keywords)) {
+            keywords = data.keywords.map((keyword: any) => ({
+              ...keyword,
+              period: period.label,
+              totalSearchCount: keyword.monthlyPcSearchCount + keyword.monthlyMobileSearchCount,
+              totalAvgClick: keyword.monthlyAvgPcClick + keyword.monthlyAvgMobileClick,
+              avgCtr: (keyword.monthlyAvgPcCtr + keyword.monthlyAvgMobileCtr) / 2
+            }));
           }
-
-          // 계산된 필드 업데이트
-          keywords.forEach(keyword => {
-            keyword.totalSearchCount = keyword.monthlyPcSearchCount + keyword.monthlyMobileSearchCount;
-            keyword.totalAvgClick = keyword.monthlyAvgPcClick + keyword.monthlyAvgMobileClick;
-            keyword.avgCtr = (keyword.monthlyAvgPcCtr + keyword.monthlyAvgMobileCtr) / 2;
-          });
 
           results.push({
             date: period.start.toISOString().split('T')[0],
@@ -240,7 +190,7 @@ const PopularKeywords = () => {
       
       toast({
         title: "인기 검색어 조회 완료",
-        description: `${timeUnitOptions.find(opt => opt.value === timeUnit)?.label} 데이터를 성공적으로 가져왔습니다.`,
+        description: `${selectedCategory} 카테고리의 ${timeUnitOptions.find(opt => opt.value === timeUnit)?.label} 데이터를 성공적으로 가져왔습니다.`,
       });
 
     } catch (error) {
@@ -420,39 +370,49 @@ const PopularKeywords = () => {
                   <Calendar className="h-5 w-5 text-blue-600" />
                   {daily.displayDate}
                 </CardTitle>
+                <p className="text-sm text-gray-600">
+                  상위 10개 인기 검색어
+                </p>
               </CardHeader>
               <CardContent className="p-0">
                 <div className="space-y-0">
-                  {daily.keywords.slice(0, 10).map((keyword, kidx) => (
-                    <div 
-                      key={kidx} 
-                      className="flex items-center gap-3 p-4 hover:bg-gray-50 transition-colors border-b last:border-b-0 cursor-pointer"
-                      onClick={() => handleKeywordClick(keyword)}
-                    >
-                      <div className={`
-                        flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold
-                        ${keyword.rank <= 3 
-                          ? 'bg-gradient-to-r from-yellow-400 to-orange-500 text-white' 
-                          : keyword.rank <= 5
-                          ? 'bg-gradient-to-r from-blue-400 to-blue-600 text-white'
-                          : 'bg-gray-100 text-gray-600'
-                        }
-                      `}>
-                        {keyword.rank}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="text-sm font-medium text-gray-900 truncate hover:text-blue-600">
-                          {keyword.keyword}
+                  {daily.keywords.length > 0 ? (
+                    daily.keywords.slice(0, 10).map((keyword, kidx) => (
+                      <div 
+                        key={kidx} 
+                        className="flex items-center gap-3 p-4 hover:bg-gray-50 transition-colors border-b last:border-b-0 cursor-pointer"
+                        onClick={() => handleKeywordClick(keyword)}
+                      >
+                        <div className={`
+                          flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold
+                          ${keyword.rank <= 3 
+                            ? 'bg-gradient-to-r from-yellow-400 to-orange-500 text-white' 
+                            : keyword.rank <= 5
+                            ? 'bg-gradient-to-r from-blue-400 to-blue-600 text-white'
+                            : 'bg-gray-100 text-gray-600'
+                          }
+                        `}>
+                          {keyword.rank}
                         </div>
-                        {keyword.category && selectedCategory === "전체" && (
-                          <Badge variant="secondary" className="text-xs mt-1">
-                            {keyword.category}
-                          </Badge>
-                        )}
+                        <div className="flex-1 min-w-0">
+                          <div className="text-sm font-medium text-gray-900 truncate hover:text-blue-600">
+                            {keyword.keyword}
+                          </div>
+                          {keyword.category && selectedCategory === "전체" && (
+                            <Badge variant="secondary" className="text-xs mt-1">
+                              {keyword.category}
+                            </Badge>
+                          )}
+                        </div>
+                        <Hash className="h-4 w-4 text-gray-400 flex-shrink-0" />
                       </div>
-                      <Hash className="h-4 w-4 text-gray-400 flex-shrink-0" />
+                    ))
+                  ) : (
+                    <div className="p-8 text-center text-gray-500">
+                      <p className="text-sm">해당 기간의</p>
+                      <p className="text-sm">검색어 데이터가 없습니다</p>
                     </div>
-                  ))}
+                  )}
                 </div>
               </CardContent>
             </Card>

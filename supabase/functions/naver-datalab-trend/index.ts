@@ -30,11 +30,14 @@ serve(async (req) => {
     // 날짜 형식 검증 및 수정
     const formatDate = (dateStr: string) => {
       // YYYYMMDD 형식으로 변환
-      const date = new Date(dateStr.replace(/(\d{4})(\d{2})(\d{2})/, '$1-$2-$3'));
+      if (dateStr.length === 8) {
+        return dateStr;
+      }
+      const date = new Date(dateStr);
       if (isNaN(date.getTime())) {
         throw new Error('잘못된 날짜 형식입니다.');
       }
-      return dateStr;
+      return date.toISOString().split('T')[0].replace(/-/g, '');
     };
 
     const formattedStartDate = formatDate(startDate);
@@ -42,7 +45,7 @@ serve(async (req) => {
 
     // 키워드 그룹 생성 - 각 키워드를 개별 그룹으로 처리
     const keywordGroups = keywords.map((keyword: string, index: number) => ({
-      groupName: keyword, // 키워드명을 그룹명으로 사용
+      groupName: `그룹${index + 1}`,
       keywords: [keyword]
     }));
 
@@ -74,7 +77,6 @@ serve(async (req) => {
       const errorText = await response.text();
       console.error('네이버 API 오류 응답:', errorText);
       
-      // 더 자세한 오류 메시지 제공
       let errorMessage = `네이버 데이터랩 API 오류: ${response.status}`;
       if (response.status === 400) {
         errorMessage += ' - 요청 파라미터를 확인해주세요. 키워드는 2글자 이상이어야 하며, 날짜 범위는 최대 5년입니다.';
@@ -91,6 +93,19 @@ serve(async (req) => {
 
     const data = await response.json();
     console.log('네이버 API 성공 응답:', JSON.stringify(data, null, 2));
+
+    // 응답 데이터 구조 변환 - 키워드별로 분리하여 반환
+    if (data.results && Array.isArray(data.results)) {
+      const transformedResults = data.results.map((result: any, index: number) => ({
+        title: keywords[index],
+        keywords: [keywords[index]],
+        data: result.data || []
+      }));
+      
+      return new Response(JSON.stringify({ results: transformedResults }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
 
     return new Response(JSON.stringify(data), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
