@@ -1,3 +1,4 @@
+
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
@@ -13,7 +14,7 @@ serve(async (req) => {
   }
 
   try {
-    const { csvData, filename } = await req.json();
+    const { csvData, filename, replaceAll = false } = await req.json();
     
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -32,13 +33,13 @@ serve(async (req) => {
       throw new Error('Invalid authentication');
     }
 
-    // 관리자 권한 체크 - june@nanumlab.com 추가
+    // 관리자 권한 체크
     const adminEmails = ['admin@example.com', 'junezzang@gmail.com', 'june@nanumlab.com'];
     if (!adminEmails.includes(user.email || '')) {
       throw new Error('Admin privileges required');
     }
 
-    console.log('CSV 배치 업로드 시작:', { filename, rowCount: csvData.length, userEmail: user.email });
+    console.log('CSV 업로드 시작:', { filename, rowCount: csvData.length, userEmail: user.email, replaceAll });
 
     // 업로드 기록 생성
     const { data: uploadRecord, error: uploadError } = await supabase
@@ -61,18 +62,23 @@ serve(async (req) => {
     let failCount = 0;
     const errors: any[] = [];
 
-    // 기존 카테고리 ID 목록을 한 번에 조회하여 중복 체크 최적화
-    const existingCategoryIds = new Set();
-    const { data: existingCategories } = await supabase
-      .from('naver_categories')
-      .select('category_id');
-    
-    if (existingCategories) {
-      existingCategories.forEach(cat => existingCategoryIds.add(cat.category_id));
+    // replaceAll이 true인 경우 기존 데이터 모두 삭제
+    if (replaceAll) {
+      console.log('기존 카테고리 데이터 삭제 중...');
+      const { error: deleteError } = await supabase
+        .from('naver_categories')
+        .delete()
+        .neq('id', '00000000-0000-0000-0000-000000000000'); // 모든 데이터 삭제
+
+      if (deleteError) {
+        console.error('기존 데이터 삭제 오류:', deleteError);
+        throw new Error('기존 데이터 삭제 실패: ' + deleteError.message);
+      }
+      console.log('기존 카테고리 데이터 삭제 완료');
     }
 
-    // 배치 단위로 처리 (메모리 효율성 향상)
-    const BATCH_SIZE = 50;
+    // 배치 단위로 처리
+    const BATCH_SIZE = 100;
     const batches = [];
     for (let i = 0; i < csvData.length; i += BATCH_SIZE) {
       batches.push(csvData.slice(i, i + BATCH_SIZE));
@@ -81,64 +87,61 @@ serve(async (req) => {
     for (let batchIndex = 0; batchIndex < batches.length; batchIndex++) {
       const batch = batches[batchIndex];
       const categoriesToInsert = [];
-      const categoriesToUpdate = [];
 
       console.log(`배치 ${batchIndex + 1}/${batches.length} 처리 중...`);
 
       for (const row of batch) {
         try {
-          // 한글 헤더와 영문 헤더 모두 지원
-          const categoryId = row['카테고리번호'] || row.category_id || row.categoryId || row['카테고리ID'];
-          const largeCat = row['대분류'] || '';
-          const mediumCat = row['중분류'] || '';
-          const smallCat = row['소분류'] || '';
-          const microCat = row['세분류'] || '';
+          // 다양한 헤더 형태 지원
+          const categoryId = row['카테고리번호'] || row['category_id'] || row['categoryId'] || row['카테고리ID'];
+          const largeCat = (row['대분류'] || row['large_category'] || '').trim();
+          const mediumCat = (row['중분류'] || row['medium_category'] || '').trim();
+          const smallCat = (row['소분류'] || row['small_category'] || '').trim();
+          const microCat = (row['세분류'] || row['micro_category'] || '').trim();
           
-          // 카테고리명 구성 (비어있지 않은 분류들을 > 로 연결)
-          const categoryParts = [largeCat, mediumCat, smallCat, microCat].filter(part => part.trim() !== '');
-          const categoryName = categoryParts[categoryParts.length - 1] || largeCat; // 마지막 분류를 카테고리명으로
-          const categoryPath = categoryParts.join(' > ');
+          // 필수 필드 검증
+          if (!categoryId || !largeCat) {
+            throw new Error('필수 필드가 누락되었습니다 (카테고리번호, 대분류)');
+          }
+
+          // 카테고리 계층 구조 분석
+          const categoryParts = [largeCat, mediumCat, smallCat, microCat].filter(part => part !== '');
           const categoryLevel = categoryParts.length;
+          const categoryName = categoryParts[categoryParts.length - 1]; // 마지막 분류를 카테고리명으로
+          const categoryPath = categoryParts.join(' > ');
           
-          // 상위 카테고리 ID 계산
+          // 상위 카테고리 ID 계산 (현재는 단순화)
           let parentCategoryId = null;
           if (categoryLevel > 1) {
-            parentCategoryId = row['상위카테고리ID'] || row.parent_category_id || null;
+            // 상위 카테고리 ID가 있다면 사용, 없다면 null
+            parentCategoryId = row['상위카테고리ID'] || row['parent_category_id'] || null;
           }
 
           const categoryData = {
-            category_id: categoryId,
+            category_id: categoryId.toString(),
             category_name: categoryName,
             parent_category_id: parentCategoryId,
             category_level: categoryLevel,
             category_path: categoryPath,
             is_active: true,
+            created_at: new Date().toISOString(),
             updated_at: new Date().toISOString()
           };
 
-          if (!categoryData.category_id || !categoryData.category_name) {
-            throw new Error('필수 필드가 누락되었습니다 (카테고리번호, 카테고리명)');
-          }
-
-          // 중복 체크 및 분류
-          if (existingCategoryIds.has(categoryId)) {
-            categoriesToUpdate.push(categoryData);
-          } else {
-            categoriesToInsert.push(categoryData);
-            existingCategoryIds.add(categoryId); // 현재 배치에서 중복 방지
-          }
+          categoriesToInsert.push(categoryData);
 
         } catch (error) {
           failCount++;
           errors.push({
             row: row,
-            error: error.message
+            error: error.message,
+            rowIndex: batchIndex * BATCH_SIZE + categoriesToInsert.length
           });
           console.error('행 처리 오류:', error);
         }
       }
 
-      // 새로운 카테고리 일괄 삽입
+      // 배치 일괄 삽입
       if (categoriesToInsert.length > 0) {
         const { error: insertError } = await supabase
           .from('naver_categories')
@@ -155,30 +158,8 @@ serve(async (req) => {
           });
         } else {
           successCount += categoriesToInsert.length;
-          console.log(`배치 ${batchIndex + 1}: ${categoriesToInsert.length}개 새로 삽입됨`);
+          console.log(`배치 ${batchIndex + 1}: ${categoriesToInsert.length}개 삽입 완료`);
         }
-      }
-
-      // 기존 카테고리 일괄 업데이트
-      if (categoriesToUpdate.length > 0) {
-        for (const categoryData of categoriesToUpdate) {
-          const { error: updateError } = await supabase
-            .from('naver_categories')
-            .update(categoryData)
-            .eq('category_id', categoryData.category_id);
-
-          if (updateError) {
-            failCount++;
-            errors.push({
-              category_id: categoryData.category_id,
-              operation: 'update',
-              error: updateError.message
-            });
-          } else {
-            successCount++;
-          }
-        }
-        console.log(`배치 ${batchIndex + 1}: ${categoriesToUpdate.length}개 업데이트됨`);
       }
 
       // 메모리 정리를 위한 작은 지연
@@ -194,7 +175,7 @@ serve(async (req) => {
         successful_records: successCount,
         failed_records: failCount,
         upload_status: failCount > 0 ? 'completed_with_errors' : 'completed',
-        error_details: errors.length > 0 ? errors.slice(0, 50) : null // 최대 50개 오류 저장
+        error_details: errors.length > 0 ? errors.slice(0, 50) : null
       })
       .eq('id', uploadRecord.id);
 
@@ -202,7 +183,7 @@ serve(async (req) => {
       console.error('업로드 기록 업데이트 오류:', updateError);
     }
 
-    console.log('CSV 배치 업로드 완료:', { 
+    console.log('CSV 업로드 완료:', { 
       successCount, 
       failCount, 
       totalBatches: batches.length,
@@ -214,8 +195,8 @@ serve(async (req) => {
       total: csvData.length,
       successful: successCount,
       failed: failCount,
-      errors: errors.slice(0, 10), // 응답에는 최대 10개 오류만 포함
-      message: `${batches.length}개 배치로 나누어 처리되었습니다.`
+      errors: errors.slice(0, 10),
+      message: `${batches.length}개 배치로 처리 완료. ${replaceAll ? '기존 데이터 교체됨.' : ''}`
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
