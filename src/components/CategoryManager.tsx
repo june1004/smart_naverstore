@@ -1,4 +1,3 @@
-
 import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,6 +10,7 @@ import { Upload, Download, Search, Database, Shield, ChevronRight, ChevronDown }
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface Category {
   id: string;
@@ -46,10 +46,13 @@ const CategoryManager = () => {
   const [isUploading, setIsUploading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
-  const [isAdmin, setIsAdmin] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { user } = useAuth();
+
+  // 관리자 권한 확인 (june@nanumlab.com만 허용)
+  const isAdmin = user?.email === 'june@nanumlab.com';
 
   // 관리자 권한 확인
   const { data: userProfile } = useQuery({
@@ -118,7 +121,7 @@ const CategoryManager = () => {
     },
   });
 
-  // 개선된 CSV 업로드 mutation (배치 처리)
+  // 개선된 CSV 업로드 mutation (배치 처리 및 관리자 권한 체크)
   const uploadMutation = useMutation({
     mutationFn: async ({ csvData, filename }: { csvData: any[], filename: string }) => {
       const { data: { session } } = await supabase.auth.getSession();
@@ -128,7 +131,7 @@ const CategoryManager = () => {
 
       // 관리자 권한 체크
       if (!isAdmin) {
-        throw new Error('관리자 권한이 필요합니다.');
+        throw new Error('관리자 권한이 필요합니다. (june@nanumlab.com 계정만 가능)');
       }
 
       // 대용량 파일을 작은 배치로 나누어 처리
@@ -215,7 +218,7 @@ const CategoryManager = () => {
     if (!isAdmin) {
       toast({
         title: "권한 없음",
-        description: "관리자만 카테고리를 업로드할 수 있습니다.",
+        description: "관리자만 카테고리를 업로드할 수 있습니다. (june@nanumlab.com 계정 필요)",
         variant: "destructive",
       });
       return;
@@ -363,11 +366,20 @@ const CategoryManager = () => {
   return (
     <div className="space-y-6">
       {/* 관리자 권한 알림 */}
-      {!isAdmin && (
+      {user && !isAdmin && (
         <Alert>
           <Shield className="h-4 w-4" />
           <AlertDescription>
-            카테고리 업로드는 관리자 권한이 필요합니다. 현재 읽기 전용 모드입니다.
+            카테고리 업로드는 관리자 권한이 필요합니다. (june@nanumlab.com 계정만 가능) 현재 읽기 전용 모드입니다.
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {!user && (
+        <Alert>
+          <Shield className="h-4 w-4" />
+          <AlertDescription>
+            카테고리 관리 기능을 사용하려면 로그인이 필요합니다.
           </AlertDescription>
         </Alert>
       )}
@@ -382,6 +394,7 @@ const CategoryManager = () => {
           </CardTitle>
           <CardDescription>
             네이버 카테고리 정보를 CSV 파일로 일괄 업로드합니다. (최대 10MB, 중복 자동 처리)
+            {!isAdmin && " - june@nanumlab.com 계정만 업로드 가능"}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">

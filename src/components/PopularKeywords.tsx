@@ -1,460 +1,230 @@
+
 import { useState, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { TrendingUp, Calendar, Hash, RefreshCw } from "lucide-react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+import { useToast } from "@/hooks/use-toast";
+import { Search, TrendingUp, User, Calendar } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "@/components/ui/use-toast";
-import KeywordDetailModal from "./KeywordDetailModal";
+import { useAuth } from "@/contexts/AuthContext";
 
-interface KeywordData {
-  rank: number;
+interface PopularKeyword {
   keyword: string;
-  category?: string;
+  rank: number;
   ratio: number;
-  period: string;
-  monthlyPcSearchCount: number;
-  monthlyMobileSearchCount: number;
-  totalSearchCount: number;
-  monthlyAvgPcClick: number;
-  monthlyAvgMobileClick: number;
-  totalAvgClick: number;
-  monthlyAvgPcCtr: number;
-  monthlyAvgMobileCtr: number;
-  avgCtr: number;
-  competition: string;
-  competitionScore: number;
-  plAvgDepth: number;
 }
-
-interface DailyKeywords {
-  date: string;
-  displayDate: string;
-  keywords: KeywordData[];
-}
-
-type TimeUnit = 'date' | 'week' | 'month';
 
 const PopularKeywords = () => {
-  const [selectedCategory, setSelectedCategory] = useState("전체");
-  const [timeUnit, setTimeUnit] = useState<TimeUnit>('date');
-  const [popularKeywords, setPopularKeywords] = useState<DailyKeywords[]>([]);
-  const [selectedKeyword, setSelectedKeyword] = useState<any>(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [hasSearched, setHasSearched] = useState(false);
+  const [popularKeywords, setPopularKeywords] = useState<PopularKeyword[]>([]);
+  const [selectedCategory, setSelectedCategory] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const { toast } = useToast();
+  const { user } = useAuth();
 
-  // 네이버 쇼핑 카테고리 (주요 카테고리만 선별)
-  const categories = [
-    "전체",
-    "패션의류",
-    "패션잡화", 
-    "화장품/미용",
-    "디지털/가전",
-    "가구/인테리어",
-    "생활/건강",
-    "식품",
-    "스포츠/레저",
-    "자동차용품",
-    "도서/음반/DVD",
-    "완구/취미",
-    "문구/오피스",
-    "반려동물용품",
-    "유아동의류",
-    "유아동용품",
-    "출산/육아",
-    "여행/문화",
-    "면세점"
-  ];
+  // 선택된 카테고리 정보 로드
+  useEffect(() => {
+    const storedCategory = localStorage.getItem('selectedCategory');
+    if (storedCategory) {
+      const categoryInfo = JSON.parse(storedCategory);
+      setSelectedCategory(categoryInfo.categoryId);
+      toast({
+        title: "카테고리 자동 선택",
+        description: `${categoryInfo.categoryName} 카테고리가 자동으로 선택되었습니다.`,
+      });
+    }
+  }, [toast]);
 
-  const timeUnitOptions = [
-    { value: 'date', label: '일간' },
-    { value: 'week', label: '주간' },
-    { value: 'month', label: '월간' }
-  ];
+  // 인증되지 않은 사용자 체크
+  useEffect(() => {
+    if (!user) {
+      toast({
+        title: "로그인이 필요합니다",
+        description: "분야별 인기검색어 기능을 사용하려면 로그인해주세요.",
+        variant: "destructive",
+      });
+    }
+  }, [user, toast]);
 
-  const getDateRange = (unit: TimeUnit) => {
-    const today = new Date();
-    let periods: { start: Date; end: Date; label: string }[] = [];
-
-    switch (unit) {
-      case 'date':
-        // 일간: 최근 4일간 (오늘부터 역순)
-        for (let i = 0; i < 4; i++) {
-          const date = new Date(today);
-          date.setDate(date.getDate() - i);
-          periods.push({
-            start: new Date(date),
-            end: new Date(date),
-            label: i === 0 ? `${date.getMonth() + 1}/${date.getDate()} (오늘)` : 
-                   i === 1 ? `${date.getMonth() + 1}/${date.getDate()} (어제)` :
-                   `${date.getMonth() + 1}/${date.getDate()}`
-          });
-        }
-        break;
-      case 'week':
-        // 주간: 최근 4주간
-        for (let i = 0; i < 4; i++) {
-          const endDate = new Date(today);
-          endDate.setDate(endDate.getDate() - (i * 7));
-          const startDate = new Date(endDate);
-          startDate.setDate(startDate.getDate() - 6);
-          
-          periods.push({
-            start: startDate,
-            end: endDate,
-            label: i === 0 ? `이번 주 (${startDate.getMonth() + 1}/${startDate.getDate()}~${endDate.getMonth() + 1}/${endDate.getDate()})` :
-                   `${i}주 전 (${startDate.getMonth() + 1}/${startDate.getDate()}~${endDate.getMonth() + 1}/${endDate.getDate()})`
-          });
-        }
-        break;
-      case 'month':
-        // 월간: 최근 4개월간
-        for (let i = 0; i < 4; i++) {
-          const date = new Date(today.getFullYear(), today.getMonth() - i, 1);
-          const endDate = new Date(date.getFullYear(), date.getMonth() + 1, 0);
-          
-          periods.push({
-            start: date,
-            end: endDate,
-            label: i === 0 ? `이번 달 (${date.getFullYear()}.${date.getMonth() + 1})` :
-                   `${i}개월 전 (${date.getFullYear()}.${date.getMonth() + 1})`
-          });
-        }
-        break;
+  const searchPopularKeywords = async () => {
+    if (!user) {
+      toast({
+        title: "로그인이 필요합니다",
+        description: "회원가입 또는 로그인 후 이용해주세요.",
+        variant: "destructive",
+      });
+      return;
     }
 
-    return periods;
-  };
+    if (!selectedCategory) {
+      toast({
+        title: "카테고리를 선택해주세요",
+        description: "분석할 카테고리를 선택해주세요.",
+        variant: "destructive",
+      });
+      return;
+    }
 
-  const fetchPopularKeywords = async () => {
-    setIsLoading(true);
+    setLoading(true);
+
     try {
-      const periods = getDateRange(timeUnit);
-      const results: DailyKeywords[] = [];
-
-      for (const period of periods) {
-        try {
-          console.log('인기 검색어 API 요청:', {
-            category: selectedCategory === "전체" ? "" : selectedCategory,
-            startDate: period.start.toISOString().split('T')[0],
-            endDate: period.end.toISOString().split('T')[0],
-            timeUnit: timeUnit
-          });
-
-          const { data, error } = await supabase.functions.invoke('naver-popular-keywords', {
-            body: {
-              category: selectedCategory === "전체" ? "" : selectedCategory,
-              startDate: period.start.toISOString().split('T')[0],
-              endDate: period.end.toISOString().split('T')[0],
-              timeUnit: timeUnit,
-              device: '',
-              ages: [],
-              gender: ''
-            }
-          });
-
-          if (error) {
-            console.error('API 호출 오류:', error);
-            continue;
-          }
-
-          console.log('API 응답:', data);
-
-          let keywords: KeywordData[] = [];
-          
-          if (data && data.keywords && Array.isArray(data.keywords)) {
-            keywords = data.keywords.map((keyword: any) => ({
-              ...keyword,
-              period: period.label,
-              totalSearchCount: keyword.monthlyPcSearchCount + keyword.monthlyMobileSearchCount,
-              totalAvgClick: keyword.monthlyAvgPcClick + keyword.monthlyAvgMobileClick,
-              avgCtr: (keyword.monthlyAvgPcCtr + keyword.monthlyAvgMobileCtr) / 2
-            }));
-          }
-
-          results.push({
-            date: period.start.toISOString().split('T')[0],
-            displayDate: period.label,
-            keywords
-          });
-
-        } catch (error) {
-          console.error(`기간 ${period.label} 데이터 처리 오류:`, error);
+      const { data, error } = await supabase.functions.invoke('naver-popular-keywords', {
+        body: { 
+          category: selectedCategory,
+          startDate,
+          endDate,
+          timeUnit: 'date'
         }
+      });
+
+      if (error) {
+        throw new Error(error.message);
       }
 
-      setPopularKeywords(results);
-      setHasSearched(true);
-      
+      setPopularKeywords(data);
+
       toast({
-        title: "인기 검색어 조회 완료",
-        description: `${selectedCategory} 카테고리의 ${timeUnitOptions.find(opt => opt.value === timeUnit)?.label} 데이터를 성공적으로 가져왔습니다.`,
+        title: "검색 완료",
+        description: `카테고리별 인기검색어를 조회했습니다.`,
       });
 
     } catch (error) {
-      console.error('인기 검색어 조회 오류:', error);
+      console.error('인기검색어 조회 오류:', error);
       toast({
-        title: "조회 실패",
-        description: "인기 검색어 데이터를 가져오는데 실패했습니다.",
+        title: "검색 실패",
+        description: "인기검색어 조회 중 오류가 발생했습니다.",
         variant: "destructive",
       });
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
 
-  const getCategoryCode = (category: string) => {
-    // 네이버 쇼핑 카테고리 코드 매핑 (실제 코드는 네이버 API 문서 참조)
-    const categoryMap: { [key: string]: string } = {
-      "패션의류": "50000000",
-      "패션잡화": "50000001", 
-      "화장품/미용": "50000002",
-      "디지털/가전": "50000003",
-      "가구/인테리어": "50000004",
-      "생활/건강": "50000005",
-      "식품": "50000006",
-      "스포츠/레저": "50000007",
-      "자동차용품": "50000008",
-      "도서/음반/DVD": "50000009",
-      "완구/취미": "50000010",
-      "문구/오피스": "50000011",
-      "반려동물용품": "50000012",
-      "유아동의류": "50000013",
-      "유아동용품": "50000014",
-      "출산/육아": "50000015",
-      "여행/문화": "50000016",
-      "면세점": "50000017"
-    };
-    return categoryMap[category] || "";
+  const formatDate = (date: Date): string => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
   };
 
-  const getCategoryKeywords = (category: string) => {
-    switch (category) {
-      case "패션의류":
-        return ["후드티", "청바지", "원피스", "코트", "니트", "셔츠", "치마", "자켓", "맨투맨", "가디건"];
-      case "디지털/가전":
-        return ["스마트폰", "노트북", "태블릿", "이어폰", "충전기", "케이스", "보조배터리", "스피커", "키보드", "마우스"];
-      case "화장품/미용":
-        return ["립스틱", "파운데이션", "마스카라", "아이섀도", "선크림", "토너", "세럼", "크림", "클렌징", "미스트"];
-      case "식품":
-        return ["원두", "차", "과자", "초콜릿", "견과류", "건강식품", "쌀", "라면", "김치", "반찬"];
-      default:
-        return ["멀티탭", "전동드릴", "차량용방향제", "라부부", "강아지골매트", "전자담배", "비데렌탈", "체중계", "안마의자", "라쿠부"];
-    }
-  };
-
-  const handleSearch = () => {
-    fetchPopularKeywords();
-  };
-
-  const handleReset = () => {
-    setSelectedCategory("전체");
-    setTimeUnit('date');
-    setPopularKeywords([]);
-    setHasSearched(false);
-  };
-
-  const filteredKeywords = popularKeywords.map(daily => ({
-    ...daily,
-    keywords: selectedCategory === "전체" 
-      ? daily.keywords 
-      : daily.keywords.filter(k => k.category === selectedCategory)
-  }));
-
-  const handleKeywordClick = (keyword: KeywordData) => {
-    const modalKeyword = {
-      searchKeyword: keyword.keyword,
-      originalIndex: keyword.rank - 1,
-      monthlyPcSearchCount: keyword.monthlyPcSearchCount,
-      monthlyMobileSearchCount: keyword.monthlyMobileSearchCount,
-      totalSearchCount: keyword.totalSearchCount,
-      monthlyAvgPcClick: keyword.monthlyAvgPcClick,
-      monthlyAvgMobileClick: keyword.monthlyAvgMobileClick,
-      totalAvgClick: keyword.totalAvgClick,
-      monthlyAvgPcCtr: keyword.monthlyAvgPcCtr,
-      monthlyAvgMobileCtr: keyword.monthlyAvgMobileCtr,
-      avgCtr: keyword.avgCtr,
-      competition: keyword.competition,
-      competitionScore: keyword.competitionScore,
-      plAvgDepth: keyword.plAvgDepth
-    };
-    setSelectedKeyword(modalKeyword);
-    setIsModalOpen(true);
-  };
+  const today = formatDate(new Date());
+  const lastWeek = new Date();
+  lastWeek.setDate(lastWeek.getDate() - 7);
+  const lastWeekFormatted = formatDate(lastWeek);
 
   return (
     <div className="space-y-6">
-      {/* 헤더 */}
-      <Card className="shadow-lg border-0">
-        <CardHeader className="bg-gradient-to-r from-purple-600 to-purple-700 text-white rounded-t-lg">
-          <CardTitle className="flex items-center gap-2">
-            <TrendingUp className="h-5 w-5" />
-            분야별 인기 검색어
-          </CardTitle>
-          <p className="text-purple-100 text-sm">
-            네이버 데이터랩에서 가장 많이 검색되는 키워드를 분야별/기간별로 확인하세요
-          </p>
-        </CardHeader>
-        <CardContent className="p-6">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
-            <div>
-              <label className="text-sm font-semibold text-gray-700 mb-2 block">카테고리 선택</label>
-              <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-                <SelectTrigger>
-                  <SelectValue placeholder="카테고리를 선택하세요" />
-                </SelectTrigger>
-                <SelectContent>
-                  {categories.map((category) => (
-                    <SelectItem key={category} value={category}>
-                      {category}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+      {/* 로그인 안내 */}
+      {!user && (
+        <Card className="border-orange-200 bg-orange-50">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 text-orange-700">
+              <User className="h-4 w-4" />
+              <span className="font-medium">로그인이 필요한 기능입니다</span>
             </div>
-            
-            <div>
-              <label className="text-sm font-semibold text-gray-700 mb-2 block">기간 단위</label>
-              <Select value={timeUnit} onValueChange={(value: TimeUnit) => setTimeUnit(value)}>
-                <SelectTrigger>
-                  <SelectValue placeholder="기간을 선택하세요" />
-                </SelectTrigger>
-                <SelectContent>
-                  {timeUnitOptions.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <Button 
-              onClick={handleSearch} 
-              disabled={isLoading}
-              className="bg-blue-600 hover:bg-blue-700"
-            >
-              {isLoading ? (
-                <>
-                  <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                  조회 중...
-                </>
-              ) : (
-                <>
-                  <TrendingUp className="h-4 w-4 mr-2" />
-                  검색하기
-                </>
-              )}
-            </Button>
-
-            <Button 
-              onClick={handleReset} 
-              variant="outline"
-              disabled={isLoading}
-            >
-              초기화
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* 인기 검색어 목록 */}
-      {hasSearched && filteredKeywords.length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {filteredKeywords.map((daily, index) => (
-            <Card key={index} className="shadow-lg border-0 overflow-hidden">
-              <CardHeader className="bg-gradient-to-r from-blue-50 to-purple-50 border-b">
-                <CardTitle className="flex items-center gap-2 text-lg">
-                  <Calendar className="h-5 w-5 text-blue-600" />
-                  {daily.displayDate}
-                </CardTitle>
-                <p className="text-sm text-gray-600">
-                  상위 10개 인기 검색어
-                </p>
-              </CardHeader>
-              <CardContent className="p-0">
-                <div className="space-y-0">
-                  {daily.keywords.length > 0 ? (
-                    daily.keywords.slice(0, 10).map((keyword, kidx) => (
-                      <div 
-                        key={kidx} 
-                        className="flex items-center gap-3 p-4 hover:bg-gray-50 transition-colors border-b last:border-b-0 cursor-pointer"
-                        onClick={() => handleKeywordClick(keyword)}
-                      >
-                        <div className={`
-                          flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold
-                          ${keyword.rank <= 3 
-                            ? 'bg-gradient-to-r from-yellow-400 to-orange-500 text-white' 
-                            : keyword.rank <= 5
-                            ? 'bg-gradient-to-r from-blue-400 to-blue-600 text-white'
-                            : 'bg-gray-100 text-gray-600'
-                          }
-                        `}>
-                          {keyword.rank}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="text-sm font-medium text-gray-900 truncate hover:text-blue-600">
-                            {keyword.keyword}
-                          </div>
-                          {keyword.category && selectedCategory === "전체" && (
-                            <Badge variant="secondary" className="text-xs mt-1">
-                              {keyword.category}
-                            </Badge>
-                          )}
-                        </div>
-                        <Hash className="h-4 w-4 text-gray-400 flex-shrink-0" />
-                      </div>
-                    ))
-                  ) : (
-                    <div className="p-8 text-center text-gray-500">
-                      <p className="text-sm">해당 기간의</p>
-                      <p className="text-sm">검색어 데이터가 없습니다</p>
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      )}
-
-      {/* 검색 전 안내 메시지 */}
-      {!hasSearched && (
-        <Card className="border-2 border-dashed border-gray-300">
-          <CardContent className="p-8 text-center">
-            <TrendingUp className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold text-gray-700 mb-2">인기 검색어 분석</h3>
-            <div className="text-sm text-gray-500 space-y-2">
-              <p>🔍 카테고리와 기간을 선택한 후 검색 버튼을 클릭하세요</p>
-              <p>📅 일간/주간/월간 단위로 인기 검색어를 확인할 수 있습니다</p>
-              <p>📈 네이버 데이터랩의 실제 데이터를 기반으로 분석됩니다</p>
-              <p>💡 키워드를 클릭하면 상세한 검색 통계를 확인할 수 있습니다</p>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* 검색 결과가 없는 경우 */}
-      {hasSearched && filteredKeywords.length === 0 && (
-        <Card className="border-2 border-dashed border-gray-300">
-          <CardContent className="p-8 text-center">
-            <TrendingUp className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold text-gray-700 mb-2">검색 결과가 없습니다</h3>
-            <p className="text-sm text-gray-500">
-              선택한 조건에 해당하는 인기 검색어 데이터가 없습니다. 다른 조건으로 검색해보세요.
+            <p className="text-sm text-orange-600 mt-1">
+              분야별 인기검색어 기능을 사용하려면 회원가입 또는 로그인해주세요.
             </p>
           </CardContent>
         </Card>
       )}
 
-      {/* 키워드 상세 정보 모달 */}
-      <KeywordDetailModal
-        keyword={selectedKeyword}
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-      />
+      {/* 검색 영역 */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <TrendingUp className="h-5 w-5" />
+            분야별 인기검색어
+          </CardTitle>
+          <CardDescription>
+            특정 분야의 인기검색어를 조회합니다
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <Select value={selectedCategory} onValueChange={setSelectedCategory} disabled={!user}>
+              <SelectTrigger>
+                <SelectValue placeholder="카테고리 선택" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="50000000">패션의류</SelectItem>
+                <SelectItem value="50000001">화장품/미용</SelectItem>
+                <SelectItem value="50000002">디지털/가전</SelectItem>
+                <SelectItem value="50000003">식품</SelectItem>
+                <SelectItem value="50000004">스포츠/레저</SelectItem>
+              </SelectContent>
+            </Select>
+            <Input
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              defaultValue={lastWeekFormatted}
+              disabled={!user}
+            />
+            <Input
+              type="date"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              defaultValue={today}
+              disabled={!user}
+            />
+            <Button 
+              onClick={searchPopularKeywords} 
+              disabled={loading || !user}
+              className="bg-green-600 hover:bg-green-700"
+            >
+              <Search className="h-4 w-4 mr-2" />
+              {loading ? "검색중..." : "검색"}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* 검색 결과 */}
+      {popularKeywords.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Calendar className="h-5 w-5" />
+              인기검색어 목록
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>순위</TableHead>
+                  <TableHead>키워드</TableHead>
+                  <TableHead>검색비율</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {popularKeywords.map((item, index) => (
+                  <TableRow key={index}>
+                    <TableCell>
+                      <Badge variant="outline">{item.rank}</Badge>
+                    </TableCell>
+                    <TableCell className="font-medium">{item.keyword}</TableCell>
+                    <TableCell>{item.ratio}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* 로딩 상태 */}
+      {loading && (
+        <div className="text-center py-8">
+          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-green-600"></div>
+          <p className="mt-4 text-gray-600">인기검색어를 조회하고 있습니다...</p>
+        </div>
+      )}
     </div>
   );
 };
