@@ -83,7 +83,7 @@ const CategoryManager = () => {
         throw new Error('로그인이 필요합니다.');
       }
 
-      const response = await fetch(`${supabase.supabaseUrl}/functions/v1/upload-categories`, {
+      const response = await fetch(`https://votlredkpkiafedzkham.supabase.co/functions/v1/upload-categories`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -179,16 +179,20 @@ const CategoryManager = () => {
   };
 
   const downloadTemplate = () => {
-    const csvContent = "category_id,category_name,parent_category_id,category_level,category_path,is_active\n" +
-                      "50000000,패션의류,,1,패션의류,true\n" +
-                      "50000001,여성의류,50000000,2,패션의류>여성의류,true\n" +
-                      "50000002,원피스,50000001,3,패션의류>여성의류>원피스,true";
+    const csvContent = "카테고리번호,대분류,중분류,소분류,세분류\n" +
+                      "50000000,패션의류,,,\n" +
+                      "50000001,패션의류,여성의류,,\n" +
+                      "50000002,패션의류,여성의류,원피스,\n" +
+                      "50000003,패션의류,여성의류,원피스,미니원피스\n" +
+                      "50100000,디지털/가전,,,\n" +
+                      "50100001,디지털/가전,모바일/태블릿,,\n" +
+                      "50100002,디지털/가전,모바일/태블릿,스마트폰,";
     
-    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8' });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'naver_categories_template.csv';
+    a.download = '네이버_카테고리_템플릿.csv';
     a.click();
     window.URL.revokeObjectURL(url);
   };

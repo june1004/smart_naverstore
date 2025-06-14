@@ -59,17 +59,38 @@ serve(async (req) => {
     // CSV 데이터 처리
     for (const row of csvData) {
       try {
+        // 한글 헤더와 영문 헤더 모두 지원
+        const categoryId = row['카테고리번호'] || row.category_id || row.categoryId || row['카테고리ID'];
+        const largeCat = row['대분류'] || '';
+        const mediumCat = row['중분류'] || '';
+        const smallCat = row['소분류'] || '';
+        const microCat = row['세분류'] || '';
+        
+        // 카테고리명 구성 (비어있지 않은 분류들을 > 로 연결)
+        const categoryParts = [largeCat, mediumCat, smallCat, microCat].filter(part => part.trim() !== '');
+        const categoryName = categoryParts[categoryParts.length - 1] || largeCat; // 마지막 분류를 카테고리명으로
+        const categoryPath = categoryParts.join(' > ');
+        const categoryLevel = categoryParts.length;
+        
+        // 상위 카테고리 ID 계산 (필요시)
+        let parentCategoryId = null;
+        if (categoryLevel > 1) {
+          // 실제 구현에서는 상위 카테고리 ID 로직을 구현해야 함
+          // 여기서는 간단히 null로 처리
+          parentCategoryId = row['상위카테고리ID'] || row.parent_category_id || null;
+        }
+
         const categoryData = {
-          category_id: row.category_id || row.categoryId || row['카테고리ID'],
-          category_name: row.category_name || row.categoryName || row['카테고리명'],
-          parent_category_id: row.parent_category_id || row.parentCategoryId || row['상위카테고리ID'] || null,
-          category_level: parseInt(row.category_level || row.categoryLevel || row['카테고리레벨'] || '1'),
-          category_path: row.category_path || row.categoryPath || row['카테고리경로'] || null,
-          is_active: row.is_active !== false && row.isActive !== false && row['활성여부'] !== false
+          category_id: categoryId,
+          category_name: categoryName,
+          parent_category_id: parentCategoryId,
+          category_level: categoryLevel,
+          category_path: categoryPath,
+          is_active: true
         };
 
         if (!categoryData.category_id || !categoryData.category_name) {
-          throw new Error('필수 필드가 누락되었습니다 (category_id, category_name)');
+          throw new Error('필수 필드가 누락되었습니다 (카테고리번호, 카테고리명)');
         }
 
         // upsert 방식으로 카테고리 저장
