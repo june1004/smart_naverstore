@@ -43,7 +43,7 @@ interface ParsedCategory {
   created_at: string;
 }
 
-type SortField = 'category_id' | 'category_name' | 'category_level' | 'created_at';
+type SortField = 'category_id' | 'category_name' | 'category_level' | 'category_hierarchy' | 'created_at';
 type SortDirection = 'asc' | 'desc';
 
 interface CategoryListProps {
@@ -76,7 +76,33 @@ const CategoryList = ({ selectedLevel, onLevelFilter }: CategoryListProps) => {
     };
   };
 
-  // 카테고리 목록 조회 (페이지네이션 및 정렬 포함)
+  // 계층구조 정렬을 위한 커스텀 정렬 함수
+  const sortByHierarchy = (a: ParsedCategory, b: ParsedCategory, direction: SortDirection) => {
+    // 대분류 먼저 비교
+    const largeCompare = a.large_category.localeCompare(b.large_category, 'ko');
+    if (largeCompare !== 0) {
+      return direction === 'asc' ? largeCompare : -largeCompare;
+    }
+    
+    // 중분류 비교
+    const mediumCompare = a.medium_category.localeCompare(b.medium_category, 'ko');
+    if (mediumCompare !== 0) {
+      return direction === 'asc' ? mediumCompare : -mediumCompare;
+    }
+    
+    // 소분류 비교
+    const smallCompare = a.small_category.localeCompare(b.small_category, 'ko');
+    if (smallCompare !== 0) {
+      return direction === 'asc' ? smallCompare : -smallCompare;
+    }
+    
+    // 세분류 비교
+    return direction === 'asc' ? 
+      a.micro_category.localeCompare(b.micro_category, 'ko') : 
+      b.micro_category.localeCompare(a.micro_category, 'ko');
+  };
+
+  // 카테고리 목록 조회
   const { data: categoriesData, isLoading: categoriesLoading, error: categoriesError } = useQuery({
     queryKey: ['naver-categories-paginated', searchTerm, selectedLevel, currentPage, itemsPerPage, sortField, sortDirection],
     queryFn: async () => {
@@ -84,7 +110,8 @@ const CategoryList = ({ selectedLevel, onLevelFilter }: CategoryListProps) => {
       
       let query = supabase
         .from('naver_categories')
-        .select('*', { count: 'exact' });
+        .select('*', { count: 'exact' })
+        .eq('is_active', true); // 활성 카테고리만 조회
 
       // 검색 조건 추가
       if (searchTerm) {
@@ -96,13 +123,13 @@ const CategoryList = ({ selectedLevel, onLevelFilter }: CategoryListProps) => {
         query = query.eq('category_level', selectedLevel);
       }
 
-      // 정렬 추가
-      query = query.order(sortField, { ascending: sortDirection === 'asc' });
-
-      // 페이지네이션 적용
-      const from = (currentPage - 1) * itemsPerPage;
-      const to = from + itemsPerPage - 1;
-      query = query.range(from, to);
+      // 기본 정렬 (계층구조 정렬을 제외한 나머지)
+      if (sortField !== 'category_hierarchy') {
+        query = query.order(sortField, { ascending: sortDirection === 'asc' });
+      } else {
+        // 계층구조 정렬은 클라이언트 사이드에서 처리
+        query = query.order('category_id', { ascending: true });
+      }
 
       const { data, error, count } = await query;
       
@@ -114,12 +141,30 @@ const CategoryList = ({ selectedLevel, onLevelFilter }: CategoryListProps) => {
       console.log('카테고리 목록 조회 완료:', { count, dataLength: data?.length });
       
       // 카테고리 데이터 파싱
-      const parsedCategories = data ? data.map(parseCategoryPath) : [];
+      let parsedCategories = data ? data.map(parseCategoryPath) : [];
+      
+      // 계층구조 정렬이 선택된 경우 클라이언트에서 정렬
+      if (sortField === 'category_hierarchy') {
+        parsedCategories.sort((a, b) => sortByHierarchy(a, b, sortDirection));
+      }
+
+      // 페이지네이션 적용 (계층구조 정렬의 경우 클라이언트에서 처리)
+      let paginatedCategories = parsedCategories;
+      let totalCount = count || 0;
+      let totalPages = Math.ceil(totalCount / itemsPerPage);
+
+      if (sortField === 'category_hierarchy') {
+        const startIndex = (currentPage - 1) * itemsPerPage;
+        const endIndex = startIndex + itemsPerPage;
+        paginatedCategories = parsedCategories.slice(startIndex, endIndex);
+        totalCount = parsedCategories.length;
+        totalPages = Math.ceil(totalCount / itemsPerPage);
+      }
       
       return {
-        categories: parsedCategories,
-        totalCount: count || 0,
-        totalPages: Math.ceil((count || 0) / itemsPerPage)
+        categories: paginatedCategories,
+        totalCount,
+        totalPages
       };
     },
   });
@@ -238,7 +283,15 @@ const CategoryList = ({ selectedLevel, onLevelFilter }: CategoryListProps) => {
                           카테고리 ID {getSortIcon('category_id')}
                         </Button>
                       </TableHead>
-                      <TableHead>대분류</TableHead>
+                      <TableHead>
+                        <Button 
+                          variant="ghost" 
+                          onClick={() => handleSort('category_hierarchy')}
+                          className="flex items-center gap-2 p-0 h-auto font-medium"
+                        >
+                          대분류 {getSortIcon('category_hierarchy')}
+                        </Button>
+                      </TableHead>
                       <TableHead>중분류</TableHead>
                       <TableHead>소분류</TableHead>
                       <TableHead>세분류</TableHead>

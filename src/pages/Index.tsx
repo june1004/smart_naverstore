@@ -6,10 +6,9 @@ import KeywordSearch from "@/components/KeywordSearch";
 import SearchTrend from "@/components/SearchTrend";
 import ShoppingInsight from "@/components/ShoppingInsight";
 import AutoKeywordAnalyzer from "@/components/AutoKeywordAnalyzer";
-import CategoryManager from "@/components/CategoryManager";
-import ApiKeyManager from "@/components/ApiKeyManager";
+import ServiceManager from "@/components/ServiceManager";
 import UserProfile from "@/components/UserProfile";
-import { ShoppingCart, TrendingUp, BarChart3, Sparkles, Database } from "lucide-react";
+import { ShoppingCart, TrendingUp, BarChart3, Sparkles, Settings } from "lucide-react";
 
 const Index = () => {
   return (
@@ -27,9 +26,6 @@ const Index = () => {
           </div>
           <p className="text-xl text-gray-600 max-w-2xl mx-auto">키워드 분석, 검색 트렌드, 쇼핑 인사이트를 통해 데이터 기반의 쇼핑몰 운영 전략을 수립하세요</p>
         </div>
-
-        {/* API 키 관리 */}
-        <ApiKeyManager />
 
         {/* Main Tabs */}
         <Tabs defaultValue="auto-analyzer" className="w-full">
@@ -50,9 +46,9 @@ const Index = () => {
               <BarChart3 className="h-4 w-4" />
               쇼핑인사이트
             </TabsTrigger>
-            <TabsTrigger value="category" className="flex items-center gap-2 py-3 px-6 data-[state=active]:bg-orange-600 data-[state=active]:text-white">
-              <Database className="h-4 w-4" />
-              카테고리 관리
+            <TabsTrigger value="service" className="flex items-center gap-2 py-3 px-6 data-[state=active]:bg-gray-600 data-[state=active]:text-white">
+              <Settings className="h-4 w-4" />
+              서비스 관리
             </TabsTrigger>
           </TabsList>
 
@@ -124,19 +120,19 @@ const Index = () => {
             </Card>
           </TabsContent>
 
-          <TabsContent value="category" className="space-y-6">
+          <TabsContent value="service" className="space-y-6">
             <Card className="shadow-lg border-0 bg-white/80 backdrop-blur-sm">
-              <CardHeader className="bg-gradient-to-r from-orange-600 to-orange-700 text-white rounded-t-lg">
+              <CardHeader className="bg-gradient-to-r from-gray-600 to-gray-700 text-white rounded-t-lg">
                 <CardTitle className="flex items-center gap-2">
-                  <Database className="h-5 w-5" />
-                  카테고리 관리
+                  <Settings className="h-5 w-5" />
+                  서비스 관리
                 </CardTitle>
-                <CardDescription className="text-orange-100">
-                  네이버 카테고리 정보를 CSV로 업로드하고 관리하세요 (로그인 필요)
+                <CardDescription className="text-gray-100">
+                  네이버 API 설정과 카테고리 정보를 관리하세요 (로그인 필요)
                 </CardDescription>
               </CardHeader>
               <CardContent className="p-6">
-                <CategoryManager />
+                <ServiceManager />
               </CardContent>
             </Card>
           </TabsContent>
