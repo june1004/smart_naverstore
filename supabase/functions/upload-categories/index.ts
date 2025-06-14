@@ -14,7 +14,7 @@ serve(async (req) => {
   }
 
   try {
-    const { csvData, filename, replaceAll = false } = await req.json();
+    const { csvData, filename, replaceAll = true, format = 'csv' } = await req.json();
     
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -39,7 +39,7 @@ serve(async (req) => {
       throw new Error('Admin privileges required');
     }
 
-    console.log('CSV 업로드 시작:', { filename, rowCount: csvData.length, userEmail: user.email, replaceAll });
+    console.log(`${format.toUpperCase()} 업로드 시작:`, { filename, rowCount: csvData.length, userEmail: user.email, replaceAll, format });
 
     // 업로드 기록 생성
     const { data: uploadRecord, error: uploadError } = await supabase
@@ -78,7 +78,7 @@ serve(async (req) => {
     }
 
     // 배치 단위로 처리
-    const BATCH_SIZE = 100;
+    const BATCH_SIZE = 500; // JSON의 경우 더 큰 배치 사이즈 사용
     const batches = [];
     for (let i = 0; i < csvData.length; i += BATCH_SIZE) {
       batches.push(csvData.slice(i, i + BATCH_SIZE));
@@ -88,20 +88,26 @@ serve(async (req) => {
       const batch = batches[batchIndex];
       const categoriesToInsert = [];
 
-      console.log(`배치 ${batchIndex + 1}/${batches.length} 처리 중...`);
+      console.log(`배치 ${batchIndex + 1}/${batches.length} 처리 중... (${batch.length}개 항목)`);
 
       for (const row of batch) {
         try {
-          // 다양한 헤더 형태 지원
+          // 다양한 헤더 형태 지원 (CSV와 JSON 모두)
           const categoryId = row['카테고리번호'] || row['category_id'] || row['categoryId'] || row['카테고리ID'];
-          const largeCat = (row['대분류'] || row['large_category'] || '').trim();
-          const mediumCat = (row['중분류'] || row['medium_category'] || '').trim();
-          const smallCat = (row['소분류'] || row['small_category'] || '').trim();
-          const microCat = (row['세분류'] || row['micro_category'] || '').trim();
+          const largeCat = (row['대분류'] || row['large_category'] || '').toString().trim();
+          const mediumCat = (row['중분류'] || row['medium_category'] || '').toString().trim();
+          const smallCat = (row['소분류'] || row['small_category'] || '').toString().trim();
+          const microCat = (row['세분류'] || row['micro_category'] || '').toString().trim();
           
           // 필수 필드 검증
           if (!categoryId || !largeCat) {
-            throw new Error('필수 필드가 누락되었습니다 (카테고리번호, 대분류)');
+            failCount++;
+            errors.push({
+              row: row,
+              error: '필수 필드가 누락되었습니다 (카테고리번호, 대분류)',
+              rowIndex: batchIndex * BATCH_SIZE + categoriesToInsert.length
+            });
+            continue;
           }
 
           // 카테고리 계층 구조 분석
@@ -141,30 +147,33 @@ serve(async (req) => {
         }
       }
 
-      // 배치 일괄 삽입
+      // 배치 일괄 삽입 (upsert 사용으로 중복 처리)
       if (categoriesToInsert.length > 0) {
         const { error: insertError } = await supabase
           .from('naver_categories')
-          .insert(categoriesToInsert);
+          .upsert(categoriesToInsert, {
+            onConflict: 'category_id',
+            ignoreDuplicates: false
+          });
 
         if (insertError) {
           console.error('일괄 삽입 오류:', insertError);
           failCount += categoriesToInsert.length;
           errors.push({
             batch: batchIndex + 1,
-            operation: 'insert',
+            operation: 'upsert',
             error: insertError.message,
             count: categoriesToInsert.length
           });
         } else {
           successCount += categoriesToInsert.length;
-          console.log(`배치 ${batchIndex + 1}: ${categoriesToInsert.length}개 삽입 완료`);
+          console.log(`배치 ${batchIndex + 1}: ${categoriesToInsert.length}개 upsert 완료`);
         }
       }
 
       // 메모리 정리를 위한 작은 지연
       if (batchIndex < batches.length - 1) {
-        await new Promise(resolve => setTimeout(resolve, 10));
+        await new Promise(resolve => setTimeout(resolve, 50));
       }
     }
 
@@ -175,7 +184,11 @@ serve(async (req) => {
         successful_records: successCount,
         failed_records: failCount,
         upload_status: failCount > 0 ? 'completed_with_errors' : 'completed',
-        error_details: errors.length > 0 ? errors.slice(0, 50) : null
+        error_details: errors.length > 0 ? {
+          total_errors: errors.length,
+          sample_errors: errors.slice(0, 20),
+          summary: `총 ${errors.length}개 오류 발생`
+        } : null
       })
       .eq('id', uploadRecord.id);
 
@@ -183,7 +196,7 @@ serve(async (req) => {
       console.error('업로드 기록 업데이트 오류:', updateError);
     }
 
-    console.log('CSV 업로드 완료:', { 
+    console.log(`${format.toUpperCase()} 업로드 완료:`, { 
       successCount, 
       failCount, 
       totalBatches: batches.length,
@@ -196,16 +209,16 @@ serve(async (req) => {
       successful: successCount,
       failed: failCount,
       errors: errors.slice(0, 10),
-      message: `${batches.length}개 배치로 처리 완료. ${replaceAll ? '기존 데이터 교체됨.' : ''}`
+      message: `${batches.length}개 배치로 처리 완료. ${replaceAll ? '기존 데이터 교체됨.' : ''} (${format.toUpperCase()} 형식)`
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
 
   } catch (error) {
-    console.error('CSV 업로드 오류:', error);
+    console.error('업로드 오류:', error);
     return new Response(JSON.stringify({ 
       error: error.message,
-      details: 'CSV 업로드 중 오류가 발생했습니다.'
+      details: '파일 업로드 중 오류가 발생했습니다.'
     }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

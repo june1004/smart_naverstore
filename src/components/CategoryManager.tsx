@@ -1,4 +1,3 @@
-
 import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -7,6 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { 
   Pagination,
   PaginationContent,
@@ -15,7 +15,7 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination";
-import { Upload, Download, Search, Database, Shield, ChevronRight, ChevronDown, Filter } from "lucide-react";
+import { Upload, Download, Search, Database, Shield, ChevronRight, ChevronDown, Filter, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -43,6 +43,9 @@ interface UploadRecord {
   created_at: string;
 }
 
+type SortField = 'category_id' | 'category_name' | 'category_level' | 'created_at';
+type SortDirection = 'asc' | 'desc';
+
 const CategoryManager = () => {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
@@ -50,6 +53,9 @@ const CategoryManager = () => {
   const [selectedLevel, setSelectedLevel] = useState<number | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(20);
+  const [sortField, setSortField] = useState<SortField>('category_id');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
+  const [uploadFormat, setUploadFormat] = useState<'csv' | 'json'>('csv');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -106,17 +112,15 @@ const CategoryManager = () => {
     },
   });
 
-  // 카테고리 목록 조회 (페이지네이션 포함)
+  // 카테고리 목록 조회 (페이지네이션 및 정렬 포함)
   const { data: categoriesData, isLoading: categoriesLoading, error: categoriesError } = useQuery({
-    queryKey: ['naver-categories-paginated', searchTerm, selectedLevel, currentPage, itemsPerPage],
+    queryKey: ['naver-categories-paginated', searchTerm, selectedLevel, currentPage, itemsPerPage, sortField, sortDirection],
     queryFn: async () => {
-      console.log('카테고리 목록 조회 시작:', { searchTerm, selectedLevel, currentPage });
+      console.log('카테고리 목록 조회 시작:', { searchTerm, selectedLevel, currentPage, sortField, sortDirection });
       
       let query = supabase
         .from('naver_categories')
-        .select('*', { count: 'exact' })
-        .order('category_level', { ascending: true })
-        .order('category_name', { ascending: true });
+        .select('*', { count: 'exact' });
 
       // 검색 조건 추가
       if (searchTerm) {
@@ -127,6 +131,9 @@ const CategoryManager = () => {
       if (selectedLevel !== null) {
         query = query.eq('category_level', selectedLevel);
       }
+
+      // 정렬 추가
+      query = query.order(sortField, { ascending: sortDirection === 'asc' });
 
       // 페이지네이션 적용
       const from = (currentPage - 1) * itemsPerPage;
@@ -164,9 +171,9 @@ const CategoryManager = () => {
     },
   });
 
-  // CSV 업로드 mutation
+  // CSV/JSON 업로드 mutation
   const uploadMutation = useMutation({
-    mutationFn: async ({ csvData, filename }: { csvData: any[], filename: string }) => {
+    mutationFn: async ({ data, filename, format }: { data: any[], filename: string, format: 'csv' | 'json' }) => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
         throw new Error('로그인이 필요합니다.');
@@ -176,64 +183,30 @@ const CategoryManager = () => {
         throw new Error('관리자 권한이 필요합니다. (june@nanumlab.com 계정만 가능)');
       }
 
-      const BATCH_SIZE = 100;
-      const batches = [];
-      for (let i = 0; i < csvData.length; i += BATCH_SIZE) {
-        batches.push(csvData.slice(i, i + BATCH_SIZE));
+      const response = await fetch(`https://votlredkpkiafedzkham.supabase.co/functions/v1/upload-categories`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ 
+          csvData: data, 
+          filename,
+          replaceAll: true,
+          format
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || '업로드 실패');
       }
 
-      let totalSuccess = 0;
-      let totalFailed = 0;
-      const allErrors: any[] = [];
-
-      setUploadProgress(10);
-
-      for (let i = 0; i < batches.length; i++) {
-        const batch = batches[i];
-        const progress = 10 + (i / batches.length) * 80;
-        setUploadProgress(progress);
-
-        try {
-          const response = await fetch(`https://votlredkpkiafedzkham.supabase.co/functions/v1/upload-categories`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${session.access_token}`,
-            },
-            body: JSON.stringify({ 
-              csvData: batch, 
-              filename: `${filename}_batch_${i + 1}` 
-            }),
-          });
-
-          if (!response.ok) {
-            const error = await response.json();
-            throw new Error(error.error || `배치 ${i + 1} 업로드 실패`);
-          }
-
-          const result = await response.json();
-          totalSuccess += result.successful;
-          totalFailed += result.failed;
-          if (result.errors) {
-            allErrors.push(...result.errors);
-          }
-        } catch (error) {
-          console.error(`배치 ${i + 1} 처리 오류:`, error);
-          totalFailed += batch.length;
-        }
-      }
-
-      setUploadProgress(100);
-
-      return {
-        successful: totalSuccess,
-        failed: totalFailed,
-        errors: allErrors.slice(0, 20)
-      };
+      return await response.json();
     },
     onSuccess: (result) => {
       toast({
-        title: "CSV 업로드 완료",
+        title: "업로드 완료",
         description: `성공: ${result.successful}개, 실패: ${result.failed}개`,
       });
       queryClient.invalidateQueries({ queryKey: ['naver-categories-paginated'] });
@@ -266,10 +239,13 @@ const CategoryManager = () => {
       return;
     }
 
-    if (!file.name.toLowerCase().endsWith('.csv')) {
+    const isCSV = file.name.toLowerCase().endsWith('.csv');
+    const isJSON = file.name.toLowerCase().endsWith('.json');
+    
+    if (!isCSV && !isJSON) {
       toast({
         title: "파일 형식 오류",
-        description: "CSV 파일만 업로드 가능합니다.",
+        description: "CSV 또는 JSON 파일만 업로드 가능합니다.",
         variant: "destructive",
       });
       return;
@@ -285,31 +261,51 @@ const CategoryManager = () => {
     }
 
     setIsUploading(true);
-    setUploadProgress(5);
+    setUploadProgress(10);
 
     try {
       const text = await file.text();
-      const lines = text.split('\n').filter(line => line.trim());
-      
-      if (lines.length < 2) {
-        throw new Error('CSV 파일에 헤더와 최소 1개의 데이터 행이 필요합니다.');
+      let data: any[] = [];
+
+      if (isJSON) {
+        try {
+          const jsonData = JSON.parse(text);
+          data = Array.isArray(jsonData) ? jsonData : [jsonData];
+        } catch (jsonError) {
+          throw new Error('JSON 파일 형식이 올바르지 않습니다.');
+        }
+      } else {
+        // CSV 처리
+        const lines = text.split('\n').filter(line => line.trim());
+        
+        if (lines.length < 2) {
+          throw new Error('CSV 파일에 헤더와 최소 1개의 데이터 행이 필요합니다.');
+        }
+
+        const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
+        data = lines.slice(1).map(line => {
+          const values = line.split(',').map(v => v.trim().replace(/"/g, ''));
+          const row: any = {};
+          headers.forEach((header, index) => {
+            row[header] = values[index] || '';
+          });
+          return row;
+        });
       }
 
-      setUploadProgress(10);
+      setUploadProgress(50);
 
-      const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
-      const csvData = lines.slice(1).map(line => {
-        const values = line.split(',').map(v => v.trim().replace(/"/g, ''));
-        const row: any = {};
-        headers.forEach((header, index) => {
-          row[header] = values[index] || '';
-        });
-        return row;
+      if (data.length === 0) {
+        throw new Error('파일에 유효한 데이터가 없습니다.');
+      }
+
+      console.log(`파일 처리 완료: ${data.length}개 행`);
+
+      await uploadMutation.mutateAsync({ 
+        data, 
+        filename: file.name, 
+        format: isJSON ? 'json' : 'csv' 
       });
-
-      console.log(`CSV 파일 처리 완료: ${csvData.length}개 행`);
-
-      await uploadMutation.mutateAsync({ csvData, filename: file.name });
     } catch (error) {
       console.error('파일 처리 오류:', error);
       toast({
@@ -327,25 +323,80 @@ const CategoryManager = () => {
   };
 
   const downloadTemplate = () => {
-    const csvContent = "카테고리번호,대분류,중분류,소분류,세분류\n" +
-                      "50000000,패션의류,,,\n" +
-                      "50000001,패션의류,여성의류,,\n" +
-                      "50000002,패션의류,여성의류,원피스,\n" +
-                      "50000003,패션의류,여성의류,원피스,미니원피스\n" +
-                      "50100000,디지털/가전,,,\n" +
-                      "50100001,디지털/가전,모바일/태블릿,,\n" +
-                      "50100002,디지털/가전,모바일/태블릿,스마트폰,\n" +
-                      "50200000,생활/건강,,,\n" +
-                      "50200001,생활/건강,건강식품,,\n" +
-                      "50200002,생활/건강,건강식품,비타민,";
-    
-    const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = '네이버_카테고리_템플릿.csv';
-    a.click();
-    window.URL.revokeObjectURL(url);
+    if (uploadFormat === 'json') {
+      const jsonTemplate = [
+        {
+          "카테고리번호": "50000000",
+          "대분류": "패션의류",
+          "중분류": "",
+          "소분류": "",
+          "세분류": ""
+        },
+        {
+          "카테고리번호": "50000001",
+          "대분류": "패션의류",
+          "중분류": "여성의류",
+          "소분류": "",
+          "세분류": ""
+        },
+        {
+          "카테고리번호": "50000002",
+          "대분류": "패션의류",
+          "중분류": "여성의류",
+          "소분류": "원피스",
+          "세분류": ""
+        },
+        {
+          "카테고리번호": "50000003",
+          "대분류": "패션의류",
+          "중분류": "여성의류",
+          "소분류": "원피스",
+          "세분류": "미니원피스"
+        }
+      ];
+      
+      const blob = new Blob([JSON.stringify(jsonTemplate, null, 2)], { type: 'application/json' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = '네이버_카테고리_템플릿.json';
+      a.click();
+      window.URL.revokeObjectURL(url);
+    } else {
+      const csvContent = "카테고리번호,대분류,중분류,소분류,세분류\n" +
+                        "50000000,패션의류,,,\n" +
+                        "50000001,패션의류,여성의류,,\n" +
+                        "50000002,패션의류,여성의류,원피스,\n" +
+                        "50000003,패션의류,여성의류,원피스,미니원피스\n" +
+                        "50100000,디지털/가전,,,\n" +
+                        "50100001,디지털/가전,모바일/태블릿,,\n" +
+                        "50100002,디지털/가전,모바일/태블릿,스마트폰,";
+      
+      const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = '네이버_카테고리_템플릿.csv';
+      a.click();
+      window.URL.revokeObjectURL(url);
+    }
+  };
+
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+    setCurrentPage(1);
+  };
+
+  const getSortIcon = (field: SortField) => {
+    if (sortField !== field) {
+      return <ArrowUpDown className="h-4 w-4" />;
+    }
+    return sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />;
   };
 
   const handleLevelFilter = (level: number | null) => {
@@ -402,25 +453,34 @@ const CategoryManager = () => {
         </Alert>
       )}
 
-      {/* CSV 업로드 섹션 */}
+      {/* CSV/JSON 업로드 섹션 */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Upload className="h-5 w-5" />
-            카테고리 CSV 업로드
+            카테고리 업로드 ({uploadFormat.toUpperCase()})
             {isAdmin && <Badge variant="secondary" className="ml-2">관리자 전용</Badge>}
           </CardTitle>
           <CardDescription>
-            네이버 카테고리 정보를 CSV 파일로 일괄 업로드합니다. (최대 10MB, 중복 자동 처리)
+            네이버 카테고리 정보를 CSV 또는 JSON 파일로 일괄 업로드합니다. (최대 10MB, 기존 데이터 교체됨)
             {!isAdmin && " - june@nanumlab.com 계정만 업로드 가능"}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex gap-2">
+            <Select value={uploadFormat} onValueChange={(value: 'csv' | 'json') => setUploadFormat(value)}>
+              <SelectTrigger className="w-32">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="csv">CSV</SelectItem>
+                <SelectItem value="json">JSON</SelectItem>
+              </SelectContent>
+            </Select>
             <Input
               ref={fileInputRef}
               type="file"
-              accept=".csv"
+              accept={uploadFormat === 'csv' ? '.csv' : '.json'}
               onChange={handleFileUpload}
               disabled={isUploading || !isAdmin}
               className="flex-1"
@@ -431,7 +491,7 @@ const CategoryManager = () => {
               className="flex items-center gap-2"
             >
               <Download className="h-4 w-4" />
-              템플릿 다운로드
+              {uploadFormat.toUpperCase()} 템플릿
             </Button>
           </div>
           
@@ -439,7 +499,7 @@ const CategoryManager = () => {
             <div className="space-y-2">
               <Progress value={uploadProgress} className="w-full" />
               <p className="text-sm text-gray-600">
-                업로드 중... {uploadProgress.toFixed(0)}% (배치 처리 진행 중)
+                업로드 중... {uploadProgress.toFixed(0)}%
               </p>
             </div>
           )}
@@ -587,12 +647,44 @@ const CategoryManager = () => {
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>카테고리 ID</TableHead>
-                        <TableHead>카테고리명</TableHead>
-                        <TableHead>분류</TableHead>
+                        <TableHead>
+                          <Button 
+                            variant="ghost" 
+                            onClick={() => handleSort('category_id')}
+                            className="flex items-center gap-2 p-0 h-auto font-medium"
+                          >
+                            카테고리 ID {getSortIcon('category_id')}
+                          </Button>
+                        </TableHead>
+                        <TableHead>
+                          <Button 
+                            variant="ghost" 
+                            onClick={() => handleSort('category_name')}
+                            className="flex items-center gap-2 p-0 h-auto font-medium"
+                          >
+                            카테고리명 {getSortIcon('category_name')}
+                          </Button>
+                        </TableHead>
+                        <TableHead>
+                          <Button 
+                            variant="ghost" 
+                            onClick={() => handleSort('category_level')}
+                            className="flex items-center gap-2 p-0 h-auto font-medium"
+                          >
+                            분류 {getSortIcon('category_level')}
+                          </Button>
+                        </TableHead>
                         <TableHead>경로</TableHead>
                         <TableHead>상태</TableHead>
-                        <TableHead>등록일</TableHead>
+                        <TableHead>
+                          <Button 
+                            variant="ghost" 
+                            onClick={() => handleSort('created_at')}
+                            className="flex items-center gap-2 p-0 h-auto font-medium"
+                          >
+                            등록일 {getSortIcon('created_at')}
+                          </Button>
+                        </TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -686,7 +778,7 @@ const CategoryManager = () => {
                 </p>
                 {!searchTerm && !selectedLevel && isAdmin && (
                   <p className="text-sm text-gray-400 mt-2">
-                    CSV 파일을 업로드하여 카테고리를 등록해보세요.
+                    CSV 또는 JSON 파일을 업로드하여 카테고리를 등록해보세요.
                   </p>
                 )}
               </div>
