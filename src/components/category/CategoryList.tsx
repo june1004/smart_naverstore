@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -30,7 +30,6 @@ interface ParsedCategory {
   large_category: string;
   medium_category: string;
   small_category: string;
-  micro_category: string;
   category_level: number;
   category_path: string;
   is_active: boolean;
@@ -52,9 +51,16 @@ const CategoryList = ({ selectedLevel, onLevelFilter }: CategoryListProps) => {
   const [sortField, setSortField] = useState<SortField>('category_hierarchy');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
 
+  // 초기화면에서 대분류만 표시하도록 설정
+  useEffect(() => {
+    if (selectedLevel === null && !searchTerm) {
+      onLevelFilter(1); // 초기화면에서는 대분류만 표시
+    }
+  }, []);
+
   // 카테고리 경로를 파싱하여 각 분류 레벨을 추출하는 함수
   const parseCategoryPath = (category: Category): ParsedCategory => {
-    const pathParts = category.category_path ? category.category_path.split(' > ') : [];
+    const pathParts = category.category_path ? category.category_path.split(' > ').filter(part => part.trim() !== '') : [];
     
     return {
       id: category.id,
@@ -63,7 +69,6 @@ const CategoryList = ({ selectedLevel, onLevelFilter }: CategoryListProps) => {
       large_category: pathParts[0] || '',
       medium_category: pathParts[1] || '',
       small_category: pathParts[2] || '',
-      micro_category: pathParts[3] || '',
       category_level: category.category_level,
       category_path: category.category_path || '',
       is_active: category.is_active,
@@ -92,15 +97,9 @@ const CategoryList = ({ selectedLevel, onLevelFilter }: CategoryListProps) => {
     }
     
     // 소분류 비교
-    const smallCompare = a.small_category.localeCompare(b.small_category, 'ko');
-    if (smallCompare !== 0) {
-      return direction === 'asc' ? smallCompare : -smallCompare;
-    }
-    
-    // 세분류 비교
     return direction === 'asc' ? 
-      a.micro_category.localeCompare(b.micro_category, 'ko') : 
-      b.micro_category.localeCompare(a.micro_category, 'ko');
+      a.small_category.localeCompare(b.small_category, 'ko') : 
+      b.small_category.localeCompare(a.small_category, 'ko');
   };
 
   // 단일 키워드 검색을 위한 함수
@@ -194,12 +193,20 @@ const CategoryList = ({ selectedLevel, onLevelFilter }: CategoryListProps) => {
     setCurrentPage(page);
   };
 
+  const handleSearchChange = (value: string) => {
+    setSearchTerm(value);
+    setCurrentPage(1);
+    // 검색어가 있으면 필터 해제
+    if (value && selectedLevel === 1) {
+      onLevelFilter(null);
+    }
+  };
+
   const getLevelName = (level: number) => {
     switch (level) {
       case 1: return '대분류';
       case 2: return '중분류';
       case 3: return '소분류';
-      case 4: return '세분류';
       default: return `${level}분류`;
     }
   };
@@ -232,10 +239,7 @@ const CategoryList = ({ selectedLevel, onLevelFilter }: CategoryListProps) => {
             <Input
               placeholder="카테고리명, ID, 분류명으로 검색... (예: 텐트, 50002649, 스포츠)"
               value={searchTerm}
-              onChange={(e) => {
-                setSearchTerm(e.target.value);
-                setCurrentPage(1);
-              }}
+              onChange={(e) => handleSearchChange(e.target.value)}
               className="flex-1"
             />
             {selectedLevel && (

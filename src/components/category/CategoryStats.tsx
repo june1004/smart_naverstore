@@ -27,7 +27,7 @@ const CategoryStats = ({ onLevelFilter }: CategoryStatsProps) => {
           throw totalError;
         }
 
-        // 카테고리 경로 기반으로 실제 레벨별 데이터 조회
+        // 모든 카테고리 데이터 조회
         const { data: allCategories, error: categoriesError } = await supabase
           .from('naver_categories')
           .select('category_path')
@@ -38,52 +38,41 @@ const CategoryStats = ({ onLevelFilter }: CategoryStatsProps) => {
           throw categoriesError;
         }
 
-        // 카테고리 경로를 분석하여 실제 레벨 계산
-        let level1Count = 0; // 대분류만 있는 경우
-        let level2Count = 0; // 대분류 > 중분류
-        let level3Count = 0; // 대분류 > 중분류 > 소분류  
-        let level4Count = 0; // 대분류 > 중분류 > 소분류 > 세분류
-
-        const level1Categories = new Set(); // 중복 제거를 위한 Set
+        // 고유한 대분류 집합
+        const uniqueLargeCategories = new Set();
+        let mediumCategoryCount = 0;
+        let smallCategoryCount = 0;
 
         allCategories?.forEach(category => {
           if (category.category_path) {
             const pathParts = category.category_path.split(' > ').filter(part => part.trim() !== '');
-            const actualLevel = pathParts.length;
             
-            // 대분류 카운트 (중복 제거)
-            if (pathParts.length > 0) {
-              level1Categories.add(pathParts[0]);
+            // 대분류 수집 (중복 제거)
+            if (pathParts.length >= 1) {
+              uniqueLargeCategories.add(pathParts[0]);
             }
             
-            // 각 레벨별 카운트
-            switch (actualLevel) {
-              case 1:
-                level1Count++;
-                break;
-              case 2:
-                level2Count++;
-                break;
-              case 3:
-                level3Count++;
-                break;
-              case 4:
-                level4Count++;
-                break;
+            // 중분류: 대분류 > 중분류 구조인 경우
+            if (pathParts.length === 2) {
+              mediumCategoryCount++;
+            }
+            
+            // 소분류: 대분류 > 중분류 > 소분류 구조인 경우
+            if (pathParts.length === 3) {
+              smallCategoryCount++;
             }
           }
         });
 
         const stats = {
           total: totalCount || 0,
-          level1: level1Categories.size, // 실제 대분류 개수 (중복 제거)
-          level2: level2Count,
-          level3: level3Count,
-          level4: level4Count
+          level1: uniqueLargeCategories.size, // 고유한 대분류 개수
+          level2: mediumCategoryCount,
+          level3: smallCategoryCount
         };
 
         console.log('카테고리 통계 조회 완료:', stats);
-        console.log('대분류 목록:', Array.from(level1Categories));
+        console.log('대분류 목록:', Array.from(uniqueLargeCategories));
         return stats;
       } catch (error) {
         console.error('카테고리 통계 조회 중 오류:', error);
@@ -118,7 +107,7 @@ const CategoryStats = ({ onLevelFilter }: CategoryStatsProps) => {
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="grid grid-cols-5 gap-4">
+        <div className="grid grid-cols-4 gap-4">
           <Card className="p-3 cursor-pointer hover:bg-gray-50 transition-colors" onClick={() => onLevelFilter(null)}>
             <div className="text-center">
               <div className="text-2xl font-bold text-gray-900">{categoryStats?.total || 0}</div>
@@ -141,12 +130,6 @@ const CategoryStats = ({ onLevelFilter }: CategoryStatsProps) => {
             <div className="text-center">
               <div className="text-2xl font-bold text-orange-600">{categoryStats?.level3 || 0}</div>
               <div className="text-sm text-gray-600">소분류</div>
-            </div>
-          </Card>
-          <Card className="p-3 cursor-pointer hover:bg-purple-50 transition-colors" onClick={() => onLevelFilter(4)}>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-purple-600">{categoryStats?.level4 || 0}</div>
-              <div className="text-sm text-gray-600">세분류</div>
             </div>
           </Card>
         </div>

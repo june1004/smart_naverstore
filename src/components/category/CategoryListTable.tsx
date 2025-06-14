@@ -13,7 +13,6 @@ interface ParsedCategory {
   large_category: string;
   medium_category: string;
   small_category: string;
-  micro_category: string;
   category_level: number;
   category_path: string;
   is_active: boolean;
@@ -110,7 +109,6 @@ const CategoryListTable = ({ categories, sortField, sortDirection, onSort }: Cat
             </TableHead>
             <TableHead>중분류</TableHead>
             <TableHead>소분류</TableHead>
-            <TableHead>세분류</TableHead>
             <TableHead>
               <Button 
                 variant="ghost" 
@@ -150,13 +148,6 @@ const CategoryListTable = ({ categories, sortField, sortDirection, onSort }: Cat
               </TableCell>
               <TableCell>
                 {category.small_category || '-'}
-              </TableCell>
-              <TableCell>
-                {category.micro_category ? (
-                  <span className="text-sm">{category.micro_category}</span>
-                ) : (
-                  <span className="text-gray-400 text-xs">없음</span>
-                )}
               </TableCell>
               <TableCell className="text-sm max-w-xs">
                 <div className="truncate" title={category.category_path}>
