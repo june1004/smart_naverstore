@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,6 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell } from "recharts";
 import { Search, Sparkles, TrendingUp, ShoppingBag, BarChart3, Target, Calendar, Users } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { useKeyword } from "@/contexts/KeywordContext";
 
 interface CategoryInfo {
   name: string;
@@ -70,6 +70,7 @@ const AutoKeywordAnalyzer = () => {
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
+  const { setSharedKeyword } = useKeyword();
 
   const analyzeKeyword = async () => {
     if (!keyword.trim()) {
@@ -93,6 +94,9 @@ const AutoKeywordAnalyzer = () => {
       }
 
       setAnalysisResult(data);
+      
+      // 분석된 키워드를 전역 상태에 저장
+      setSharedKeyword(keyword.trim());
 
       toast({
         title: "분석 완료",
@@ -129,7 +133,7 @@ const AutoKeywordAnalyzer = () => {
         <CardContent className="space-y-4">
           <div className="flex gap-4">
             <Input
-              placeholder="분석할 키워드를 입력하세요 (예: 아이폰, 김치, 운동화 등)"
+              placeholder="분석할 키워드를 입력하세요.(예:듀라코트, 아이폰 등 1개의 키워드)"
               value={keyword}
               onChange={(e) => setKeyword(e.target.value)}
               onKeyPress={(e) => e.key === 'Enter' && analyzeKeyword()}

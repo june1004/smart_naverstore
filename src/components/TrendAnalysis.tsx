@@ -1,412 +1,269 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
-import { TrendingUp, Plus, X, Calendar, BarChart3, Search } from "lucide-react";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import { Search, TrendingUp, Calendar, User } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { useKeyword } from "@/contexts/KeywordContext";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface TrendData {
+  date: string;
+  value: number;
+}
+
+interface SearchTermData {
   period: string;
   ratio: number;
 }
 
-interface KeywordTrend {
-  title: string;
-  keywords: string[];
-  data: TrendData[];
-}
-
 const TrendAnalysis = () => {
-  const [keywords, setKeywords] = useState<string[]>([""]);
-  const [currentKeyword, setCurrentKeyword] = useState("");
-  const [selectedPeriod, setSelectedPeriod] = useState("1개월");
-  const [trendData, setTrendData] = useState<KeywordTrend[]>([]);
+  const [keyword, setKeyword] = useState("");
+  const [trendData, setTrendData] = useState<TrendData[]>([]);
+  const [searchTermData, setSearchTermData] = useState<SearchTermData[]>([]);
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
+  const { sharedKeyword } = useKeyword();
+  const { user } = useAuth();
 
-  const addKeyword = () => {
-    if (currentKeyword.trim() && keywords.length < 5) {
-      const newKeywords = [...keywords];
-      newKeywords[newKeywords.length - 1] = currentKeyword.trim();
-      if (newKeywords.length < 5) {
-        newKeywords.push("");
-      }
-      setKeywords(newKeywords);
-      setCurrentKeyword("");
+  // 공유된 키워드로 초기화
+  useEffect(() => {
+    if (sharedKeyword && !keyword) {
+      setKeyword(sharedKeyword);
     }
-  };
+  }, [sharedKeyword, keyword]);
 
-  const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      addKeyword();
+  // 인증되지 않은 사용자 체크
+  useEffect(() => {
+    if (!user) {
+      toast({
+        title: "로그인이 필요합니다",
+        description: "트렌드 분석 기능을 사용하려면 로그인해주세요.",
+        variant: "destructive",
+      });
     }
-  };
+  }, [user, toast]);
 
-  const removeKeyword = (index: number) => {
-    if (keywords.length > 1) {
-      setKeywords(keywords.filter((_, i) => i !== index));
-    }
-  };
-
-  const getDateRange = (period: string) => {
-    const endDate = new Date();
-    const startDate = new Date();
-    
-    switch (period) {
-      case "1개월":
-        startDate.setMonth(endDate.getMonth() - 1);
-        break;
-      case "3개월":
-        startDate.setMonth(endDate.getMonth() - 3);
-        break;
-      case "1년":
-        startDate.setFullYear(endDate.getFullYear() - 1);
-        break;
-      default:
-        startDate.setMonth(endDate.getMonth() - 1);
+  const analyzeTrend = async () => {
+    if (!user) {
+      toast({
+        title: "로그인이 필요합니다",
+        description: "회원가입 또는 로그인 후 이용해주세요.",
+        variant: "destructive",
+      });
+      return;
     }
 
-    return {
-      startDate: startDate.toISOString().split('T')[0].replace(/-/g, ''),
-      endDate: endDate.toISOString().split('T')[0].replace(/-/g, '')
-    };
-  };
-
-  const searchTrend = async () => {
-    const validKeywords = keywords.filter(k => k.trim());
-    
-    if (validKeywords.length === 0) {
+    if (!keyword.trim()) {
       toast({
         title: "키워드를 입력해주세요",
-        description: "최소 1개 이상의 키워드를 입력해주세요.",
+        description: "분석할 키워드를 입력해주세요.",
         variant: "destructive",
       });
       return;
     }
 
-    // 키워드 길이 검증
-    const invalidKeywords = validKeywords.filter(k => k.length < 2);
-    if (invalidKeywords.length > 0) {
-      toast({
-        title: "키워드 오류",
-        description: "키워드는 2글자 이상이어야 합니다.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    const { startDate, endDate } = getDateRange(selectedPeriod);
     setLoading(true);
 
     try {
-      console.log('트렌드 분석 요청:', { validKeywords, startDate, endDate });
-
-      const { data, error } = await supabase.functions.invoke('naver-datalab-trend', {
-        body: {
-          keywords: validKeywords,
-          startDate,
-          endDate,
-          timeUnit: selectedPeriod === "1개월" ? 'date' : selectedPeriod === "3개월" ? 'week' : 'month',
-          device: '',
-          ages: [],
-          gender: ''
-        }
+      // 트렌드 데이터 가져오기
+      const { data: trendResponse, error: trendError } = await supabase.functions.invoke('trend-data', {
+        body: { keyword: keyword.trim(), startDate, endDate }
       });
 
-      if (error) {
-        console.error('Supabase 함수 오류:', error);
-        throw new Error(error.message);
+      if (trendError) {
+        throw new Error(trendError.message);
       }
 
-      console.log('트렌드 분석 결과:', data);
+      setTrendData(trendResponse);
 
-      if (!data) {
-        throw new Error('응답 데이터가 없습니다.');
+      // 검색어별 데이터 가져오기
+      const { data: searchTermResponse, error: searchTermError } = await supabase.functions.invoke('searchterm-data', {
+        body: { keyword: keyword.trim(), startDate, endDate }
+      });
+
+      if (searchTermError) {
+        throw new Error(searchTermError.message);
       }
 
-      // 응답 데이터 처리
-      if (data.results && Array.isArray(data.results)) {
-        // 멀티 키워드인 경우
-        setTrendData(data.results.map((trend: any, index: number) => ({
-          title: validKeywords[index] || trend.title,
-          keywords: [validKeywords[index]],
-          data: trend.data || []
-        })));
-      } else if (data.error) {
-        throw new Error(data.error);
-      } else {
-        // 단일 응답인 경우 샘플 데이터 생성
-        const sampleData = validKeywords.map((keyword, index) => ({
-          title: keyword,
-          keywords: [keyword],
-          data: generateSampleTrendData(selectedPeriod)
-        }));
-        setTrendData(sampleData);
-      }
-      
+      setSearchTermData(searchTermResponse);
+
       toast({
-        title: "트렌드 분석 완료",
-        description: `${validKeywords.length}개 키워드의 트렌드 데이터를 가져왔습니다.`,
+        title: "분석 완료",
+        description: `'${keyword}' 키워드 트렌드 분석이 완료되었습니다.`,
       });
 
-    } catch (error: any) {
+    } catch (error) {
       console.error('트렌드 분석 오류:', error);
-      
-      // 오류 발생 시 샘플 데이터 표시
-      const sampleData = validKeywords.map((keyword, index) => ({
-        title: keyword,
-        keywords: [keyword],
-        data: generateSampleTrendData(selectedPeriod)
-      }));
-      setTrendData(sampleData);
-      
       toast({
-        title: "샘플 데이터 표시",
-        description: "API 연결 문제로 샘플 트렌드 데이터를 표시합니다.",
-        variant: "default",
+        title: "분석 실패",
+        description: "트렌드 분석 중 오류가 발생했습니다.",
+        variant: "destructive",
       });
     } finally {
       setLoading(false);
     }
   };
 
-  const generateSampleTrendData = (period: string) => {
-    const data = [];
-    const today = new Date();
-    const days = period === "1개월" ? 30 : period === "3개월" ? 90 : 365;
-    
-    for (let i = days; i >= 0; i -= period === "1개월" ? 1 : period === "3개월" ? 7 : 30) {
-      const date = new Date(today);
-      date.setDate(date.getDate() - i);
-      
-      data.push({
-        period: date.toISOString().split('T')[0],
-        ratio: Math.floor(Math.random() * 100) + 1
-      });
-    }
-    
-    return data;
+  const formatDate = (date: Date): string => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
   };
 
-  const chartData = () => {
-    if (!trendData.length) return [];
-    
-    const allPeriods = [...new Set(
-      trendData.flatMap(trend => trend.data.map(d => d.period))
-    )].sort();
-
-    return allPeriods.map(period => {
-      const dataPoint: any = { period };
-      trendData.forEach((trend) => {
-        const data = trend.data.find(d => d.period === period);
-        dataPoint[trend.title] = data ? data.ratio : 0;
-      });
-      return dataPoint;
-    });
-  };
-
-  const colors = ["#3B82F6", "#10B981", "#F59E0B", "#EF4444", "#8B5CF6"];
+  const today = formatDate(new Date());
+  const lastWeek = new Date();
+  lastWeek.setDate(lastWeek.getDate() - 7);
+  const lastWeekFormatted = formatDate(lastWeek);
 
   return (
     <div className="space-y-6">
-      {/* 키워드 입력 섹션 */}
-      <Card className="shadow-lg border-0">
-        <CardHeader className="bg-gradient-to-r from-green-600 to-green-700 text-white rounded-t-lg">
-          <CardTitle className="flex items-center gap-2">
-            <Search className="h-5 w-5" />
-            트렌드 분석 설정
-          </CardTitle>
-          <p className="text-green-100 text-sm">
-            키워드를 입력하고 Enter를 눌러 최대 5개까지 추가하세요 (2글자 이상)
-          </p>
-        </CardHeader>
-        <CardContent className="p-6 space-y-6">
-          {/* 키워드 입력 */}
-          <div>
-            <label className="text-sm font-semibold text-gray-700 mb-3 block">검색 키워드</label>
-            <div className="space-y-3">
-              {/* 등록된 키워드 표시 */}
-              {keywords.slice(0, -1).map((keyword, index) => (
-                <div key={index} className="flex gap-3 items-center">
-                  <div className="flex-shrink-0 w-8 h-8 bg-green-100 text-green-700 rounded-full flex items-center justify-center text-sm font-semibold">
-                    {index + 1}
-                  </div>
-                  <div className="flex-1 px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-lg">
-                    {keyword}
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => removeKeyword(index)}
-                    className="px-3 hover:bg-red-50 hover:border-red-300 hover:text-red-600"
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
-                </div>
-              ))}
-              
-              {/* 새 키워드 입력 */}
-              {keywords.length <= 5 && (
-                <div className="flex gap-3 items-center">
-                  <div className="flex-shrink-0 w-8 h-8 bg-blue-100 text-blue-700 rounded-full flex items-center justify-center text-sm font-semibold">
-                    {keywords.length}
-                  </div>
-                  <Input
-                    placeholder={`키워드 ${keywords.length} (2글자 이상, Enter로 추가)`}
-                    value={currentKeyword}
-                    onChange={(e) => setCurrentKeyword(e.target.value)}
-                    onKeyPress={handleKeyPress}
-                    className="flex-1 border-2 border-gray-200 focus:border-blue-500 transition-colors"
-                  />
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={addKeyword}
-                    disabled={!currentKeyword.trim() || keywords.length >= 5 || currentKeyword.length < 2}
-                    className="px-4 hover:bg-blue-50 hover:border-blue-300"
-                  >
-                    <Plus className="h-4 w-4" />
-                  </Button>
-                </div>
-              )}
+      {/* 로그인 안내 */}
+      {!user && (
+        <Card className="border-orange-200 bg-orange-50">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 text-orange-700">
+              <User className="h-4 w-4" />
+              <span className="font-medium">로그인이 필요한 기능입니다</span>
             </div>
-            <p className="text-xs text-gray-500 mt-2">
-              {keywords.filter(k => k.trim()).length}/5 키워드 등록됨
+            <p className="text-sm text-orange-600 mt-1">
+              트렌드 분석 기능을 사용하려면 회원가입 또는 로그인해주세요.
             </p>
-          </div>
+          </CardContent>
+        </Card>
+      )}
 
-          {/* 분석 기간 선택 */}
-          <div>
-            <label className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
-              <Calendar className="h-4 w-4" />
-              분석 기간
-            </label>
-            <div className="flex gap-3">
-              {["1개월", "3개월", "1년"].map((period) => (
-                <Button
-                  key={period}
-                  variant={selectedPeriod === period ? "default" : "outline"}
-                  onClick={() => setSelectedPeriod(period)}
-                  className={selectedPeriod === period ? "bg-green-600 hover:bg-green-700" : ""}
-                >
-                  {period}
-                </Button>
-              ))}
+      {/* 검색 영역 */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <TrendingUp className="h-5 w-5" />
+            트렌드 분석
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Input
+              placeholder="분석할 키워드를 입력하세요"
+              value={keyword}
+              onChange={(e) => setKeyword(e.target.value)}
+              onKeyPress={(e) => e.key === 'Enter' && analyzeTrend()}
+              className="md:col-span-2"
+              disabled={!user}
+            />
+            <Button 
+              onClick={analyzeTrend} 
+              disabled={loading || !user}
+              className="bg-green-600 hover:bg-green-700"
+            >
+              <Search className="h-4 w-4 mr-2" />
+              {loading ? "분석중..." : "트렌드 분석"}
+            </Button>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="text-sm font-medium block mb-2">시작 날짜</label>
+              <Input
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                defaultValue={lastWeekFormatted}
+                className="text-sm"
+                disabled={!user}
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium block mb-2">종료 날짜</label>
+              <Input
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                defaultValue={today}
+                className="text-sm"
+                disabled={!user}
+              />
             </div>
           </div>
-
-          <Button 
-            onClick={searchTrend} 
-            disabled={loading || keywords.filter(k => k.trim()).length === 0}
-            className="w-full bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 py-3 text-base font-semibold"
-          >
-            <BarChart3 className="h-5 w-5 mr-2" />
-            {loading ? "분석중..." : "트렌드 분석 시작"}
-          </Button>
         </CardContent>
       </Card>
 
-      {/* 트렌드 차트 */}
-      {trendData.length > 0 && (
-        <Card className="shadow-lg border-0">
-          <CardHeader className="bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-t-lg">
-            <CardTitle className="flex items-center gap-2">
-              <TrendingUp className="h-5 w-5" />
-              검색어 트렌드 분석 결과
-            </CardTitle>
-            <p className="text-blue-100 text-sm">
-              {trendData.map(trend => trend.title).join(', ')} 키워드 비교 분석 ({selectedPeriod})
-            </p>
-          </CardHeader>
-          <CardContent className="p-6">
-            <div className="h-96 mb-6">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={chartData()}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e0e7ff" />
-                  <XAxis 
-                    dataKey="period"
-                    stroke="#6b7280"
-                    fontSize={12}
-                  />
-                  <YAxis 
-                    stroke="#6b7280"
-                    fontSize={12}
-                  />
-                  <Tooltip 
-                    contentStyle={{
-                      backgroundColor: 'white',
-                      border: '1px solid #e5e7eb',
-                      borderRadius: '8px',
-                      boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
-                    }}
-                  />
-                  <Legend />
-                  {trendData.map((trend, index) => (
-                    <Line
-                      key={trend.title}
-                      dataKey={trend.title}
-                      name={trend.title}
-                      stroke={colors[index % colors.length]}
-                      strokeWidth={3}
-                      dot={{ fill: colors[index % colors.length], strokeWidth: 2, r: 5 }}
-                      activeDot={{ r: 7, strokeWidth: 2 }}
-                    />
-                  ))}
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-            
-            {/* 키워드 요약 */}
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-              {trendData.map((trend, index) => (
-                <div 
-                  key={trend.title} 
-                  className="p-4 bg-gray-50 rounded-lg border-l-4 transition-all hover:shadow-md"
-                  style={{ borderLeftColor: colors[index % colors.length] }}
-                >
-                  <div className="flex items-center gap-2 mb-2">
-                    <div 
-                      className="w-3 h-3 rounded-full"
-                      style={{ backgroundColor: colors[index % colors.length] }}
-                    />
-                    <span className="text-sm font-semibold text-gray-800">{trend.title}</span>
-                  </div>
-                  <div className="text-xs text-gray-600">
-                    최근 검색량: {trend.data[trend.data.length - 1]?.ratio || 0}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+      {/* 분석 결과 */}
+      {trendData.length > 0 && searchTermData.length > 0 && (
+        <div className="space-y-6">
+          {/* 트렌드 라인 차트 */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <TrendingUp className="h-5 w-5" />
+                "{keyword}" 트렌드 변화
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="h-80">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={trendData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="date" />
+                    <YAxis />
+                    <Tooltip />
+                    <Line type="monotone" dataKey="value" stroke="#82ca9d" />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* 검색어별 데이터 테이블 */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Calendar className="h-5 w-5" />
+                "{keyword}" 검색어별 데이터
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead>
+                    <tr>
+                      <th className="px-6 py-3 bg-gray-50 text-left text-xs leading-4 font-medium text-gray-500 uppercase tracking-wider">
+                        기간
+                      </th>
+                      <th className="px-6 py-3 bg-gray-50 text-left text-xs leading-4 font-medium text-gray-500 uppercase tracking-wider">
+                        비율
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {searchTermData.map((item, index) => (
+                      <tr key={index}>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          {item.period}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          {item.ratio}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       )}
 
       {/* 로딩 상태 */}
       {loading && (
-        <div className="text-center py-12">
-          <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-green-200 border-t-green-600 mb-4"></div>
-          <h3 className="text-lg font-semibold text-gray-800 mb-2">트렌드 분석 중입니다</h3>
-          <p className="text-gray-600">키워드별 검색 트렌드를 분석하고 있어요...</p>
+        <div className="text-center py-8">
+          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-green-600"></div>
+          <p className="mt-4 text-gray-600">트렌드를 분석하고 있습니다...</p>
         </div>
-      )}
-
-      {/* 분석 팁 */}
-      {!loading && trendData.length === 0 && (
-        <Card className="border-2 border-dashed border-gray-300">
-          <CardContent className="p-8 text-center">
-            <TrendingUp className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold text-gray-700 mb-2">트렌드 분석을 시작해보세요</h3>
-            <p className="text-gray-500 mb-4">키워드를 입력하고 Enter를 눌러 최대 5개까지 추가하세요</p>
-            <div className="text-sm text-gray-400 space-y-1">
-              <p>💡 팁: 키워드는 2글자 이상이어야 해요</p>
-              <p>📊 최대 5개의 키워드를 비교 분석할 수 있어요</p>
-              <p>📈 각 키워드별로 개별 트렌드가 표시됩니다</p>
-            </div>
-          </CardContent>
-        </Card>
       )}
     </div>
   );

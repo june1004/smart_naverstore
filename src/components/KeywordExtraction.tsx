@@ -1,10 +1,10 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Search, Download, ArrowUpDown, RotateCcw, Hash, Monitor, Smartphone, Plus, Filter } from "lucide-react";
+import { Search, Download, ArrowUpDown, RotateCcw, Hash, Monitor, Smartphone, Plus, Filter, User } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import {
   Table,
@@ -24,6 +24,8 @@ import {
   PaginationPrevious,
 } from "@/components/ui/pagination";
 import KeywordDetailModal from "./KeywordDetailModal";
+import { useKeyword } from "@/contexts/KeywordContext";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface RelatedKeyword {
   keyword: string;
@@ -86,8 +88,37 @@ const KeywordExtraction = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   
   const { toast } = useToast();
+  const { sharedKeyword } = useKeyword();
+  const { user } = useAuth();
+
+  // 공유된 키워드로 초기화
+  useEffect(() => {
+    if (sharedKeyword && !keywordInput) {
+      setKeywordInput(sharedKeyword);
+    }
+  }, [sharedKeyword, keywordInput]);
+
+  // 인증되지 않은 사용자 체크
+  useEffect(() => {
+    if (!user) {
+      toast({
+        title: "로그인이 필요합니다",
+        description: "키워드 추출 기능을 사용하려면 로그인해주세요.",
+        variant: "destructive",
+      });
+    }
+  }, [user, toast]);
 
   const extractKeywords = async () => {
+    if (!user) {
+      toast({
+        title: "로그인이 필요합니다",
+        description: "회원가입 또는 로그인 후 이용해주세요.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     if (!keywordInput.trim()) {
       toast({
         title: "키워드를 입력해주세요",
@@ -314,6 +345,21 @@ const KeywordExtraction = () => {
 
   return (
     <div className="space-y-6">
+      {/* 로그인 안내 */}
+      {!user && (
+        <Card className="border-orange-200 bg-orange-50">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 text-orange-700">
+              <User className="h-4 w-4" />
+              <span className="font-medium">로그인이 필요한 기능입니다</span>
+            </div>
+            <p className="text-sm text-orange-600 mt-1">
+              키워드 추출 기능을 사용하려면 회원가입 또는 로그인해주세요.
+            </p>
+          </CardContent>
+        </Card>
+      )}
+
       {/* 검색 영역 */}
       <div className="flex gap-4">
         <div className="flex-1">
@@ -323,14 +369,15 @@ const KeywordExtraction = () => {
             onChange={(e) => setKeywordInput(e.target.value)}
             onKeyPress={(e) => e.key === 'Enter' && extractKeywords()}
             className="h-12 text-lg"
+            disabled={!user}
           />
           <p className="text-sm text-gray-500 mt-1">
-            예: 스마트폰, 아이폰, 갤럭시 (최대 5개까지)
+            {sharedKeyword ? `기본 키워드: "${sharedKeyword}" (추가 키워드 입력 가능)` : "예: 스마트폰, 아이폰, 갤럭시 (최대 5개까지)"}
           </p>
         </div>
         <Button 
           onClick={extractKeywords} 
-          disabled={loading}
+          disabled={loading || !user}
           className="h-12 px-8 bg-purple-600 hover:bg-purple-700"
         >
           <Search className="h-4 w-4 mr-2" />

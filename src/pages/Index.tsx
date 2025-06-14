@@ -8,6 +8,7 @@ import ShoppingInsight from "@/components/ShoppingInsight";
 import AutoKeywordAnalyzer from "@/components/AutoKeywordAnalyzer";
 import CategoryManager from "@/components/CategoryManager";
 import ApiKeyManager from "@/components/ApiKeyManager";
+import UserProfile from "@/components/UserProfile";
 import { ShoppingCart, TrendingUp, BarChart3, Sparkles, Database } from "lucide-react";
 
 const Index = () => {
@@ -16,10 +17,14 @@ const Index = () => {
       <div className="container mx-auto px-4 py-8">
         {/* Header */}
         <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-gray-900 mb-4 flex items-center justify-center gap-3">
-            <ShoppingCart className="h-10 w-10 text-blue-600" />
-            네이버 쇼핑몰 분석 도구
-          </h1>
+          <div className="flex justify-between items-center mb-4">
+            <div></div>
+            <h1 className="text-4xl font-bold text-gray-900 flex items-center justify-center gap-3">
+              <ShoppingCart className="h-10 w-10 text-blue-600" />
+              네이버 쇼핑몰 분석 도구
+            </h1>
+            <UserProfile />
+          </div>
           <p className="text-xl text-gray-600 max-w-2xl mx-auto">키워드 분석, 검색 트렌드, 쇼핑 인사이트를 통해 데이터 기반의 쇼핑몰 운영 전략을 수립하세요</p>
         </div>
 
@@ -59,7 +64,7 @@ const Index = () => {
                   AI 키워드 자동 분석
                 </CardTitle>
                 <CardDescription className="text-purple-100">
-                  키워드만 입력하면 AI가 자동으로 카테고리를 찾아 트렌드와 인사이트를 분석해드립니다
+                  키워드만 입력하면 AI가 자동으로 카테고리를 찾아 트렌드와 인사이트를 분석해드립니다 (회원가입 불필요)
                 </CardDescription>
               </CardHeader>
               <CardContent className="p-6">
@@ -76,7 +81,7 @@ const Index = () => {
                   키워드 조회
                 </CardTitle>
                 <CardDescription className="text-blue-100">
-                  네이버 쇼핑 검색 결과를 분석하여 상품 정보와 판매 데이터를 확인하세요
+                  네이버 쇼핑 검색 결과를 분석하여 상품 정보와 판매 데이터를 확인하세요 (로그인 필요)
                 </CardDescription>
               </CardHeader>
               <CardContent className="p-6">
@@ -93,7 +98,7 @@ const Index = () => {
                   통합검색어 트렌드
                 </CardTitle>
                 <CardDescription className="text-green-100">
-                  검색어별 트렌드 변화를 분석하여 시장 동향을 파악하세요
+                  검색어별 트렌드 변화를 분석하여 시장 동향을 파악하세요 (로그인 필요)
                 </CardDescription>
               </CardHeader>
               <CardContent className="p-6">
@@ -110,7 +115,7 @@ const Index = () => {
                   쇼핑인사이트
                 </CardTitle>
                 <CardDescription className="text-purple-100">
-                  카테고리별 쇼핑 데이터와 인사이트를 통해 전략적 결정을 내리세요
+                  카테고리별 쇼핑 데이터와 인사이트를 통해 전략적 결정을 내리세요 (로그인 필요)
                 </CardDescription>
               </CardHeader>
               <CardContent className="p-6">
@@ -127,7 +132,7 @@ const Index = () => {
                   카테고리 관리
                 </CardTitle>
                 <CardDescription className="text-orange-100">
-                  네이버 카테고리 정보를 CSV로 업로드하고 관리하세요
+                  네이버 카테고리 정보를 CSV로 업로드하고 관리하세요 (로그인 필요)
                 </CardDescription>
               </CardHeader>
               <CardContent className="p-6">
