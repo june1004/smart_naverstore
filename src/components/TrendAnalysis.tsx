@@ -88,10 +88,23 @@ const TrendAnalysis = () => {
       return;
     }
 
+    // 키워드 길이 검증
+    const invalidKeywords = validKeywords.filter(k => k.length < 2);
+    if (invalidKeywords.length > 0) {
+      toast({
+        title: "키워드 오류",
+        description: "키워드는 2글자 이상이어야 합니다.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     const { startDate, endDate } = getDateRange(selectedPeriod);
     setLoading(true);
 
     try {
+      console.log('트렌드 분석 요청:', { validKeywords, startDate, endDate });
+
       const { data, error } = await supabase.functions.invoke('naver-datalab-trend', {
         body: {
           keywords: validKeywords,
@@ -105,26 +118,47 @@ const TrendAnalysis = () => {
       });
 
       if (error) {
+        console.error('Supabase 함수 오류:', error);
         throw new Error(error.message);
       }
 
-      const mappedData = (data.results || []).map((trend: KeywordTrend, index: number) => ({
-        ...trend,
+      console.log('트렌드 분석 결과:', data);
+
+      if (!data || !data.results) {
+        throw new Error('응답 데이터 형식이 올바르지 않습니다.');
+      }
+
+      // 각 키워드별로 트렌드 데이터 매핑
+      const mappedData = data.results.map((trend: any, index: number) => ({
         title: validKeywords[index] || trend.title,
-        displayName: validKeywords[index] || trend.title
+        keywords: trend.keywords || [validKeywords[index]],
+        data: trend.data || []
       }));
 
       setTrendData(mappedData);
+      
       toast({
         title: "트렌드 분석 완료",
         description: `${validKeywords.length}개 키워드의 트렌드 데이터를 가져왔습니다.`,
       });
 
-    } catch (error) {
+    } catch (error: any) {
       console.error('트렌드 분석 오류:', error);
+      
+      let errorMessage = "트렌드 분석 중 오류가 발생했습니다.";
+      if (error.message.includes('API 키')) {
+        errorMessage = "네이버 API 키 설정을 확인해주세요.";
+      } else if (error.message.includes('400')) {
+        errorMessage = "요청 파라미터에 오류가 있습니다. 키워드는 2글자 이상이어야 합니다.";
+      } else if (error.message.includes('401')) {
+        errorMessage = "API 키가 올바르지 않습니다.";
+      } else if (error.message.includes('403')) {
+        errorMessage = "API 사용 권한이 없습니다.";
+      }
+      
       toast({
         title: "분석 실패",
-        description: "트렌드 분석 중 오류가 발생했습니다. API 키 설정을 확인해주세요.",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
@@ -141,7 +175,7 @@ const TrendAnalysis = () => {
 
     return allPeriods.map(period => {
       const dataPoint: any = { period };
-      trendData.forEach((trend, index) => {
+      trendData.forEach((trend) => {
         const data = trend.data.find(d => d.period === period);
         dataPoint[trend.title] = data ? data.ratio : 0;
       });
@@ -161,7 +195,7 @@ const TrendAnalysis = () => {
             트렌드 분석 설정
           </CardTitle>
           <p className="text-green-100 text-sm">
-            키워드를 입력하고 Enter를 눌러 최대 5개까지 추가하세요
+            키워드를 입력하고 Enter를 눌러 최대 5개까지 추가하세요 (2글자 이상)
           </p>
         </CardHeader>
         <CardContent className="p-6 space-y-6">
@@ -196,7 +230,7 @@ const TrendAnalysis = () => {
                     {keywords.length}
                   </div>
                   <Input
-                    placeholder={`키워드 ${keywords.length} (Enter로 추가)`}
+                    placeholder={`키워드 ${keywords.length} (2글자 이상, Enter로 추가)`}
                     value={currentKeyword}
                     onChange={(e) => setCurrentKeyword(e.target.value)}
                     onKeyPress={handleKeyPress}
@@ -206,7 +240,7 @@ const TrendAnalysis = () => {
                     variant="outline"
                     size="sm"
                     onClick={addKeyword}
-                    disabled={!currentKeyword.trim() || keywords.length >= 5}
+                    disabled={!currentKeyword.trim() || keywords.length >= 5 || currentKeyword.length < 2}
                     className="px-4 hover:bg-blue-50 hover:border-blue-300"
                   >
                     <Plus className="h-4 w-4" />
@@ -342,8 +376,9 @@ const TrendAnalysis = () => {
             <h3 className="text-lg font-semibold text-gray-700 mb-2">트렌드 분석을 시작해보세요</h3>
             <p className="text-gray-500 mb-4">키워드를 입력하고 Enter를 눌러 최대 5개까지 추가하세요</p>
             <div className="text-sm text-gray-400 space-y-1">
-              <p>💡 팁: 최대 5개의 키워드를 비교 분석할 수 있어요</p>
-              <p>📊 분석 결과는 시각적 차트로 제공됩니다</p>
+              <p>💡 팁: 키워드는 2글자 이상이어야 해요</p>
+              <p>📊 최대 5개의 키워드를 비교 분석할 수 있어요</p>
+              <p>📈 각 키워드별로 개별 트렌드가 표시됩니다</p>
             </div>
           </CardContent>
         </Card>
