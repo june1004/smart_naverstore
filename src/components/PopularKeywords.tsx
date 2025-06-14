@@ -34,7 +34,7 @@ interface DailyKeywords {
 const PopularKeywords = () => {
   const [selectedCategory, setSelectedCategory] = useState("전체");
   const [popularKeywords, setPopularKeywords] = useState<DailyKeywords[]>([]);
-  const [selectedKeyword, setSelectedKeyword] = useState<KeywordData | null>(null);
+  const [selectedKeyword, setSelectedKeyword] = useState<any>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   // 네이버 쇼핑 카테고리 (주요 카테고리만 선별)
@@ -156,11 +156,22 @@ const PopularKeywords = () => {
   }));
 
   const handleKeywordClick = (keyword: KeywordData) => {
-    // KeywordDetailModal에서 기대하는 형태로 데이터 변환
+    // Transform KeywordData to match KeywordDetailModal expectations
     const modalKeyword = {
-      ...keyword,
       searchKeyword: keyword.keyword,
-      originalIndex: keyword.rank - 1
+      originalIndex: keyword.rank - 1,
+      monthlyPcSearchCount: keyword.monthlyPcSearchCount,
+      monthlyMobileSearchCount: keyword.monthlyMobileSearchCount,
+      totalSearchCount: keyword.totalSearchCount,
+      monthlyAvgPcClick: keyword.monthlyAvgPcClick,
+      monthlyAvgMobileClick: keyword.monthlyAvgMobileClick,
+      totalAvgClick: keyword.totalAvgClick,
+      monthlyAvgPcCtr: keyword.monthlyAvgPcCtr,
+      monthlyAvgMobileCtr: keyword.monthlyAvgMobileCtr,
+      avgCtr: keyword.avgCtr,
+      competition: keyword.competition,
+      competitionScore: keyword.competitionScore,
+      plAvgDepth: keyword.plAvgDepth
     };
     setSelectedKeyword(modalKeyword);
     setIsModalOpen(true);
