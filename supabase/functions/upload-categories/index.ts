@@ -1,4 +1,3 @@
-
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
@@ -33,13 +32,13 @@ serve(async (req) => {
       throw new Error('Invalid authentication');
     }
 
-    // 관리자 권한 체크
-    const adminEmails = ['admin@example.com', 'junezzang@gmail.com'];
+    // 관리자 권한 체크 - june@nanumlab.com 추가
+    const adminEmails = ['admin@example.com', 'junezzang@gmail.com', 'june@nanumlab.com'];
     if (!adminEmails.includes(user.email || '')) {
       throw new Error('Admin privileges required');
     }
 
-    console.log('CSV 배치 업로드 시작:', { filename, rowCount: csvData.length });
+    console.log('CSV 배치 업로드 시작:', { filename, rowCount: csvData.length, userEmail: user.email });
 
     // 업로드 기록 생성
     const { data: uploadRecord, error: uploadError } = await supabase
