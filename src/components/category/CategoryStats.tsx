@@ -15,7 +15,7 @@ const CategoryStats = ({ onLevelFilter }: CategoryStatsProps) => {
     queryFn: async () => {
       console.log('카테고리 통계 조회 시작');
       
-      // 전체 카테고리 통계를 한 번에 조회
+      // 전체 카테고리 통계를 한 번에 조회 (is_active 필터 제거하여 전체 데이터 조회)
       const { data: allCategories, error } = await supabase
         .from('naver_categories')
         .select('category_level, category_path, is_active');
@@ -33,12 +33,12 @@ const CategoryStats = ({ onLevelFilter }: CategoryStatsProps) => {
         level4: 0
       };
 
-      // 활성 카테고리만 필터링하고 레벨별로 계산
-      const activeCategories = allCategories?.filter(cat => cat.is_active) || [];
+      // 모든 카테고리 포함 (활성/비활성 상관없이)
+      const categories = allCategories || [];
       
-      stats.total = activeCategories.length;
+      stats.total = categories.length;
 
-      activeCategories.forEach(category => {
+      categories.forEach(category => {
         switch (category.category_level) {
           case 1:
             stats.level1++;

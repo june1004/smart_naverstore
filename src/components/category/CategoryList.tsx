@@ -39,11 +39,12 @@ interface ParsedCategory {
   small_category: string;
   micro_category: string;
   category_level: number;
+  category_path: string;
   is_active: boolean;
   created_at: string;
 }
 
-type SortField = 'category_id' | 'category_name' | 'category_level' | 'category_hierarchy' | 'created_at';
+type SortField = 'category_id' | 'category_name' | 'category_hierarchy' | 'category_path' | 'created_at';
 type SortDirection = 'asc' | 'desc';
 
 interface CategoryListProps {
@@ -55,7 +56,7 @@ const CategoryList = ({ selectedLevel, onLevelFilter }: CategoryListProps) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(20);
-  const [sortField, setSortField] = useState<SortField>('category_id');
+  const [sortField, setSortField] = useState<SortField>('category_hierarchy');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
 
   // 카테고리 경로를 파싱하여 각 분류 레벨을 추출하는 함수
@@ -71,6 +72,7 @@ const CategoryList = ({ selectedLevel, onLevelFilter }: CategoryListProps) => {
       small_category: pathParts[2] || '',
       micro_category: pathParts[3] || '',
       category_level: category.category_level,
+      category_path: category.category_path || '',
       is_active: category.is_active,
       created_at: category.created_at
     };
@@ -102,6 +104,16 @@ const CategoryList = ({ selectedLevel, onLevelFilter }: CategoryListProps) => {
       b.micro_category.localeCompare(a.micro_category, 'ko');
   };
 
+  // 단일 키워드 검색을 위한 함수
+  const buildSearchQuery = (searchTerm: string) => {
+    if (!searchTerm) return '';
+    
+    const trimmedTerm = searchTerm.trim();
+    
+    // 단일 키워드로 모든 필드에서 검색
+    return `category_name.ilike.%${trimmedTerm}%,category_id.ilike.%${trimmedTerm}%,category_path.ilike.%${trimmedTerm}%`;
+  };
+
   // 카테고리 목록 조회
   const { data: categoriesData, isLoading: categoriesLoading, error: categoriesError } = useQuery({
     queryKey: ['naver-categories-paginated', searchTerm, selectedLevel, currentPage, itemsPerPage, sortField, sortDirection],
@@ -110,12 +122,15 @@ const CategoryList = ({ selectedLevel, onLevelFilter }: CategoryListProps) => {
       
       let query = supabase
         .from('naver_categories')
-        .select('*', { count: 'exact' })
-        .eq('is_active', true); // 활성 카테고리만 조회
+        .select('*', { count: 'exact' });
+        // is_active 필터 제거하여 모든 카테고리 조회
 
-      // 검색 조건 추가
+      // 검색 조건 추가 (단일 키워드 검색 지원)
       if (searchTerm) {
-        query = query.or(`category_name.ilike.%${searchTerm}%,category_id.ilike.%${searchTerm}%,category_path.ilike.%${searchTerm}%`);
+        const searchQuery = buildSearchQuery(searchTerm);
+        if (searchQuery) {
+          query = query.or(searchQuery);
+        }
       }
 
       // 레벨 필터 추가
@@ -236,7 +251,7 @@ const CategoryList = ({ selectedLevel, onLevelFilter }: CategoryListProps) => {
         <div className="space-y-4">
           <div className="flex gap-2">
             <Input
-              placeholder="카테고리명, ID, 경로로 검색..."
+              placeholder="카테고리명, ID, 분류명으로 검색... (예: 텐트, 50002649, 스포츠)"
               value={searchTerm}
               onChange={(e) => {
                 setSearchTerm(e.target.value);
@@ -298,10 +313,10 @@ const CategoryList = ({ selectedLevel, onLevelFilter }: CategoryListProps) => {
                       <TableHead>
                         <Button 
                           variant="ghost" 
-                          onClick={() => handleSort('category_level')}
+                          onClick={() => handleSort('category_path')}
                           className="flex items-center gap-2 p-0 h-auto font-medium"
                         >
-                          레벨 {getSortIcon('category_level')}
+                          카테고리 경로 {getSortIcon('category_path')}
                         </Button>
                       </TableHead>
                       <TableHead>상태</TableHead>
@@ -338,10 +353,10 @@ const CategoryList = ({ selectedLevel, onLevelFilter }: CategoryListProps) => {
                             <span className="text-gray-400 text-xs">없음</span>
                           )}
                         </TableCell>
-                        <TableCell>
-                          <Badge className={getLevelColor(category.category_level)}>
-                            {getLevelName(category.category_level)}
-                          </Badge>
+                        <TableCell className="text-sm max-w-xs">
+                          <div className="truncate" title={category.category_path}>
+                            {category.category_path || '-'}
+                          </div>
                         </TableCell>
                         <TableCell>
                           <Badge variant={category.is_active ? 'default' : 'secondary'}>
