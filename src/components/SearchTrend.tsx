@@ -27,37 +27,11 @@ const SearchTrend = () => {
         </TabsList>
 
         <TabsContent value="analysis" className="space-y-6">
-          <Card className="shadow-lg border-0 bg-white/80 backdrop-blur-sm">
-            <CardHeader className="bg-gradient-to-r from-green-600 to-green-700 text-white rounded-t-lg">
-              <CardTitle className="flex items-center gap-2">
-                <BarChart3 className="h-5 w-5" />
-                키워드 트렌드 분석
-              </CardTitle>
-              <CardDescription className="text-green-100">
-                여러 키워드의 검색 트렌드를 비교 분석하여 시장 동향을 파악하세요
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="p-6">
-              <TrendAnalysis />
-            </CardContent>
-          </Card>
+          <TrendAnalysis />
         </TabsContent>
 
         <TabsContent value="popular" className="space-y-6">
-          <Card className="shadow-lg border-0 bg-white/80 backdrop-blur-sm">
-            <CardHeader className="bg-gradient-to-r from-purple-600 to-purple-700 text-white rounded-t-lg">
-              <CardTitle className="flex items-center gap-2">
-                <Hash className="h-5 w-5" />
-                분야별 인기 검색어
-              </CardTitle>
-              <CardDescription className="text-purple-100">
-                네이버 쇼핑에서 가장 인기 있는 검색어를 분야별로 확인하세요
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="p-6">
-              <PopularKeywords />
-            </CardContent>
-          </Card>
+          <PopularKeywords />
         </TabsContent>
       </Tabs>
     </div>
