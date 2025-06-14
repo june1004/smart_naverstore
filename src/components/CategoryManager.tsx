@@ -69,11 +69,6 @@ const CategoryManager = () => {
       
       if (error) throw error;
       
-      // 관리자 권한 체크 (예: 특정 이메일이나 role 필드로 체크)
-      const adminEmails = ['admin@example.com', 'junezzang@gmail.com']; // 관리자 이메일 목록
-      const isUserAdmin = adminEmails.includes(user.email || '');
-      setIsAdmin(isUserAdmin);
-      
       return data;
     },
   });

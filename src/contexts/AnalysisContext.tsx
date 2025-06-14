@@ -9,6 +9,10 @@ interface CategoryInfo {
   level3: string;
   count: number;
   percentage: string;
+  hasRealCategory?: boolean;
+  realCategoryPath?: string;
+  realCategoryId?: string;
+  realCategoryLevel?: number;
 }
 
 interface AnalysisResult {
