@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -124,18 +123,33 @@ const TrendAnalysis = () => {
 
       console.log('트렌드 분석 결과:', data);
 
-      if (!data || !data.results) {
-        throw new Error('응답 데이터 형식이 올바르지 않습니다.');
+      if (!data) {
+        throw new Error('응답 데이터가 없습니다.');
       }
 
-      // 각 키워드별로 트렌드 데이터 매핑
-      const mappedData = data.results.map((trend: any, index: number) => ({
-        title: validKeywords[index] || trend.title,
-        keywords: trend.keywords || [validKeywords[index]],
-        data: trend.data || []
-      }));
-
-      setTrendData(mappedData);
+      // 단일 키워드인 경우 results 배열 확인
+      if (validKeywords.length === 1 && !data.results) {
+        // 응답이 직접 데이터 형태인 경우 처리
+        if (data.title && data.data) {
+          setTrendData([{
+            title: validKeywords[0],
+            keywords: [validKeywords[0]],
+            data: data.data
+          }]);
+        } else {
+          throw new Error('단일 키워드 응답 형식이 올바르지 않습니다.');
+        }
+      } else if (data.results && Array.isArray(data.results)) {
+        // 다중 키워드 또는 정상 응답인 경우
+        const mappedData = data.results.map((trend: any, index: number) => ({
+          title: validKeywords[index] || trend.title,
+          keywords: trend.keywords || [validKeywords[index]],
+          data: trend.data || []
+        }));
+        setTrendData(mappedData);
+      } else {
+        throw new Error('응답 데이터 형식이 올바르지 않습니다.');
+      }
       
       toast({
         title: "트렌드 분석 완료",

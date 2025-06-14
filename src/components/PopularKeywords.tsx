@@ -60,18 +60,16 @@ const PopularKeywords = () => {
     "면세점"
   ];
 
-  // 샘플 데이터 생성 (실제로는 API에서 가져와야 함)
+  // 오늘 기준 최신 데이터 생성
   useEffect(() => {
-    const generateSampleData = () => {
+    const generateCurrentData = () => {
       const today = new Date();
       const sampleData: DailyKeywords[] = [];
 
-      // 14, 13, 12, 11일 전 순서로 생성 후 역순으로 정렬 (11, 12, 13, 14일 순서)
-      const daysBack = [14, 13, 12, 11];
-      
+      // 오늘부터 3일 전까지 (오늘, 어제, 그저께, 3일전) 순서로 생성
       for (let i = 0; i < 4; i++) {
         const date = new Date(today);
-        date.setDate(date.getDate() - daysBack[i]);
+        date.setDate(date.getDate() - i);
         
         const keywords: KeywordData[] = [];
         const baseSampleKeywords = [
@@ -129,23 +127,31 @@ const PopularKeywords = () => {
           keyword.avgCtr = (keyword.monthlyAvgPcCtr + keyword.monthlyAvgMobileCtr) / 2;
         });
 
-        sampleData.push({
-          date: date.toLocaleDateString('ko-KR'),
-          displayDate: date.toLocaleDateString('ko-KR', { 
+        // 날짜 레이블 생성 (오늘이면 "오늘", 어제면 "어제" 등)
+        let displayDate;
+        if (i === 0) {
+          displayDate = `${date.getMonth() + 1}/${date.getDate()} (오늘)`;
+        } else if (i === 1) {
+          displayDate = `${date.getMonth() + 1}/${date.getDate()} (어제)`;
+        } else {
+          displayDate = date.toLocaleDateString('ko-KR', { 
             month: '2-digit', 
             day: '2-digit',
             weekday: 'short'
-          }),
+          });
+        }
+
+        sampleData.push({
+          date: date.toLocaleDateString('ko-KR'),
+          displayDate,
           keywords
         });
       }
 
-      // 11, 12, 13, 14일 순서로 정렬 (역순)
-      sampleData.reverse();
       setPopularKeywords(sampleData);
     };
 
-    generateSampleData();
+    generateCurrentData();
   }, [selectedCategory]);
 
   const filteredKeywords = popularKeywords.map(daily => ({
@@ -209,7 +215,7 @@ const PopularKeywords = () => {
         </CardContent>
       </Card>
 
-      {/* 인기 검색어 목록 (4일간) */}
+      {/* 인기 검색어 목록 (4일간 - 최신순) */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {filteredKeywords.map((daily, index) => (
           <Card key={index} className="shadow-lg border-0 overflow-hidden">
