@@ -1,3 +1,4 @@
+
 import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -6,7 +7,15 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Upload, Download, Search, Database, Shield, ChevronRight, ChevronDown } from "lucide-react";
+import { 
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
+import { Upload, Download, Search, Database, Shield, ChevronRight, ChevronDown, Filter } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -34,18 +43,13 @@ interface UploadRecord {
   created_at: string;
 }
 
-interface CategorizedData {
-  large: Category[];
-  medium: Category[];
-  small: Category[];
-  micro: Category[];
-}
-
 const CategoryManager = () => {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
-  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
+  const [selectedLevel, setSelectedLevel] = useState<number | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(20);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -54,51 +58,95 @@ const CategoryManager = () => {
   // 관리자 권한 확인 (june@nanumlab.com만 허용)
   const isAdmin = user?.email === 'june@nanumlab.com';
 
-  // 관리자 권한 확인
-  const { data: userProfile } = useQuery({
-    queryKey: ['user-profile'],
+  // 카테고리 총 개수 조회
+  const { data: categoryStats } = useQuery({
+    queryKey: ['category-stats'],
     queryFn: async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('Not authenticated');
+      console.log('카테고리 통계 조회 시작');
       
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', user.id)
-        .single();
+      const stats = {
+        total: 0,
+        level1: 0,
+        level2: 0,
+        level3: 0,
+        level4: 0
+      };
+
+      // 전체 개수
+      const { count: totalCount, error: totalError } = await supabase
+        .from('naver_categories')
+        .select('*', { count: 'exact', head: true });
       
-      if (error) throw error;
+      if (totalError) {
+        console.error('전체 카테고리 개수 조회 오류:', totalError);
+        throw totalError;
+      }
       
-      return data;
+      stats.total = totalCount || 0;
+
+      // 레벨별 개수
+      for (let level = 1; level <= 4; level++) {
+        const { count, error } = await supabase
+          .from('naver_categories')
+          .select('*', { count: 'exact', head: true })
+          .eq('category_level', level);
+        
+        if (error) {
+          console.error(`레벨 ${level} 카테고리 개수 조회 오류:`, error);
+        } else {
+          if (level === 1) stats.level1 = count || 0;
+          if (level === 2) stats.level2 = count || 0;
+          if (level === 3) stats.level3 = count || 0;
+          if (level === 4) stats.level4 = count || 0;
+        }
+      }
+
+      console.log('카테고리 통계:', stats);
+      return stats;
     },
   });
 
-  // 카테고리 목록 조회 (계층구조로 정리)
-  const { data: categorizedData, isLoading: categoriesLoading } = useQuery({
-    queryKey: ['naver-categories-categorized', searchTerm],
+  // 카테고리 목록 조회 (페이지네이션 포함)
+  const { data: categoriesData, isLoading: categoriesLoading, error: categoriesError } = useQuery({
+    queryKey: ['naver-categories-paginated', searchTerm, selectedLevel, currentPage, itemsPerPage],
     queryFn: async () => {
+      console.log('카테고리 목록 조회 시작:', { searchTerm, selectedLevel, currentPage });
+      
       let query = supabase
         .from('naver_categories')
-        .select('*')
+        .select('*', { count: 'exact' })
         .order('category_level', { ascending: true })
         .order('category_name', { ascending: true });
 
+      // 검색 조건 추가
       if (searchTerm) {
-        query = query.or(`category_name.ilike.%${searchTerm}%,category_id.ilike.%${searchTerm}%`);
+        query = query.or(`category_name.ilike.%${searchTerm}%,category_id.ilike.%${searchTerm}%,category_path.ilike.%${searchTerm}%`);
       }
 
-      const { data, error } = await query.limit(500);
-      if (error) throw error;
+      // 레벨 필터 추가
+      if (selectedLevel !== null) {
+        query = query.eq('category_level', selectedLevel);
+      }
 
-      // 카테고리를 레벨별로 분류
-      const categorized: CategorizedData = {
-        large: data?.filter(cat => cat.category_level === 1) || [],
-        medium: data?.filter(cat => cat.category_level === 2) || [],
-        small: data?.filter(cat => cat.category_level === 3) || [],
-        micro: data?.filter(cat => cat.category_level === 4) || [],
+      // 페이지네이션 적용
+      const from = (currentPage - 1) * itemsPerPage;
+      const to = from + itemsPerPage - 1;
+      query = query.range(from, to);
+
+      const { data, error, count } = await query;
+      
+      if (error) {
+        console.error('카테고리 목록 조회 오류:', error);
+        throw error;
+      }
+
+      console.log('카테고리 목록 조회 완료:', { count, dataLength: data?.length });
+      
+      return {
+        categories: data || [],
+        totalCount: count || 0,
+        totalPages: Math.ceil((count || 0) / itemsPerPage)
       };
-
-      return categorized;
     },
   });
 
@@ -116,7 +164,7 @@ const CategoryManager = () => {
     },
   });
 
-  // 개선된 CSV 업로드 mutation (배치 처리 및 관리자 권한 체크)
+  // CSV 업로드 mutation
   const uploadMutation = useMutation({
     mutationFn: async ({ csvData, filename }: { csvData: any[], filename: string }) => {
       const { data: { session } } = await supabase.auth.getSession();
@@ -124,12 +172,10 @@ const CategoryManager = () => {
         throw new Error('로그인이 필요합니다.');
       }
 
-      // 관리자 권한 체크
       if (!isAdmin) {
         throw new Error('관리자 권한이 필요합니다. (june@nanumlab.com 계정만 가능)');
       }
 
-      // 대용량 파일을 작은 배치로 나누어 처리
       const BATCH_SIZE = 100;
       const batches = [];
       for (let i = 0; i < csvData.length; i += BATCH_SIZE) {
@@ -182,7 +228,7 @@ const CategoryManager = () => {
       return {
         successful: totalSuccess,
         failed: totalFailed,
-        errors: allErrors.slice(0, 20) // 최대 20개 오류만 반환
+        errors: allErrors.slice(0, 20)
       };
     },
     onSuccess: (result) => {
@@ -190,7 +236,8 @@ const CategoryManager = () => {
         title: "CSV 업로드 완료",
         description: `성공: ${result.successful}개, 실패: ${result.failed}개`,
       });
-      queryClient.invalidateQueries({ queryKey: ['naver-categories-categorized'] });
+      queryClient.invalidateQueries({ queryKey: ['naver-categories-paginated'] });
+      queryClient.invalidateQueries({ queryKey: ['category-stats'] });
       queryClient.invalidateQueries({ queryKey: ['category-uploads'] });
       setIsUploading(false);
       setUploadProgress(0);
@@ -228,7 +275,6 @@ const CategoryManager = () => {
       return;
     }
 
-    // 파일 크기 체크 (10MB 제한)
     if (file.size > 10 * 1024 * 1024) {
       toast({
         title: "파일 크기 초과",
@@ -299,64 +345,38 @@ const CategoryManager = () => {
     window.URL.revokeObjectURL(url);
   };
 
-  const toggleCategory = (categoryId: string) => {
-    const newExpanded = new Set(expandedCategories);
-    if (newExpanded.has(categoryId)) {
-      newExpanded.delete(categoryId);
-    } else {
-      newExpanded.add(categoryId);
+  const handleLevelFilter = (level: number | null) => {
+    setSelectedLevel(level);
+    setCurrentPage(1);
+  };
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+  };
+
+  const getLevelName = (level: number) => {
+    switch (level) {
+      case 1: return '대분류';
+      case 2: return '중분류';
+      case 3: return '소분류';
+      case 4: return '세분류';
+      default: return `${level}분류`;
     }
-    setExpandedCategories(newExpanded);
   };
 
-  const renderCategoryTree = (categories: Category[], level: number = 0) => {
-    return categories.map((category) => {
-      const hasChildren = categorizedData && level < 3;
-      const children = hasChildren ? 
-        (level === 0 ? categorizedData.medium.filter(c => c.parent_category_id === category.category_id) :
-         level === 1 ? categorizedData.small.filter(c => c.parent_category_id === category.category_id) :
-         categorizedData.micro.filter(c => c.parent_category_id === category.category_id)) : [];
-      
-      const isExpanded = expandedCategories.has(category.category_id);
-
-      return (
-        <div key={category.id} className="border-l-2 border-gray-200 ml-4">
-          <div className="flex items-center p-2 hover:bg-gray-50">
-            {hasChildren && children.length > 0 && (
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-6 w-6 p-0 mr-2"
-                onClick={() => toggleCategory(category.category_id)}
-              >
-                {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-              </Button>
-            )}
-            <div className="flex-1">
-              <div className="flex items-center gap-2">
-                <span className="font-mono text-xs text-gray-500">{category.category_id}</span>
-                <span className="font-medium">{category.category_name}</span>
-                <Badge variant="outline" className="text-xs">
-                  {level === 0 ? '대분류' : level === 1 ? '중분류' : level === 2 ? '소분류' : '세분류'}
-                </Badge>
-                <Badge variant={category.is_active ? 'default' : 'secondary'} className="text-xs">
-                  {category.is_active ? '활성' : '비활성'}
-                </Badge>
-              </div>
-              <div className="text-sm text-gray-600 mt-1">
-                등록일: {new Date(category.created_at).toLocaleDateString('ko-KR')}
-              </div>
-            </div>
-          </div>
-          {isExpanded && children.length > 0 && (
-            <div className="ml-4">
-              {renderCategoryTree(children, level + 1)}
-            </div>
-          )}
-        </div>
-      );
-    });
+  const getLevelColor = (level: number) => {
+    switch (level) {
+      case 1: return 'bg-blue-100 text-blue-800';
+      case 2: return 'bg-green-100 text-green-800';
+      case 3: return 'bg-orange-100 text-orange-800';
+      case 4: return 'bg-purple-100 text-purple-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
   };
+
+  if (categoriesError) {
+    console.error('카테고리 로딩 오류:', categoriesError);
+  }
 
   return (
     <div className="space-y-6">
@@ -458,69 +478,215 @@ const CategoryManager = () => {
         </Card>
       )}
 
-      {/* 카테고리 목록 (계층구조) */}
+      {/* 카테고리 통계 */}
+      {categoryStats && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Database className="h-5 w-5" />
+              카테고리 통계
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-5 gap-4">
+              <Card className="p-3 cursor-pointer hover:bg-gray-50" onClick={() => handleLevelFilter(null)}>
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-gray-900">{categoryStats.total}</div>
+                  <div className="text-sm text-gray-600">전체</div>
+                </div>
+              </Card>
+              <Card className="p-3 cursor-pointer hover:bg-gray-50" onClick={() => handleLevelFilter(1)}>
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-blue-600">{categoryStats.level1}</div>
+                  <div className="text-sm text-gray-600">대분류</div>
+                </div>
+              </Card>
+              <Card className="p-3 cursor-pointer hover:bg-gray-50" onClick={() => handleLevelFilter(2)}>
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-green-600">{categoryStats.level2}</div>
+                  <div className="text-sm text-gray-600">중분류</div>
+                </div>
+              </Card>
+              <Card className="p-3 cursor-pointer hover:bg-gray-50" onClick={() => handleLevelFilter(3)}>
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-orange-600">{categoryStats.level3}</div>
+                  <div className="text-sm text-gray-600">소분류</div>
+                </div>
+              </Card>
+              <Card className="p-3 cursor-pointer hover:bg-gray-50" onClick={() => handleLevelFilter(4)}>
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-purple-600">{categoryStats.level4}</div>
+                  <div className="text-sm text-gray-600">세분류</div>
+                </div>
+              </Card>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* 카테고리 목록 */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Search className="h-5 w-5" />
-            카테고리 목록 (계층구조)
+            카테고리 목록
+            {selectedLevel && (
+              <Badge variant="outline" className="ml-2">
+                <Filter className="h-3 w-3 mr-1" />
+                {getLevelName(selectedLevel)}
+              </Badge>
+            )}
           </CardTitle>
           <CardDescription>
-            등록된 네이버 카테고리 정보를 대/중/소/세분류 구조로 확인합니다.
+            등록된 네이버 카테고리 정보를 확인합니다.
+            {categoriesData && ` (총 ${categoriesData.totalCount}개)`}
           </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            <Input
-              placeholder="카테고리명 또는 ID로 검색..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="max-w-md"
-            />
+            <div className="flex gap-2">
+              <Input
+                placeholder="카테고리명, ID, 경로로 검색..."
+                value={searchTerm}
+                onChange={(e) => {
+                  setSearchTerm(e.target.value);
+                  setCurrentPage(1);
+                }}
+                className="flex-1"
+              />
+              {selectedLevel && (
+                <Button
+                  variant="outline"
+                  onClick={() => handleLevelFilter(null)}
+                  className="flex items-center gap-2"
+                >
+                  <Filter className="h-4 w-4" />
+                  필터 해제
+                </Button>
+              )}
+            </div>
             
             {categoriesLoading ? (
-              <p>로딩 중...</p>
-            ) : categorizedData ? (
-              <div className="space-y-4">
-                <div className="grid grid-cols-4 gap-4 mb-4">
-                  <Card className="p-3">
-                    <div className="text-center">
-                      <div className="text-2xl font-bold text-blue-600">{categorizedData.large.length}</div>
-                      <div className="text-sm text-gray-600">대분류</div>
-                    </div>
-                  </Card>
-                  <Card className="p-3">
-                    <div className="text-center">
-                      <div className="text-2xl font-bold text-green-600">{categorizedData.medium.length}</div>
-                      <div className="text-sm text-gray-600">중분류</div>
-                    </div>
-                  </Card>
-                  <Card className="p-3">
-                    <div className="text-center">
-                      <div className="text-2xl font-bold text-orange-600">{categorizedData.small.length}</div>
-                      <div className="text-sm text-gray-600">소분류</div>
-                    </div>
-                  </Card>
-                  <Card className="p-3">
-                    <div className="text-center">
-                      <div className="text-2xl font-bold text-purple-600">{categorizedData.micro.length}</div>
-                      <div className="text-sm text-gray-600">세분류</div>
-                    </div>
-                  </Card>
+              <div className="text-center py-8">
+                <p>로딩 중...</p>
+              </div>
+            ) : categoriesError ? (
+              <div className="text-center py-8">
+                <Alert variant="destructive">
+                  <AlertDescription>
+                    카테고리 목록을 불러오는데 실패했습니다. 새로고침 후 다시 시도해주세요.
+                  </AlertDescription>
+                </Alert>
+              </div>
+            ) : categoriesData && categoriesData.categories.length > 0 ? (
+              <>
+                <div className="border rounded-lg">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>카테고리 ID</TableHead>
+                        <TableHead>카테고리명</TableHead>
+                        <TableHead>분류</TableHead>
+                        <TableHead>경로</TableHead>
+                        <TableHead>상태</TableHead>
+                        <TableHead>등록일</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {categoriesData.categories.map((category) => (
+                        <TableRow key={category.id}>
+                          <TableCell className="font-mono text-sm">
+                            {category.category_id}
+                          </TableCell>
+                          <TableCell className="font-medium">
+                            {category.category_name}
+                          </TableCell>
+                          <TableCell>
+                            <Badge className={getLevelColor(category.category_level)}>
+                              {getLevelName(category.category_level)}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="max-w-xs truncate text-sm text-gray-600">
+                            {category.category_path || '-'}
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant={category.is_active ? 'default' : 'secondary'}>
+                              {category.is_active ? '활성' : '비활성'}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-sm text-gray-600">
+                            {new Date(category.created_at).toLocaleDateString('ko-KR')}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
                 </div>
 
-                <div className="border rounded-lg max-h-96 overflow-y-auto">
-                  {categorizedData.large.length > 0 ? (
-                    renderCategoryTree(categorizedData.large, 0)
-                  ) : (
-                    <p className="text-center text-gray-500 py-8">
-                      {searchTerm ? '검색 결과가 없습니다.' : '등록된 카테고리가 없습니다.'}
-                    </p>
-                  )}
+                {/* 페이지네이션 */}
+                {categoriesData.totalPages > 1 && (
+                  <div className="flex justify-center mt-6">
+                    <Pagination>
+                      <PaginationContent>
+                        <PaginationItem>
+                          <PaginationPrevious 
+                            onClick={() => handlePageChange(Math.max(1, currentPage - 1))}
+                            className={currentPage === 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                          />
+                        </PaginationItem>
+                        
+                        {Array.from({ length: Math.min(5, categoriesData.totalPages) }, (_, i) => {
+                          let pageNum;
+                          if (categoriesData.totalPages <= 5) {
+                            pageNum = i + 1;
+                          } else if (currentPage <= 3) {
+                            pageNum = i + 1;
+                          } else if (currentPage >= categoriesData.totalPages - 2) {
+                            pageNum = categoriesData.totalPages - 4 + i;
+                          } else {
+                            pageNum = currentPage - 2 + i;
+                          }
+                          
+                          return (
+                            <PaginationItem key={pageNum}>
+                              <PaginationLink
+                                onClick={() => handlePageChange(pageNum)}
+                                isActive={currentPage === pageNum}
+                                className="cursor-pointer"
+                              >
+                                {pageNum}
+                              </PaginationLink>
+                            </PaginationItem>
+                          );
+                        })}
+                        
+                        <PaginationItem>
+                          <PaginationNext 
+                            onClick={() => handlePageChange(Math.min(categoriesData.totalPages, currentPage + 1))}
+                            className={currentPage === categoriesData.totalPages ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                          />
+                        </PaginationItem>
+                      </PaginationContent>
+                    </Pagination>
+                  </div>
+                )}
+
+                <div className="text-sm text-gray-500 text-center">
+                  페이지 {currentPage} / {categoriesData.totalPages} 
+                  (총 {categoriesData.totalCount}개 카테고리)
                 </div>
-              </div>
+              </>
             ) : (
-              <p className="text-center text-gray-500 py-8">데이터를 불러오는 중...</p>
+              <div className="text-center py-8">
+                <p className="text-gray-500">
+                  {searchTerm || selectedLevel ? '검색 결과가 없습니다.' : '등록된 카테고리가 없습니다.'}
+                </p>
+                {!searchTerm && !selectedLevel && isAdmin && (
+                  <p className="text-sm text-gray-400 mt-2">
+                    CSV 파일을 업로드하여 카테고리를 등록해보세요.
+                  </p>
+                )}
+              </div>
             )}
           </div>
         </CardContent>
