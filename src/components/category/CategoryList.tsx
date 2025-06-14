@@ -30,6 +30,19 @@ interface Category {
   updated_at: string;
 }
 
+interface ParsedCategory {
+  id: string;
+  category_id: string;
+  category_name: string;
+  large_category: string;
+  medium_category: string;
+  small_category: string;
+  micro_category: string;
+  category_level: number;
+  is_active: boolean;
+  created_at: string;
+}
+
 type SortField = 'category_id' | 'category_name' | 'category_level' | 'created_at';
 type SortDirection = 'asc' | 'desc';
 
@@ -44,6 +57,24 @@ const CategoryList = ({ selectedLevel, onLevelFilter }: CategoryListProps) => {
   const [itemsPerPage] = useState(20);
   const [sortField, setSortField] = useState<SortField>('category_id');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
+
+  // 카테고리 경로를 파싱하여 각 분류 레벨을 추출하는 함수
+  const parseCategoryPath = (category: Category): ParsedCategory => {
+    const pathParts = category.category_path ? category.category_path.split(' > ') : [];
+    
+    return {
+      id: category.id,
+      category_id: category.category_id,
+      category_name: category.category_name,
+      large_category: pathParts[0] || '',
+      medium_category: pathParts[1] || '',
+      small_category: pathParts[2] || '',
+      micro_category: pathParts[3] || '',
+      category_level: category.category_level,
+      is_active: category.is_active,
+      created_at: category.created_at
+    };
+  };
 
   // 카테고리 목록 조회 (페이지네이션 및 정렬 포함)
   const { data: categoriesData, isLoading: categoriesLoading, error: categoriesError } = useQuery({
@@ -82,8 +113,11 @@ const CategoryList = ({ selectedLevel, onLevelFilter }: CategoryListProps) => {
 
       console.log('카테고리 목록 조회 완료:', { count, dataLength: data?.length });
       
+      // 카테고리 데이터 파싱
+      const parsedCategories = data ? data.map(parseCategoryPath) : [];
+      
       return {
-        categories: data || [],
+        categories: parsedCategories,
         totalCount: count || 0,
         totalPages: Math.ceil((count || 0) / itemsPerPage)
       };
@@ -191,7 +225,7 @@ const CategoryList = ({ selectedLevel, onLevelFilter }: CategoryListProps) => {
             </div>
           ) : categoriesData && categoriesData.categories.length > 0 ? (
             <>
-              <div className="border rounded-lg">
+              <div className="border rounded-lg overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -204,25 +238,19 @@ const CategoryList = ({ selectedLevel, onLevelFilter }: CategoryListProps) => {
                           카테고리 ID {getSortIcon('category_id')}
                         </Button>
                       </TableHead>
-                      <TableHead>
-                        <Button 
-                          variant="ghost" 
-                          onClick={() => handleSort('category_name')}
-                          className="flex items-center gap-2 p-0 h-auto font-medium"
-                        >
-                          카테고리명 {getSortIcon('category_name')}
-                        </Button>
-                      </TableHead>
+                      <TableHead>대분류</TableHead>
+                      <TableHead>중분류</TableHead>
+                      <TableHead>소분류</TableHead>
+                      <TableHead>세분류</TableHead>
                       <TableHead>
                         <Button 
                           variant="ghost" 
                           onClick={() => handleSort('category_level')}
                           className="flex items-center gap-2 p-0 h-auto font-medium"
                         >
-                          분류 {getSortIcon('category_level')}
+                          레벨 {getSortIcon('category_level')}
                         </Button>
                       </TableHead>
-                      <TableHead>경로</TableHead>
                       <TableHead>상태</TableHead>
                       <TableHead>
                         <Button 
@@ -238,19 +266,29 @@ const CategoryList = ({ selectedLevel, onLevelFilter }: CategoryListProps) => {
                   <TableBody>
                     {categoriesData.categories.map((category) => (
                       <TableRow key={category.id}>
-                        <TableCell className="font-mono text-sm">
+                        <TableCell className="font-mono text-sm font-medium">
                           {category.category_id}
                         </TableCell>
                         <TableCell className="font-medium">
-                          {category.category_name}
+                          {category.large_category || '-'}
+                        </TableCell>
+                        <TableCell>
+                          {category.medium_category || '-'}
+                        </TableCell>
+                        <TableCell>
+                          {category.small_category || '-'}
+                        </TableCell>
+                        <TableCell>
+                          {category.micro_category ? (
+                            <span className="text-sm">{category.micro_category}</span>
+                          ) : (
+                            <span className="text-gray-400 text-xs">없음</span>
+                          )}
                         </TableCell>
                         <TableCell>
                           <Badge className={getLevelColor(category.category_level)}>
                             {getLevelName(category.category_level)}
                           </Badge>
-                        </TableCell>
-                        <TableCell className="max-w-xs truncate text-sm text-gray-600">
-                          {category.category_path || '-'}
                         </TableCell>
                         <TableCell>
                           <Badge variant={category.is_active ? 'default' : 'secondary'}>

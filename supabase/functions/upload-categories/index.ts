@@ -78,7 +78,7 @@ serve(async (req) => {
     }
 
     // 배치 단위로 처리
-    const BATCH_SIZE = 500; // JSON의 경우 더 큰 배치 사이즈 사용
+    const BATCH_SIZE = format === 'json' ? 500 : 200;
     const batches = [];
     for (let i = 0; i < csvData.length; i += BATCH_SIZE) {
       batches.push(csvData.slice(i, i + BATCH_SIZE));
@@ -92,34 +92,51 @@ serve(async (req) => {
 
       for (const row of batch) {
         try {
-          // 다양한 헤더 형태 지원 (CSV와 JSON 모두)
+          // 다양한 헤더 형태 지원
           const categoryId = row['카테고리번호'] || row['category_id'] || row['categoryId'] || row['카테고리ID'];
-          const largeCat = (row['대분류'] || row['large_category'] || '').toString().trim();
-          const mediumCat = (row['중분류'] || row['medium_category'] || '').toString().trim();
-          const smallCat = (row['소분류'] || row['small_category'] || '').toString().trim();
-          const microCat = (row['세분류'] || row['micro_category'] || '').toString().trim();
+          const largeCat = (row['대분류'] || row['large_category'] || row['대분류카테고리'] || '').toString().trim();
+          const mediumCat = (row['중분류'] || row['medium_category'] || row['중분류카테고리'] || '').toString().trim();
+          const smallCat = (row['소분류'] || row['small_category'] || row['소분류카테고리'] || '').toString().trim();
+          const microCat = (row['세분류'] || row['micro_category'] || row['세분류카테고리'] || '').toString().trim();
           
           // 필수 필드 검증
-          if (!categoryId || !largeCat) {
+          if (!categoryId) {
             failCount++;
             errors.push({
               row: row,
-              error: '필수 필드가 누락되었습니다 (카테고리번호, 대분류)',
+              error: '카테고리번호가 누락되었습니다',
               rowIndex: batchIndex * BATCH_SIZE + categoriesToInsert.length
             });
             continue;
           }
 
-          // 카테고리 계층 구조 분석
-          const categoryParts = [largeCat, mediumCat, smallCat, microCat].filter(part => part !== '');
+          if (!largeCat) {
+            failCount++;
+            errors.push({
+              row: row,
+              error: '대분류가 누락되었습니다',
+              rowIndex: batchIndex * BATCH_SIZE + categoriesToInsert.length
+            });
+            continue;
+          }
+
+          // 카테고리 계층 구조 분석 (빈 값 필터링)
+          const categoryParts = [largeCat, mediumCat, smallCat, microCat].filter(part => part !== '' && part !== 'N' && part !== null && part !== undefined);
           const categoryLevel = categoryParts.length;
           const categoryName = categoryParts[categoryParts.length - 1]; // 마지막 분류를 카테고리명으로
-          const categoryPath = categoryParts.join(' > ');
+          
+          // 카테고리 경로 생성 (모든 레벨 포함, 빈 값 제외)
+          const fullCategoryParts = [];
+          if (largeCat && largeCat !== 'N') fullCategoryParts.push(largeCat);
+          if (mediumCat && mediumCat !== 'N') fullCategoryParts.push(mediumCat);
+          if (smallCat && smallCat !== 'N') fullCategoryParts.push(smallCat);
+          if (microCat && microCat !== 'N') fullCategoryParts.push(microCat);
+          
+          const categoryPath = fullCategoryParts.join(' > ');
           
           // 상위 카테고리 ID 계산 (현재는 단순화)
           let parentCategoryId = null;
           if (categoryLevel > 1) {
-            // 상위 카테고리 ID가 있다면 사용, 없다면 null
             parentCategoryId = row['상위카테고리ID'] || row['parent_category_id'] || null;
           }
 
