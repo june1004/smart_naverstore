@@ -71,6 +71,12 @@ const CategoryList = ({ selectedLevel, onLevelFilter }: CategoryListProps) => {
     };
   };
 
+  // 실제 레벨 계산 함수 (빈 문자열 제외)
+  const getActualLevel = (category: ParsedCategory): number => {
+    const pathParts = category.category_path.split(' > ').filter(part => part.trim() !== '');
+    return pathParts.length;
+  };
+
   // 계층구조 정렬을 위한 커스텀 정렬 함수
   const sortByHierarchy = (a: ParsedCategory, b: ParsedCategory, direction: SortDirection) => {
     // 대분류 먼저 비교
@@ -115,7 +121,8 @@ const CategoryList = ({ selectedLevel, onLevelFilter }: CategoryListProps) => {
       
       let query = supabase
         .from('naver_categories')
-        .select('*', { count: 'exact' });
+        .select('*', { count: 'exact' })
+        .eq('is_active', true); // 활성 카테고리만 조회
 
       // 검색 조건 추가 (단일 키워드 검색 지원)
       if (searchTerm) {
@@ -123,11 +130,6 @@ const CategoryList = ({ selectedLevel, onLevelFilter }: CategoryListProps) => {
         if (searchQuery) {
           query = query.or(searchQuery);
         }
-      }
-
-      // 레벨 필터 추가
-      if (selectedLevel !== null) {
-        query = query.eq('category_level', selectedLevel);
       }
 
       // 기본 정렬 (계층구조 정렬을 제외한 나머지)
@@ -150,23 +152,25 @@ const CategoryList = ({ selectedLevel, onLevelFilter }: CategoryListProps) => {
       // 카테고리 데이터 파싱
       let parsedCategories = data ? data.map(parseCategoryPath) : [];
       
+      // 레벨 필터링 (실제 경로 기반)
+      if (selectedLevel !== null) {
+        parsedCategories = parsedCategories.filter(category => {
+          const actualLevel = getActualLevel(category);
+          return actualLevel === selectedLevel;
+        });
+      }
+      
       // 계층구조 정렬이 선택된 경우 클라이언트에서 정렬
       if (sortField === 'category_hierarchy') {
         parsedCategories.sort((a, b) => sortByHierarchy(a, b, sortDirection));
       }
 
-      // 페이지네이션 적용 (계층구조 정렬의 경우 클라이언트에서 처리)
-      let paginatedCategories = parsedCategories;
-      let totalCount = count || 0;
-      let totalPages = Math.ceil(totalCount / itemsPerPage);
-
-      if (sortField === 'category_hierarchy') {
-        const startIndex = (currentPage - 1) * itemsPerPage;
-        const endIndex = startIndex + itemsPerPage;
-        paginatedCategories = parsedCategories.slice(startIndex, endIndex);
-        totalCount = parsedCategories.length;
-        totalPages = Math.ceil(totalCount / itemsPerPage);
-      }
+      // 페이지네이션 적용
+      const totalCount = parsedCategories.length;
+      const totalPages = Math.ceil(totalCount / itemsPerPage);
+      const startIndex = (currentPage - 1) * itemsPerPage;
+      const endIndex = startIndex + itemsPerPage;
+      const paginatedCategories = parsedCategories.slice(startIndex, endIndex);
       
       return {
         categories: paginatedCategories,
