@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -5,10 +6,13 @@ import KeywordSearch from "@/components/KeywordSearch";
 import SearchTrend from "@/components/SearchTrend";
 import ShoppingInsight from "@/components/ShoppingInsight";
 import AutoKeywordAnalyzer from "@/components/AutoKeywordAnalyzer";
+import CategoryManager from "@/components/CategoryManager";
 import ApiKeyManager from "@/components/ApiKeyManager";
-import { ShoppingCart, TrendingUp, BarChart3, Sparkles } from "lucide-react";
+import { ShoppingCart, TrendingUp, BarChart3, Sparkles, Database } from "lucide-react";
+
 const Index = () => {
-  return <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50">
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50">
       <div className="container mx-auto px-4 py-8">
         {/* Header */}
         <div className="text-center mb-8">
@@ -24,7 +28,7 @@ const Index = () => {
 
         {/* Main Tabs */}
         <Tabs defaultValue="auto-analyzer" className="w-full">
-          <TabsList className="grid w-full grid-cols-4 mb-8 bg-white shadow-lg rounded-lg p-1">
+          <TabsList className="grid w-full grid-cols-5 mb-8 bg-white shadow-lg rounded-lg p-1">
             <TabsTrigger value="auto-analyzer" className="flex items-center gap-2 py-3 px-6 data-[state=active]:bg-purple-600 data-[state=active]:text-white">
               <Sparkles className="h-4 w-4" />
               AI 자동분석
@@ -40,6 +44,10 @@ const Index = () => {
             <TabsTrigger value="insight" className="flex items-center gap-2 py-3 px-6 data-[state=active]:bg-purple-600 data-[state=active]:text-white">
               <BarChart3 className="h-4 w-4" />
               쇼핑인사이트
+            </TabsTrigger>
+            <TabsTrigger value="category" className="flex items-center gap-2 py-3 px-6 data-[state=active]:bg-orange-600 data-[state=active]:text-white">
+              <Database className="h-4 w-4" />
+              카테고리 관리
             </TabsTrigger>
           </TabsList>
 
@@ -110,8 +118,27 @@ const Index = () => {
               </CardContent>
             </Card>
           </TabsContent>
+
+          <TabsContent value="category" className="space-y-6">
+            <Card className="shadow-lg border-0 bg-white/80 backdrop-blur-sm">
+              <CardHeader className="bg-gradient-to-r from-orange-600 to-orange-700 text-white rounded-t-lg">
+                <CardTitle className="flex items-center gap-2">
+                  <Database className="h-5 w-5" />
+                  카테고리 관리
+                </CardTitle>
+                <CardDescription className="text-orange-100">
+                  네이버 카테고리 정보를 CSV로 업로드하고 관리하세요
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="p-6">
+                <CategoryManager />
+              </CardContent>
+            </Card>
+          </TabsContent>
         </Tabs>
       </div>
-    </div>;
+    </div>
+  );
 };
+
 export default Index;

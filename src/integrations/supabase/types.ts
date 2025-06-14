@@ -9,6 +9,42 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      category_uploads: {
+        Row: {
+          created_at: string
+          error_details: Json | null
+          failed_records: number
+          filename: string
+          id: string
+          successful_records: number
+          total_records: number
+          upload_status: string
+          uploaded_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          error_details?: Json | null
+          failed_records?: number
+          filename: string
+          id?: string
+          successful_records?: number
+          total_records?: number
+          upload_status?: string
+          uploaded_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          error_details?: Json | null
+          failed_records?: number
+          filename?: string
+          id?: string
+          successful_records?: number
+          total_records?: number
+          upload_status?: string
+          uploaded_by?: string | null
+        }
+        Relationships: []
+      }
       keyword_analysis: {
         Row: {
           analysis_data: Json | null
@@ -30,6 +66,42 @@ export type Database = {
           id?: string
           keyword?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      naver_categories: {
+        Row: {
+          category_id: string
+          category_level: number
+          category_name: string
+          category_path: string | null
+          created_at: string
+          id: string
+          is_active: boolean
+          parent_category_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          category_id: string
+          category_level?: number
+          category_name: string
+          category_path?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          parent_category_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          category_id?: string
+          category_level?: number
+          category_name?: string
+          category_path?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          parent_category_id?: string | null
+          updated_at?: string
         }
         Relationships: []
       }
