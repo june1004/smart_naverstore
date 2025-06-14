@@ -23,6 +23,7 @@ const PopularKeywords = () => {
   const [loading, setLoading] = useState(false);
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+  const [selectedCategoryInfo, setSelectedCategoryInfo] = useState<any>(null);
   const { toast } = useToast();
   const { user } = useAuth();
 
@@ -32,10 +33,23 @@ const PopularKeywords = () => {
     if (storedCategory) {
       const categoryInfo = JSON.parse(storedCategory);
       setSelectedCategory(categoryInfo.categoryId);
+      setSelectedCategoryInfo(categoryInfo);
+      
+      // 현재 날짜와 일주일 전 날짜 설정
+      const today = new Date();
+      const lastWeek = new Date(today);
+      lastWeek.setDate(lastWeek.getDate() - 7);
+      
+      setEndDate(formatDate(today));
+      setStartDate(formatDate(lastWeek));
+      
       toast({
         title: "카테고리 자동 선택",
         description: `${categoryInfo.categoryName} 카테고리가 자동으로 선택되었습니다.`,
       });
+      
+      // 로컬스토리지에서 제거 (한 번만 사용)
+      localStorage.removeItem('selectedCategory');
     }
   }, [toast]);
 
@@ -85,7 +99,7 @@ const PopularKeywords = () => {
         throw new Error(error.message);
       }
 
-      setPopularKeywords(data);
+      setPopularKeywords(data.keywords || data);
 
       toast({
         title: "검색 완료",
@@ -133,6 +147,21 @@ const PopularKeywords = () => {
         </Card>
       )}
 
+      {/* 선택된 카테고리 정보 표시 */}
+      {selectedCategoryInfo && (
+        <Card className="border-green-200 bg-green-50">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 text-green-700">
+              <Search className="h-4 w-4" />
+              <span className="font-medium">선택된 카테고리</span>
+            </div>
+            <p className="text-sm text-green-600 mt-1">
+              {selectedCategoryInfo.categoryName} (ID: {selectedCategoryInfo.categoryId})
+            </p>
+          </CardContent>
+        </Card>
+      )}
+
       {/* 검색 영역 */}
       <Card>
         <CardHeader>
@@ -162,14 +191,14 @@ const PopularKeywords = () => {
               type="date"
               value={startDate}
               onChange={(e) => setStartDate(e.target.value)}
-              defaultValue={lastWeekFormatted}
+              placeholder={lastWeekFormatted}
               disabled={!user}
             />
             <Input
               type="date"
               value={endDate}
               onChange={(e) => setEndDate(e.target.value)}
-              defaultValue={today}
+              placeholder={today}
               disabled={!user}
             />
             <Button 

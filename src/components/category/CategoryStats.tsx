@@ -9,54 +9,53 @@ interface CategoryStatsProps {
 }
 
 const CategoryStats = ({ onLevelFilter }: CategoryStatsProps) => {
-  // 카테고리 통계 조회
+  // 카테고리 통계 조회 (실제 데이터베이스에서 정확한 카운트)
   const { data: categoryStats, isLoading } = useQuery({
     queryKey: ['category-stats'],
     queryFn: async () => {
-      console.log('카테고리 통계 조회 시작');
+      console.log('카테고리 통계 조회 시작 - 실제 데이터 카운트');
       
-      // 전체 카테고리 통계를 한 번에 조회 (is_active 필터 제거하여 전체 데이터 조회)
-      const { data: allCategories, error } = await supabase
-        .from('naver_categories')
-        .select('category_level, category_path, is_active');
-      
-      if (error) {
-        console.error('카테고리 통계 조회 오류:', error);
+      try {
+        // 전체 카테고리 수 조회
+        const { count: totalCount, error: totalError } = await supabase
+          .from('naver_categories')
+          .select('*', { count: 'exact', head: true });
+
+        if (totalError) {
+          console.error('전체 카테고리 수 조회 오류:', totalError);
+          throw totalError;
+        }
+
+        // 각 레벨별 카테고리 수 조회
+        const levelCounts = await Promise.all([
+          supabase.from('naver_categories').select('*', { count: 'exact', head: true }).eq('category_level', 1),
+          supabase.from('naver_categories').select('*', { count: 'exact', head: true }).eq('category_level', 2),
+          supabase.from('naver_categories').select('*', { count: 'exact', head: true }).eq('category_level', 3),
+          supabase.from('naver_categories').select('*', { count: 'exact', head: true }).eq('category_level', 4)
+        ]);
+
+        // 오류 체크
+        levelCounts.forEach((result, index) => {
+          if (result.error) {
+            console.error(`레벨 ${index + 1} 카테고리 수 조회 오류:`, result.error);
+            throw result.error;
+          }
+        });
+
+        const stats = {
+          total: totalCount || 0,
+          level1: levelCounts[0].count || 0,
+          level2: levelCounts[1].count || 0,
+          level3: levelCounts[2].count || 0,
+          level4: levelCounts[3].count || 0
+        };
+
+        console.log('카테고리 통계 조회 완료:', stats);
+        return stats;
+      } catch (error) {
+        console.error('카테고리 통계 조회 중 오류:', error);
         throw error;
       }
-
-      const stats = {
-        total: 0,
-        level1: 0,
-        level2: 0,
-        level3: 0,
-        level4: 0
-      };
-
-      // 모든 카테고리 포함 (활성/비활성 상관없이)
-      const categories = allCategories || [];
-      
-      stats.total = categories.length;
-
-      categories.forEach(category => {
-        switch (category.category_level) {
-          case 1:
-            stats.level1++;
-            break;
-          case 2:
-            stats.level2++;
-            break;
-          case 3:
-            stats.level3++;
-            break;
-          case 4:
-            stats.level4++;
-            break;
-        }
-      });
-
-      console.log('카테고리 통계:', stats);
-      return stats;
     },
     refetchInterval: 30000, // 30초마다 자동 갱신
   });

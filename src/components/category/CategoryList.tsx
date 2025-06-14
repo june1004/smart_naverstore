@@ -3,20 +3,13 @@ import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { 
-  Pagination,
-  PaginationContent,
-  PaginationItem,
-  PaginationLink,
-  PaginationNext,
-  PaginationPrevious,
-} from "@/components/ui/pagination";
-import { Search, Filter, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import { Search, Filter } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import CategoryListTable from "./CategoryListTable";
+import CategoryPagination from "./CategoryPagination";
 
 interface Category {
   id: string;
@@ -123,7 +116,6 @@ const CategoryList = ({ selectedLevel, onLevelFilter }: CategoryListProps) => {
       let query = supabase
         .from('naver_categories')
         .select('*', { count: 'exact' });
-        // is_active 필터 제거하여 모든 카테고리 조회
 
       // 검색 조건 추가 (단일 키워드 검색 지원)
       if (searchTerm) {
@@ -194,13 +186,6 @@ const CategoryList = ({ selectedLevel, onLevelFilter }: CategoryListProps) => {
     setCurrentPage(1);
   };
 
-  const getSortIcon = (field: SortField) => {
-    if (sortField !== field) {
-      return <ArrowUpDown className="h-4 w-4" />;
-    }
-    return sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />;
-  };
-
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
   };
@@ -212,16 +197,6 @@ const CategoryList = ({ selectedLevel, onLevelFilter }: CategoryListProps) => {
       case 3: return '소분류';
       case 4: return '세분류';
       default: return `${level}분류`;
-    }
-  };
-
-  const getLevelColor = (level: number) => {
-    switch (level) {
-      case 1: return 'bg-blue-100 text-blue-800';
-      case 2: return 'bg-green-100 text-green-800';
-      case 3: return 'bg-orange-100 text-orange-800';
-      case 4: return 'bg-purple-100 text-purple-800';
-      default: return 'bg-gray-100 text-gray-800';
     }
   };
 
@@ -243,7 +218,7 @@ const CategoryList = ({ selectedLevel, onLevelFilter }: CategoryListProps) => {
           )}
         </CardTitle>
         <CardDescription>
-          등록된 네이버 카테고리 정보를 확인합니다.
+          등록된 네이버 카테고리 정보를 확인합니다. 로그인 시 카테고리 클릭으로 인기검색어를 확인할 수 있습니다.
           {categoriesData && ` (총 ${categoriesData.totalCount}개)`}
         </CardDescription>
       </CardHeader>
@@ -285,145 +260,22 @@ const CategoryList = ({ selectedLevel, onLevelFilter }: CategoryListProps) => {
             </div>
           ) : categoriesData && categoriesData.categories.length > 0 ? (
             <>
-              <div className="border rounded-lg overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>
-                        <Button 
-                          variant="ghost" 
-                          onClick={() => handleSort('category_id')}
-                          className="flex items-center gap-2 p-0 h-auto font-medium"
-                        >
-                          카테고리 ID {getSortIcon('category_id')}
-                        </Button>
-                      </TableHead>
-                      <TableHead>
-                        <Button 
-                          variant="ghost" 
-                          onClick={() => handleSort('category_hierarchy')}
-                          className="flex items-center gap-2 p-0 h-auto font-medium"
-                        >
-                          대분류 {getSortIcon('category_hierarchy')}
-                        </Button>
-                      </TableHead>
-                      <TableHead>중분류</TableHead>
-                      <TableHead>소분류</TableHead>
-                      <TableHead>세분류</TableHead>
-                      <TableHead>
-                        <Button 
-                          variant="ghost" 
-                          onClick={() => handleSort('category_path')}
-                          className="flex items-center gap-2 p-0 h-auto font-medium"
-                        >
-                          카테고리 경로 {getSortIcon('category_path')}
-                        </Button>
-                      </TableHead>
-                      <TableHead>상태</TableHead>
-                      <TableHead>
-                        <Button 
-                          variant="ghost" 
-                          onClick={() => handleSort('created_at')}
-                          className="flex items-center gap-2 p-0 h-auto font-medium"
-                        >
-                          등록일 {getSortIcon('created_at')}
-                        </Button>
-                      </TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {categoriesData.categories.map((category) => (
-                      <TableRow key={category.id}>
-                        <TableCell className="font-mono text-sm font-medium">
-                          {category.category_id}
-                        </TableCell>
-                        <TableCell className="font-medium">
-                          {category.large_category || '-'}
-                        </TableCell>
-                        <TableCell>
-                          {category.medium_category || '-'}
-                        </TableCell>
-                        <TableCell>
-                          {category.small_category || '-'}
-                        </TableCell>
-                        <TableCell>
-                          {category.micro_category ? (
-                            <span className="text-sm">{category.micro_category}</span>
-                          ) : (
-                            <span className="text-gray-400 text-xs">없음</span>
-                          )}
-                        </TableCell>
-                        <TableCell className="text-sm max-w-xs">
-                          <div className="truncate" title={category.category_path}>
-                            {category.category_path || '-'}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant={category.is_active ? 'default' : 'secondary'}>
-                            {category.is_active ? '활성' : '비활성'}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-sm text-gray-600">
-                          {new Date(category.created_at).toLocaleDateString('ko-KR')}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
+              <CategoryListTable 
+                categories={categoriesData.categories}
+                sortField={sortField}
+                sortDirection={sortDirection}
+                onSort={handleSort}
+              />
 
               {/* 페이지네이션 */}
               {categoriesData.totalPages > 1 && (
-                <div className="flex justify-center mt-6">
-                  <Pagination>
-                    <PaginationContent>
-                      <PaginationItem>
-                        <PaginationPrevious 
-                          onClick={() => handlePageChange(Math.max(1, currentPage - 1))}
-                          className={currentPage === 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
-                        />
-                      </PaginationItem>
-                      
-                      {Array.from({ length: Math.min(5, categoriesData.totalPages) }, (_, i) => {
-                        let pageNum;
-                        if (categoriesData.totalPages <= 5) {
-                          pageNum = i + 1;
-                        } else if (currentPage <= 3) {
-                          pageNum = i + 1;
-                        } else if (currentPage >= categoriesData.totalPages - 2) {
-                          pageNum = categoriesData.totalPages - 4 + i;
-                        } else {
-                          pageNum = currentPage - 2 + i;
-                        }
-                        
-                        return (
-                          <PaginationItem key={pageNum}>
-                            <PaginationLink
-                              onClick={() => handlePageChange(pageNum)}
-                              isActive={currentPage === pageNum}
-                              className="cursor-pointer"
-                            >
-                              {pageNum}
-                            </PaginationLink>
-                          </PaginationItem>
-                        );
-                      })}
-                      
-                      <PaginationItem>
-                        <PaginationNext 
-                          onClick={() => handlePageChange(Math.min(categoriesData.totalPages, currentPage + 1))}
-                          className={currentPage === categoriesData.totalPages ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
-                        />
-                      </PaginationItem>
-                    </PaginationContent>
-                  </Pagination>
-                </div>
+                <CategoryPagination 
+                  currentPage={currentPage}
+                  totalPages={categoriesData.totalPages}
+                  totalCount={categoriesData.totalCount}
+                  onPageChange={handlePageChange}
+                />
               )}
-
-              <div className="text-sm text-gray-500 text-center">
-                페이지 {currentPage} / {categoriesData.totalPages} 
-                (총 {categoriesData.totalCount}개 카테고리)
-              </div>
             </>
           ) : (
             <div className="text-center py-8">
