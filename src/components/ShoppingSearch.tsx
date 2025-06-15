@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -58,6 +57,7 @@ interface ShoppingItem {
   integrationSearchRatio: number;
   brandKeywordType: string;
   shoppingMallKeyword: string;
+  originalIndex: number; // API에서 받은 원래 순서를 저장
 }
 
 interface CategoryAnalysis {
@@ -72,7 +72,7 @@ interface SearchHistory {
   categoryAnalysis: CategoryAnalysis | null;
 }
 
-type SortField = 'title' | 'mallName' | 'lprice' | 'brand' | 'maker' | 'reviewCount' | 'registeredAt' | 'integrationScore' | 'clickCount' | 'integrationRank';
+type SortField = 'original' | 'title' | 'mallName' | 'lprice' | 'brand' | 'maker' | 'reviewCount' | 'registeredAt' | 'integrationScore' | 'clickCount' | 'integrationRank';
 
 const ITEMS_PER_PAGE = 20;
 
@@ -80,8 +80,8 @@ const ShoppingSearch = () => {
   const [keyword, setKeyword] = useState("");
   const [searchHistory, setSearchHistory] = useState<SearchHistory | null>(null);
   const [loading, setLoading] = useState(false);
-  const [sortField, setSortField] = useState<SortField>('registeredAt');
-  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
+  const [sortField, setSortField] = useState<SortField>('original'); // 기본값을 원래 순서로 변경
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const [currentPage, setCurrentPage] = useState(1);
   const { toast } = useToast();
 
@@ -154,7 +154,8 @@ const ShoppingSearch = () => {
           integrationClickRank: generateSeededRandom(seed + 6, 1, 100) || 1,
           integrationSearchRatio: (generateSeededRandom(seed + 7, 0, 10000) / 100).toFixed(2) || "0.00",
           brandKeywordType: generateSeededRandom(seed + 8, 0, 1) > 0.5 ? "브랜드" : "일반",
-          shoppingMallKeyword: generateSeededRandom(seed + 9, 0, 1) > 0.7 ? "쇼핑몰" : "일반"
+          shoppingMallKeyword: generateSeededRandom(seed + 9, 0, 1) > 0.7 ? "쇼핑몰" : "일반",
+          originalIndex: index // API에서 받은 원래 순서를 저장
         };
       }) || [];
 
@@ -166,6 +167,8 @@ const ShoppingSearch = () => {
       };
 
       setSearchHistory(newSearchHistory);
+      setSortField('original'); // 새 검색 시 원래 순서로 초기화
+      setSortDirection('asc');
       setCurrentPage(1); // 새 검색 시 첫 페이지로 이동
       
       localStorage.setItem('shoppingSearchHistory', JSON.stringify(newSearchHistory));
@@ -192,11 +195,18 @@ const ShoppingSearch = () => {
       setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
     } else {
       setSortField(field);
-      setSortDirection('desc');
+      setSortDirection(field === 'original' ? 'asc' : 'desc'); // 원래 순서는 오름차순이 기본
     }
   };
 
   const sortedResults = searchHistory?.results?.sort((a, b) => {
+    // 원래 순서 정렬
+    if (sortField === 'original') {
+      return sortDirection === 'asc' 
+        ? a.originalIndex - b.originalIndex
+        : b.originalIndex - a.originalIndex;
+    }
+
     let aValue: any = a[sortField];
     let bValue: any = b[sortField];
 
@@ -400,6 +410,20 @@ const ShoppingSearch = () => {
                         </TableHead>
                         <TableHead 
                           className="w-24 text-center cursor-pointer hover:bg-gray-100"
+                          onClick={() => handleSort('original')}
+                        >
+                          <div className="flex items-center gap-1 justify-center">
+                            키워드순위
+                            <ArrowUpDown className="h-4 w-4" />
+                            {sortField === 'original' && (
+                              <Badge variant="default" className="text-xs ml-1">
+                                기본
+                              </Badge>
+                            )}
+                          </div>
+                        </TableHead>
+                        <TableHead 
+                          className="w-24 text-center cursor-pointer hover:bg-gray-100"
                           onClick={() => handleSort('mallName')}
                         >
                           <div className="flex items-center gap-1 justify-center">
@@ -518,9 +542,12 @@ const ShoppingSearch = () => {
                               />
                             </TableCell>
                             <TableCell className="text-center">
-                              <Badge variant="outline" className="text-xs">
-                                {item.mallName}
+                              <Badge variant="secondary" className="text-sm font-bold">
+                                {item.originalIndex + 1}
                               </Badge>
+                            </TableCell>
+                            <TableCell className="text-center text-xs">
+                              {item.mallName}
                             </TableCell>
                             <TableCell className="text-center text-xs">
                               {item.category1 || '-'}
