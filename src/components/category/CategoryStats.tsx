@@ -1,4 +1,3 @@
-
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Database } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
@@ -18,7 +17,7 @@ const CategoryStats = ({ onLevelFilter }: CategoryStatsProps) => {
   const { data: categoryStats, isLoading } = useQuery({
     queryKey: ['category-stats'],
     queryFn: async () => {
-      console.log('카테고리 통계 조회 시작 - 실제 데이터 카운트');
+      console.log('카테고리 통계 조회 시작 - 레벨별 카운트');
       
       try {
         // 전체 카테고리 수 조회 (활성 카테고리만)
@@ -43,8 +42,8 @@ const CategoryStats = ({ onLevelFilter }: CategoryStatsProps) => {
           throw categoriesError;
         }
 
-        // 고유한 대분류 집합과 중분류, 소분류 개수 계산
-        const uniqueLargeCategories = new Set();
+        // 레벨별 카테고리 개수 계산
+        let largeCategoryCount = 0;
         let mediumCategoryCount = 0;
         let smallCategoryCount = 0;
 
@@ -54,18 +53,13 @@ const CategoryStats = ({ onLevelFilter }: CategoryStatsProps) => {
               .map(part => part.trim())
               .filter(part => part !== '');
             
-            // 대분류 수집 (중복 제거)
-            if (pathParts.length >= 1) {
-              uniqueLargeCategories.add(pathParts[0]);
-            }
-            
-            // 중분류: 정확히 2개 분류 레벨을 가진 경우
-            if (pathParts.length === 2) {
+            const level = pathParts.length;
+
+            if (level === 1) {
+              largeCategoryCount++;
+            } else if (level === 2) {
               mediumCategoryCount++;
-            }
-            
-            // 소분류: 정확히 3개 분류 레벨을 가진 경우
-            if (pathParts.length === 3) {
+            } else if (level === 3) {
               smallCategoryCount++;
             }
           }
@@ -73,13 +67,12 @@ const CategoryStats = ({ onLevelFilter }: CategoryStatsProps) => {
 
         const stats = {
           total: totalCount || 0,
-          level1: uniqueLargeCategories.size, // 고유한 대분류 개수
+          level1: largeCategoryCount,
           level2: mediumCategoryCount,
           level3: smallCategoryCount
         };
 
         console.log('카테고리 통계 조회 완료:', stats);
-        console.log('대분류 목록:', Array.from(uniqueLargeCategories));
         return stats;
       } catch (error) {
         console.error('카테고리 통계 조회 중 오류:', error);

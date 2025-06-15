@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -130,23 +129,29 @@ const PopularKeywords = () => {
   lastWeek.setDate(lastWeek.getDate() - 7);
   const lastWeekFormatted = formatDate(lastWeek);
 
+  // 로그인하지 않은 사용자를 위한 안내 컴포넌트
+  const LoginRequiredMessage = () => (
+    <Card className="border-orange-200 bg-orange-50">
+      <CardContent className="p-6 text-center">
+        <User className="h-12 w-12 text-orange-500 mx-auto mb-4" />
+        <h3 className="text-lg font-semibold text-orange-700 mb-2">로그인이 필요한 기능입니다</h3>
+        <p className="text-orange-600 mb-4">
+          분야별 인기검색어 기능을 사용하려면 회원가입 또는 로그인해주세요.
+        </p>
+      </CardContent>
+    </Card>
+  );
+
+  if (!user) {
+    return (
+      <div className="space-y-6">
+        <LoginRequiredMessage />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
-      {/* 로그인 안내 */}
-      {!user && (
-        <Card className="border-orange-200 bg-orange-50">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 text-orange-700">
-              <User className="h-4 w-4" />
-              <span className="font-medium">로그인이 필요한 기능입니다</span>
-            </div>
-            <p className="text-sm text-orange-600 mt-1">
-              분야별 인기검색어 기능을 사용하려면 회원가입 또는 로그인해주세요.
-            </p>
-          </CardContent>
-        </Card>
-      )}
-
       {/* 선택된 카테고리 정보 표시 */}
       {selectedCategoryInfo && (
         <Card className="border-green-200 bg-green-50">
