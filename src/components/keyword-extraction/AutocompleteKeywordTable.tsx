@@ -114,7 +114,7 @@ const AutocompleteKeywordTable = ({ autocompleteKeywordsByKeyword, searchKeyword
                           <div className="flex items-center justify-between text-xs border-t pt-1">
                             <span className="text-gray-600">전체검색</span>
                             <span className="font-bold text-purple-600">
-                              {item.totalSearchCount?.toLocaleString() || '-'}
+                              {((item.monthlyPcSearchCount || 0) + (item.monthlyMobileSearchCount || 0)).toLocaleString() || '-'}
                             </span>
                           </div>
                           <div className="flex items-center justify-between text-xs">
@@ -138,7 +138,7 @@ const AutocompleteKeywordTable = ({ autocompleteKeywordsByKeyword, searchKeyword
                           <div className="flex items-center justify-between text-xs border-t pt-1">
                             <span className="text-gray-600">전체클릭</span>
                             <span className="font-bold text-red-600">
-                              {item.totalAvgClick?.toLocaleString() || '-'}
+                              {((item.monthlyAvgPcClick || 0) + (item.monthlyAvgMobileClick || 0)).toLocaleString() || '-'}
                             </span>
                           </div>
                         </div>
@@ -274,7 +274,7 @@ const AutocompleteKeywordTable = ({ autocompleteKeywordsByKeyword, searchKeyword
                         </span>
                       </div>
                       <div className="text-xs text-gray-500 border-t pt-1">
-                        전체: {item.totalSearchCount?.toLocaleString() || '-'}
+                        전체: {((item.monthlyPcSearchCount || 0) + (item.monthlyMobileSearchCount || 0)).toLocaleString() || '-'}
                       </div>
                     </div>
                   </TableCell>
@@ -293,7 +293,7 @@ const AutocompleteKeywordTable = ({ autocompleteKeywordsByKeyword, searchKeyword
                         </span>
                       </div>
                       <div className="text-xs text-gray-500 border-t pt-1">
-                        전체: {item.totalAvgClick?.toLocaleString() || '-'}
+                        전체: {((item.monthlyAvgPcClick || 0) + (item.monthlyAvgMobileClick || 0)).toLocaleString() || '-'}
                       </div>
                     </div>
                   </TableCell>
