@@ -2,13 +2,13 @@
 import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import KeywordSearch from "@/components/KeywordSearch";
+import KeywordExtraction from "@/components/KeywordExtraction";
 import SearchTrend from "@/components/SearchTrend";
 import ShoppingInsight from "@/components/ShoppingInsight";
 import AutoKeywordAnalyzer from "@/components/AutoKeywordAnalyzer";
 import ServiceManager from "@/components/ServiceManager";
 import UserProfile from "@/components/UserProfile";
-import { ShoppingCart, TrendingUp, BarChart3, Sparkles, Settings } from "lucide-react";
+import { ShoppingCart, TrendingUp, BarChart3, Sparkles, Settings, Search } from "lucide-react";
 
 const Index = () => {
   return (
@@ -35,8 +35,8 @@ const Index = () => {
               AI 자동분석
             </TabsTrigger>
             <TabsTrigger value="keyword" className="flex items-center gap-2 py-3 px-6 data-[state=active]:bg-blue-600 data-[state=active]:text-white">
-              <ShoppingCart className="h-4 w-4" />
-              키워드 조회
+              <Search className="h-4 w-4" />
+              키워드 추출
             </TabsTrigger>
             <TabsTrigger value="trend" className="flex items-center gap-2 py-3 px-6 data-[state=active]:bg-green-600 data-[state=active]:text-white">
               <TrendingUp className="h-4 w-4" />
@@ -73,15 +73,15 @@ const Index = () => {
             <Card className="shadow-lg border-0 bg-white/80 backdrop-blur-sm">
               <CardHeader className="bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-t-lg">
                 <CardTitle className="flex items-center gap-2">
-                  <ShoppingCart className="h-5 w-5" />
-                  키워드 조회
+                  <Search className="h-5 w-5" />
+                  키워드 추출
                 </CardTitle>
                 <CardDescription className="text-blue-100">
-                  네이버 쇼핑 검색 결과를 분석하여 상품 정보와 판매 데이터를 확인하세요 (로그인 필요)
+                  네이버 검색광고 API를 통해 연관키워드와 자동완성키워드를 추출하고 분석하세요 (로그인 필요)
                 </CardDescription>
               </CardHeader>
               <CardContent className="p-6">
-                <KeywordSearch />
+                <KeywordExtraction />
               </CardContent>
             </Card>
           </TabsContent>
