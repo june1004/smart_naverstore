@@ -82,8 +82,13 @@ const ShoppingSearch = () => {
     }
   }, [sharedKeyword, keyword]);
 
-  // 고정 랜덤 데이터 생성 함수 (productId 기반)
-  const generateFixedRandomData = (productId: string, type: 'review' | 'score' | 'click' | 'rank' | 'ratio' | 'brand' | 'shopping') => {
+  // 고정 랜덤 데이터 생성 함수 (productId 기반) - 개선된 버전
+  const generateFixedRandomData = (productId: string, type: 'review' | 'score' | 'click' | 'rank' | 'ratio' | 'brand' | 'shopping'): any => {
+    // productId가 없는 경우 기본값 사용
+    if (!productId) {
+      productId = 'default';
+    }
+
     // productId를 시드로 사용하여 일관된 랜덤값 생성
     let hash = 0;
     for (let i = 0; i < productId.length; i++) {
@@ -121,11 +126,22 @@ const ShoppingSearch = () => {
       case 'shopping':
         return (hash % 10) < 3 ? "쇼핑몰" : "일반";
       default:
-        return 0;
+        // 기본값들을 명시적으로 반환
+        if (type === 'review' || type === 'score' || type === 'click' || type === 'rank') {
+          return 0;
+        } else if (type === 'ratio') {
+          return "0.00";
+        } else {
+          return "일반";
+        }
     }
   };
 
   const generateFixedRandomDate = (productId: string) => {
+    if (!productId) {
+      productId = 'default';
+    }
+
     let hash = 0;
     for (let i = 0; i < productId.length; i++) {
       const char = productId.charCodeAt(i);
@@ -169,16 +185,16 @@ const ShoppingSearch = () => {
 
       const enhancedItems = data.items?.map((item: any, index: number) => ({
         ...item,
-        reviewCount: generateFixedRandomData(item.productId, 'review'),
+        reviewCount: generateFixedRandomData(item.productId || `item-${index}`, 'review') || 0,
         reviewUrl: `${item.link}#review`,
-        registeredAt: generateFixedRandomDate(item.productId),
-        integrationScore: generateFixedRandomData(item.productId, 'score'),
-        clickCount: generateFixedRandomData(item.productId, 'click'),
-        integrationRank: generateFixedRandomData(item.productId, 'rank'),
-        integrationClickRank: generateFixedRandomData(item.productId, 'rank'),
-        integrationSearchRatio: generateFixedRandomData(item.productId, 'ratio'),
-        brandKeywordType: generateFixedRandomData(item.productId, 'brand'),
-        shoppingMallKeyword: generateFixedRandomData(item.productId, 'shopping')
+        registeredAt: generateFixedRandomDate(item.productId || `item-${index}`),
+        integrationScore: generateFixedRandomData(item.productId || `item-${index}`, 'score') || 0,
+        clickCount: generateFixedRandomData(item.productId || `item-${index}`, 'click') || 0,
+        integrationRank: generateFixedRandomData(item.productId || `item-${index}`, 'rank') || 1,
+        integrationClickRank: generateFixedRandomData(item.productId || `item-${index}`, 'rank') || 1,
+        integrationSearchRatio: generateFixedRandomData(item.productId || `item-${index}`, 'ratio') || "0.00",
+        brandKeywordType: generateFixedRandomData(item.productId || `item-${index}`, 'brand') || "일반",
+        shoppingMallKeyword: generateFixedRandomData(item.productId || `item-${index}`, 'shopping') || "일반"
       })) || [];
 
       const newSearchHistory: SearchHistory = {
@@ -257,13 +273,13 @@ const ShoppingSearch = () => {
         item.maker,
         item.lprice,
         item.reviewCount || 0,
-        item.integrationScore,
-        item.clickCount,
-        item.integrationRank,
-        item.integrationClickRank,
-        `${item.integrationSearchRatio}%`,
-        item.brandKeywordType,
-        item.shoppingMallKeyword,
+        item.integrationScore || 0,
+        item.clickCount || 0,
+        item.integrationRank || 1,
+        item.integrationClickRank || 1,
+        `${item.integrationSearchRatio || "0.00"}%`,
+        item.brandKeywordType || "일반",
+        item.shoppingMallKeyword || "일반",
         item.link,
         item.registeredAt
       ])
@@ -287,6 +303,21 @@ const ShoppingSearch = () => {
 
   const formatPrice = (price: string) => {
     return parseInt(price || '0').toLocaleString();
+  };
+
+  // 안전한 숫자 포맷팅 함수 추가
+  const safeToLocaleString = (value: any): string => {
+    if (value === null || value === undefined) {
+      return "0";
+    }
+    if (typeof value === 'number') {
+      return value.toLocaleString();
+    }
+    if (typeof value === 'string') {
+      const num = parseInt(value);
+      return isNaN(num) ? "0" : num.toLocaleString();
+    }
+    return "0";
   };
 
   const getCurrentDateTime = () => {
@@ -549,33 +580,33 @@ const ShoppingSearch = () => {
                                 onClick={() => window.open(item.reviewUrl, '_blank')}
                               >
                                 <Star className="h-3 w-3 text-yellow-500" />
-                                <span className="text-xs ml-1">{(item.reviewCount || 0).toLocaleString()}</span>
+                                <span className="text-xs ml-1">{safeToLocaleString(item.reviewCount)}</span>
                               </Button>
                             </div>
                           </TableCell>
                           <TableCell className="text-center text-sm font-medium">
-                            {item.integrationScore.toLocaleString()}
+                            {safeToLocaleString(item.integrationScore)}
                           </TableCell>
                           <TableCell className="text-center text-sm">
-                            {item.clickCount.toLocaleString()}
+                            {safeToLocaleString(item.clickCount)}
                           </TableCell>
                           <TableCell className="text-center text-sm">
-                            {item.integrationRank}
+                            {item.integrationRank || 1}
                           </TableCell>
                           <TableCell className="text-center text-sm">
-                            {item.integrationClickRank}
+                            {item.integrationClickRank || 1}
                           </TableCell>
                           <TableCell className="text-center text-sm">
-                            {item.integrationSearchRatio}%
+                            {item.integrationSearchRatio || "0.00"}%
                           </TableCell>
                           <TableCell className="text-center text-sm">
                             <Badge variant={item.brandKeywordType === "브랜드" ? "default" : "secondary"} className="text-xs">
-                              {item.brandKeywordType}
+                              {item.brandKeywordType || "일반"}
                             </Badge>
                           </TableCell>
                           <TableCell className="text-center text-sm">
                             <Badge variant={item.shoppingMallKeyword === "쇼핑몰" ? "default" : "secondary"} className="text-xs">
-                              {item.shoppingMallKeyword}
+                              {item.shoppingMallKeyword || "일반"}
                             </Badge>
                           </TableCell>
                           <TableCell className="text-center">
