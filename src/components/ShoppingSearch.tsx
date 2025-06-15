@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,6 +22,15 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
 
 interface ShoppingItem {
   title: string;
@@ -40,6 +50,14 @@ interface ShoppingItem {
   reviewCount: number;
   reviewUrl: string;
   registeredAt: string;
+  // 고정된 추가 데이터
+  integrationScore: number;
+  clickCount: number;
+  integrationRank: number;
+  integrationClickRank: number;
+  integrationSearchRatio: number;
+  brandKeywordType: string;
+  shoppingMallKeyword: string;
 }
 
 interface CategoryAnalysis {
@@ -54,7 +72,9 @@ interface SearchHistory {
   categoryAnalysis: CategoryAnalysis | null;
 }
 
-type SortField = 'title' | 'mallName' | 'lprice' | 'brand' | 'maker' | 'reviewCount' | 'registeredAt';
+type SortField = 'title' | 'mallName' | 'lprice' | 'brand' | 'maker' | 'reviewCount' | 'registeredAt' | 'integrationScore' | 'clickCount' | 'integrationRank';
+
+const ITEMS_PER_PAGE = 20;
 
 const ShoppingSearch = () => {
   const [keyword, setKeyword] = useState("");
@@ -62,6 +82,7 @@ const ShoppingSearch = () => {
   const [loading, setLoading] = useState(false);
   const [sortField, setSortField] = useState<SortField>('registeredAt');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
+  const [currentPage, setCurrentPage] = useState(1);
   const { toast } = useToast();
 
   const searchProducts = async () => {
@@ -80,7 +101,7 @@ const ShoppingSearch = () => {
       const { data, error } = await supabase.functions.invoke('naver-shopping-search', {
         body: { 
           keyword: keyword.trim(),
-          display: 30,
+          display: 100,
           start: 1,
           sort: 'sim'
         }
@@ -90,12 +111,24 @@ const ShoppingSearch = () => {
         throw new Error(error.message);
       }
 
-      const enhancedItems = data.items?.map((item: any, index: number) => ({
-        ...item,
-        reviewCount: generateRandomReviewCount(),
-        reviewUrl: `${item.link}#review`,
-        registeredAt: generateRandomDate()
-      })) || [];
+      const enhancedItems = data.items?.map((item: any, index: number) => {
+        // 상품 ID와 키워드를 조합하여 시드 생성 (일관성 있는 랜덤 값 보장)
+        const seed = hashCode(item.productId + keyword.trim());
+        
+        return {
+          ...item,
+          reviewCount: generateSeededRandom(seed + 1, 10, 5000),
+          reviewUrl: `${item.link}#review`,
+          registeredAt: generateSeededDate(seed + 2),
+          integrationScore: generateSeededRandom(seed + 3, 50000, 200000),
+          clickCount: generateSeededRandom(seed + 4, 1000, 50000),
+          integrationRank: generateSeededRandom(seed + 5, 1, 100),
+          integrationClickRank: generateSeededRandom(seed + 6, 1, 100),
+          integrationSearchRatio: (generateSeededRandom(seed + 7, 0, 10000) / 100).toFixed(2),
+          brandKeywordType: generateSeededRandom(seed + 8, 0, 1) > 0.5 ? "브랜드" : "일반",
+          shoppingMallKeyword: generateSeededRandom(seed + 9, 0, 1) > 0.7 ? "쇼핑몰" : "일반"
+        };
+      }) || [];
 
       const newSearchHistory: SearchHistory = {
         keyword: keyword.trim(),
@@ -105,6 +138,7 @@ const ShoppingSearch = () => {
       };
 
       setSearchHistory(newSearchHistory);
+      setCurrentPage(1); // 새 검색 시 첫 페이지로 이동
       
       localStorage.setItem('shoppingSearchHistory', JSON.stringify(newSearchHistory));
       
@@ -123,6 +157,34 @@ const ShoppingSearch = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  // 문자열을 해시 코드로 변환 (시드 생성용)
+  const hashCode = (str: string): number => {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+      const char = str.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash; // 32bit integer로 변환
+    }
+    return Math.abs(hash);
+  };
+
+  // 시드 기반 랜덤 숫자 생성
+  const generateSeededRandom = (seed: number, min: number, max: number): number => {
+    const x = Math.sin(seed) * 10000;
+    const random = x - Math.floor(x);
+    return Math.floor(random * (max - min + 1)) + min;
+  };
+
+  // 시드 기반 랜덤 날짜 생성
+  const generateSeededDate = (seed: number): string => {
+    const start = new Date(2024, 0, 1).getTime();
+    const end = new Date().getTime();
+    const randomTime = start + (generateSeededRandom(seed, 0, 1000000) / 1000000) * (end - start);
+    const randomDate = new Date(randomTime);
+    
+    return `${randomDate.getFullYear()}-${String(randomDate.getMonth() + 1).padStart(2, '0')}-${String(randomDate.getDate()).padStart(2, '0')} ${String(randomDate.getHours()).padStart(2, '0')}:${String(randomDate.getMinutes()).padStart(2, '0')}:${String(randomDate.getSeconds()).padStart(2, '0')}`;
   };
 
   const handleSort = (field: SortField) => {
@@ -152,6 +214,13 @@ const ShoppingSearch = () => {
     return sortDirection === 'asc' ? aValue - bValue : bValue - aValue;
   });
 
+  // 페이지네이션을 위한 데이터 슬라이싱
+  const totalPages = Math.ceil((sortedResults?.length || 0) / ITEMS_PER_PAGE);
+  const paginatedResults = sortedResults?.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
+  );
+
   const downloadExcel = () => {
     if (!sortedResults?.length) return;
 
@@ -170,13 +239,13 @@ const ShoppingSearch = () => {
         item.maker,
         item.lprice,
         item.reviewCount || 0,
-        generateRandomScore(50000, 200000),
-        generateRandomScore(1000, 50000),
-        generateRandomScore(1, 100),
-        generateRandomScore(1, 100),
-        (Math.random() * 100).toFixed(2),
-        Math.random() > 0.5 ? "브랜드" : "일반",
-        Math.random() > 0.7 ? "쇼핑몰" : "일반",
+        item.integrationScore,
+        item.clickCount,
+        item.integrationRank,
+        item.integrationClickRank,
+        item.integrationSearchRatio,
+        item.brandKeywordType,
+        item.shoppingMallKeyword,
         item.link,
         item.registeredAt
       ])
@@ -205,21 +274,6 @@ const ShoppingSearch = () => {
   const getCurrentDateTime = () => {
     const now = new Date();
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
-  };
-
-  const generateRandomScore = (min: number, max: number) => {
-    return Math.floor(Math.random() * (max - min + 1)) + min;
-  };
-
-  const generateRandomReviewCount = () => {
-    return Math.floor(Math.random() * 5000) + 10;
-  };
-
-  const generateRandomDate = () => {
-    const start = new Date(2024, 0, 1);
-    const end = new Date();
-    const randomDate = new Date(start.getTime() + Math.random() * (end.getTime() - start.getTime()));
-    return `${randomDate.getFullYear()}-${String(randomDate.getMonth() + 1).padStart(2, '0')}-${String(randomDate.getDate()).padStart(2, '0')} ${String(randomDate.getHours()).padStart(2, '0')}:${String(randomDate.getMinutes()).padStart(2, '0')}:${String(randomDate.getSeconds()).padStart(2, '0')}`;
   };
 
   useState(() => {
@@ -311,7 +365,7 @@ const ShoppingSearch = () => {
                   마지막 조회: {searchHistory.searchTime}
                 </div>
                 <div className="text-sm text-gray-600">
-                  총 검색결과: {searchHistory.results.length}개
+                  총 검색결과: {searchHistory.results.length}개 (페이지 {currentPage}/{totalPages})
                 </div>
               </div>
               <Button onClick={downloadExcel} variant="outline" className="gap-2">
@@ -324,7 +378,7 @@ const ShoppingSearch = () => {
       )}
 
       {/* 검색 결과 테이블 - 고정 컬럼과 가로 스크롤 */}
-      {sortedResults && sortedResults.length > 0 && (
+      {paginatedResults && paginatedResults.length > 0 && (
         <Card>
           <CardContent className="p-0">
             <div className="relative overflow-hidden border rounded-lg">
@@ -393,9 +447,33 @@ const ShoppingSearch = () => {
                             <ArrowUpDown className="h-4 w-4" />
                           </div>
                         </TableHead>
-                        <TableHead className="w-20 text-center">통합점수</TableHead>
-                        <TableHead className="w-16 text-center">클릭수</TableHead>
-                        <TableHead className="w-16 text-center">통합순위</TableHead>
+                        <TableHead 
+                          className="w-20 text-center cursor-pointer hover:bg-gray-100"
+                          onClick={() => handleSort('integrationScore')}
+                        >
+                          <div className="flex items-center gap-1 justify-center">
+                            통합점수
+                            <ArrowUpDown className="h-4 w-4" />
+                          </div>
+                        </TableHead>
+                        <TableHead 
+                          className="w-16 text-center cursor-pointer hover:bg-gray-100"
+                          onClick={() => handleSort('clickCount')}
+                        >
+                          <div className="flex items-center gap-1 justify-center">
+                            클릭수
+                            <ArrowUpDown className="h-4 w-4" />
+                          </div>
+                        </TableHead>
+                        <TableHead 
+                          className="w-16 text-center cursor-pointer hover:bg-gray-100"
+                          onClick={() => handleSort('integrationRank')}
+                        >
+                          <div className="flex items-center gap-1 justify-center">
+                            통합순위
+                            <ArrowUpDown className="h-4 w-4" />
+                          </div>
+                        </TableHead>
                         <TableHead className="w-20 text-center">통합클릭순위</TableHead>
                         <TableHead className="w-20 text-center">통합검색비율</TableHead>
                         <TableHead className="w-20 text-center">브랜드키워드여부</TableHead>
@@ -413,108 +491,111 @@ const ShoppingSearch = () => {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {sortedResults.map((item, index) => (
-                        <TableRow key={index} className="hover:bg-gray-50">
-                          <TableCell className="text-center font-medium sticky left-0 bg-white z-10 border-r">
-                            {index + 1}
-                          </TableCell>
-                          <TableCell className="text-center sticky left-12 bg-white z-10 border-r">
-                            <div className="w-16 h-16 mx-auto bg-gray-100 rounded flex items-center justify-center">
-                              <img 
-                                src={item.image} 
-                                alt="상품 이미지" 
-                                className="w-full h-full object-cover rounded"
-                                onError={(e) => {
-                                  e.currentTarget.src = "/placeholder.svg";
-                                }}
+                      {paginatedResults.map((item, index) => {
+                        const globalIndex = (currentPage - 1) * ITEMS_PER_PAGE + index + 1;
+                        return (
+                          <TableRow key={index} className="hover:bg-gray-50">
+                            <TableCell className="text-center font-medium sticky left-0 bg-white z-10 border-r">
+                              {globalIndex}
+                            </TableCell>
+                            <TableCell className="text-center sticky left-12 bg-white z-10 border-r">
+                              <div className="w-16 h-16 mx-auto bg-gray-100 rounded flex items-center justify-center">
+                                <img 
+                                  src={item.image} 
+                                  alt="상품 이미지" 
+                                  className="w-full h-full object-cover rounded"
+                                  onError={(e) => {
+                                    e.currentTarget.src = "/placeholder.svg";
+                                  }}
+                                />
+                              </div>
+                            </TableCell>
+                            <TableCell className="sticky left-32 bg-white z-10 border-r">
+                              <div 
+                                className="cursor-pointer hover:text-blue-600 line-clamp-2 max-w-60"
+                                dangerouslySetInnerHTML={{ __html: item.title }}
+                                onClick={() => window.open(item.link, '_blank')}
                               />
-                            </div>
-                          </TableCell>
-                          <TableCell className="sticky left-32 bg-white z-10 border-r">
-                            <div 
-                              className="cursor-pointer hover:text-blue-600 line-clamp-2 max-w-60"
-                              dangerouslySetInnerHTML={{ __html: item.title }}
-                              onClick={() => window.open(item.link, '_blank')}
-                            />
-                          </TableCell>
-                          <TableCell className="text-center">
-                            <Badge variant="outline" className="text-xs">
-                              {item.mallName}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="text-center text-xs">
-                            {item.category1 || '-'}
-                          </TableCell>
-                          <TableCell className="text-center text-xs">
-                            {item.category2 || '-'}
-                          </TableCell>
-                          <TableCell className="text-center text-xs">
-                            {item.category3 || '-'}
-                          </TableCell>
-                          <TableCell className="text-center text-xs">
-                            {item.category4 || '-'}
-                          </TableCell>
-                          <TableCell className="text-center text-xs">
-                            {item.brand || '-'}
-                          </TableCell>
-                          <TableCell className="text-center text-xs">
-                            {item.maker || '-'}
-                          </TableCell>
-                          <TableCell className="text-center font-medium text-red-600">
-                            {formatPrice(item.lprice)}원
-                          </TableCell>
-                          <TableCell className="text-center">
-                            <div className="flex items-center justify-center gap-1">
+                            </TableCell>
+                            <TableCell className="text-center">
+                              <Badge variant="outline" className="text-xs">
+                                {item.mallName}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="text-center text-xs">
+                              {item.category1 || '-'}
+                            </TableCell>
+                            <TableCell className="text-center text-xs">
+                              {item.category2 || '-'}
+                            </TableCell>
+                            <TableCell className="text-center text-xs">
+                              {item.category3 || '-'}
+                            </TableCell>
+                            <TableCell className="text-center text-xs">
+                              {item.category4 || '-'}
+                            </TableCell>
+                            <TableCell className="text-center text-xs">
+                              {item.brand || '-'}
+                            </TableCell>
+                            <TableCell className="text-center text-xs">
+                              {item.maker || '-'}
+                            </TableCell>
+                            <TableCell className="text-center font-medium text-red-600">
+                              {formatPrice(item.lprice)}원
+                            </TableCell>
+                            <TableCell className="text-center">
+                              <div className="flex items-center justify-center gap-1">
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="p-1 h-6"
+                                  onClick={() => window.open(item.reviewUrl, '_blank')}
+                                >
+                                  <Star className="h-3 w-3 text-yellow-500" />
+                                  <span className="text-xs ml-1">{item.reviewCount.toLocaleString()}</span>
+                                </Button>
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-center text-sm font-medium">
+                              {item.integrationScore.toLocaleString()}
+                            </TableCell>
+                            <TableCell className="text-center text-sm">
+                              {item.clickCount.toLocaleString()}
+                            </TableCell>
+                            <TableCell className="text-center text-sm">
+                              {item.integrationRank}
+                            </TableCell>
+                            <TableCell className="text-center text-sm">
+                              {item.integrationClickRank}
+                            </TableCell>
+                            <TableCell className="text-center text-sm">
+                              {item.integrationSearchRatio}%
+                            </TableCell>
+                            <TableCell className="text-center text-sm">
+                              <Badge variant={item.brandKeywordType === "브랜드" ? "default" : "secondary"} className="text-xs">
+                                {item.brandKeywordType}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="text-center text-sm">
+                              <Badge variant={item.shoppingMallKeyword === "쇼핑몰" ? "default" : "secondary"} className="text-xs">
+                                {item.shoppingMallKeyword}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="text-center">
                               <Button
                                 size="sm"
                                 variant="ghost"
-                                className="p-1 h-6"
-                                onClick={() => window.open(item.reviewUrl, '_blank')}
+                                onClick={() => window.open(item.link, '_blank')}
                               >
-                                <Star className="h-3 w-3 text-yellow-500" />
-                                <span className="text-xs ml-1">{(item.reviewCount || 0).toLocaleString()}</span>
+                                <ExternalLink className="h-4 w-4" />
                               </Button>
-                            </div>
-                          </TableCell>
-                          <TableCell className="text-center text-sm font-medium">
-                            {generateRandomScore(50000, 200000).toLocaleString()}
-                          </TableCell>
-                          <TableCell className="text-center text-sm">
-                            {generateRandomScore(1000, 50000).toLocaleString()}
-                          </TableCell>
-                          <TableCell className="text-center text-sm">
-                            {generateRandomScore(1, 100)}
-                          </TableCell>
-                          <TableCell className="text-center text-sm">
-                            {generateRandomScore(1, 100)}
-                          </TableCell>
-                          <TableCell className="text-center text-sm">
-                            {(Math.random() * 100).toFixed(2)}%
-                          </TableCell>
-                          <TableCell className="text-center text-sm">
-                            <Badge variant={Math.random() > 0.5 ? "default" : "secondary"} className="text-xs">
-                              {Math.random() > 0.5 ? "브랜드" : "일반"}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="text-center text-sm">
-                            <Badge variant={Math.random() > 0.7 ? "default" : "secondary"} className="text-xs">
-                              {Math.random() > 0.7 ? "쇼핑몰" : "일반"}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="text-center">
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => window.open(item.link, '_blank')}
-                            >
-                              <ExternalLink className="h-4 w-4" />
-                            </Button>
-                          </TableCell>
-                          <TableCell className="text-center text-xs">
-                            {item.registeredAt}
-                          </TableCell>
-                        </TableRow>
-                      ))}
+                            </TableCell>
+                            <TableCell className="text-center text-xs">
+                              {item.registeredAt}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
                     </TableBody>
                   </Table>
                 </div>
@@ -522,6 +603,60 @@ const ShoppingSearch = () => {
             </div>
           </CardContent>
         </Card>
+      )}
+
+      {/* 페이지네이션 */}
+      {searchHistory?.results.length && totalPages > 1 && (
+        <div className="flex justify-center">
+          <Pagination>
+            <PaginationContent>
+              <PaginationItem>
+                <PaginationPrevious 
+                  onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                  className={currentPage === 1 ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                />
+              </PaginationItem>
+              
+              {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                let pageNum;
+                if (totalPages <= 5) {
+                  pageNum = i + 1;
+                } else if (currentPage <= 3) {
+                  pageNum = i + 1;
+                } else if (currentPage >= totalPages - 2) {
+                  pageNum = totalPages - 4 + i;
+                } else {
+                  pageNum = currentPage - 2 + i;
+                }
+                
+                return (
+                  <PaginationItem key={pageNum}>
+                    <PaginationLink
+                      onClick={() => setCurrentPage(pageNum)}
+                      isActive={currentPage === pageNum}
+                      className="cursor-pointer"
+                    >
+                      {pageNum}
+                    </PaginationLink>
+                  </PaginationItem>
+                );
+              })}
+              
+              {totalPages > 5 && currentPage < totalPages - 2 && (
+                <PaginationItem>
+                  <PaginationEllipsis />
+                </PaginationItem>
+              )}
+              
+              <PaginationItem>
+                <PaginationNext 
+                  onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+                  className={currentPage === totalPages ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                />
+              </PaginationItem>
+            </PaginationContent>
+          </Pagination>
+        </div>
       )}
 
       {loading && (
