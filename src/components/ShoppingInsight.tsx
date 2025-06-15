@@ -1,14 +1,17 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell } from "recharts";
-import { BarChart3, TrendingUp, Search, Calendar, Loader2, Target } from "lucide-react";
+import { BarChart3, TrendingUp, Search, Calendar, Loader2, Target, User } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Badge } from "@/components/ui/badge";
+import { useAuth } from "@/contexts/AuthContext";
+import { useKeyword } from "@/contexts/KeywordContext";
 
 interface InsightData {
   period: string;
@@ -21,6 +24,8 @@ interface CategoryAnalysis {
 }
 
 const ShoppingInsight = () => {
+  const { user } = useAuth();
+  const { sharedKeyword } = useKeyword();
   const [keyword, setKeyword] = useState("");
   const [selectedPeriod, setSelectedPeriod] = useState<"1month" | "3months" | "1year">("1month");
   const [insightData, setInsightData] = useState<InsightData[]>([]);
@@ -29,6 +34,13 @@ const ShoppingInsight = () => {
   const [analysisType, setAnalysisType] = useState<"category" | "keyword">("category");
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
+
+  // AI 자동분석에서 공유된 키워드로 초기화
+  useEffect(() => {
+    if (sharedKeyword && !keyword) {
+      setKeyword(sharedKeyword);
+    }
+  }, [sharedKeyword, keyword]);
 
   const periodOptions = [
     { value: "1month", label: "1개월", months: 1 },
@@ -48,6 +60,15 @@ const ShoppingInsight = () => {
   };
 
   const analyzeKeywordInsight = async () => {
+    if (!user) {
+      toast({
+        title: "로그인이 필요합니다",
+        description: "회원가입 또는 로그인 후 이용해주세요.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     if (!keyword.trim()) {
       toast({
         title: "키워드를 입력해주세요",
@@ -177,8 +198,50 @@ const ShoppingInsight = () => {
     { age: '60대+', value: 10 }
   ];
 
+  // 로그인하지 않은 사용자를 위한 안내 컴포넌트
+  const LoginRequiredMessage = () => (
+    <Card className="border-orange-200 bg-orange-50">
+      <CardContent className="p-6 text-center">
+        <User className="h-12 w-12 text-orange-500 mx-auto mb-4" />
+        <h3 className="text-lg font-semibold text-orange-700 mb-2">로그인이 필요한 기능입니다</h3>
+        <p className="text-orange-600 mb-4">
+          쇼핑인사이트 기능을 사용하려면 회원가입 또는 로그인해주세요.
+        </p>
+        {sharedKeyword && (
+          <div className="bg-white p-3 rounded-lg border border-orange-200">
+            <div className="flex items-center gap-2 text-orange-700">
+              <Search className="h-4 w-4" />
+              <span className="font-medium">AI 자동분석에서 전달된 키워드:</span>
+            </div>
+            <p className="text-lg font-bold text-orange-800 mt-1">"{sharedKeyword}"</p>
+            <p className="text-sm text-orange-600 mt-2">로그인 후 이 키워드로 인사이트 분석을 진행할 수 있습니다.</p>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+
+  // 로그인하지 않은 경우 안내 메시지만 표시
+  if (!user) {
+    return (
+      <div className="space-y-6">
+        <LoginRequiredMessage />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
+      {/* AI 자동분석에서 전달된 키워드 안내 */}
+      {sharedKeyword && (
+        <Alert>
+          <Search className="h-4 w-4" />
+          <AlertDescription>
+            AI 자동분석에서 전달된 키워드 "<strong>{sharedKeyword}</strong>"로 인사이트 분석을 진행할 수 있습니다.
+          </AlertDescription>
+        </Alert>
+      )}
+
       {/* 키워드 기반 인사이트 분석 */}
       <Card>
         <CardHeader>
@@ -272,16 +335,53 @@ const ShoppingInsight = () => {
                   </div>
                 </AccordionTrigger>
                 <AccordionContent>
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                    {(categoryAnalysis.allCategories || []).map(([cat, count], index) => (
-                      <Badge 
-                        key={index} 
-                        variant={index === 0 ? "default" : "secondary"} 
-                        className={index === 0 ? "bg-purple-600 text-white" : ""}
-                      >
-                        {cat.split('>')[0]} ({count})
-                      </Badge>
-                    ))}
+                  <div className="space-y-4">
+                    <h4 className="font-medium text-gray-700 mb-3">카테고리별 상품 분포</h4>
+                    <div className="grid gap-3">
+                      {(categoryAnalysis.allCategories || []).slice(0, 10).map(([categoryPath, count], index) => {
+                        const pathParts = categoryPath.split('>').map(part => part.trim()).filter(part => part !== '');
+                        const [large, medium, small] = pathParts;
+                        
+                        return (
+                          <div key={index} className="bg-white border rounded-lg p-4 hover:shadow-md transition-shadow">
+                            <div className="flex items-center justify-between mb-2">
+                              <Badge 
+                                variant={index === 0 ? "default" : "secondary"} 
+                                className={`${index === 0 ? "bg-purple-600 text-white" : ""} text-xs`}
+                              >
+                                #{index + 1}
+                              </Badge>
+                              <span className="font-semibold text-purple-600">{count}개 상품</span>
+                            </div>
+                            <div className="space-y-1">
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs text-gray-500">대분류:</span>
+                                <span className="font-medium text-blue-600">{large || '-'}</span>
+                              </div>
+                              {medium && (
+                                <div className="flex items-center gap-2">
+                                  <span className="text-xs text-gray-500">중분류:</span>
+                                  <span className="font-medium text-green-600">{medium}</span>
+                                </div>
+                              )}
+                              {small && (
+                                <div className="flex items-center gap-2">
+                                  <span className="text-xs text-gray-500">소분류:</span>
+                                  <span className="font-medium text-orange-600">{small}</span>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    {(categoryAnalysis.allCategories || []).length > 10 && (
+                      <div className="text-center pt-3 border-t">
+                        <Badge variant="outline" className="text-xs">
+                          +{(categoryAnalysis.allCategories || []).length - 10}개 카테고리 더 있음
+                        </Badge>
+                      </div>
+                    )}
                   </div>
                 </AccordionContent>
               </AccordionItem>
