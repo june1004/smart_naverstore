@@ -1,4 +1,5 @@
-import { useState } from "react";
+
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -21,6 +22,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { useKeyword } from "@/contexts/KeywordContext";
 
 interface ShoppingItem {
   title: string;
@@ -40,6 +42,14 @@ interface ShoppingItem {
   reviewCount: number;
   reviewUrl: string;
   registeredAt: string;
+  // 고정 데이터를 위한 필드들
+  integrationScore: number;
+  clickCount: number;
+  integrationRank: number;
+  integrationClickRank: number;
+  integrationSearchRatio: string;
+  brandKeywordType: string;
+  shoppingMallKeyword: string;
 }
 
 interface CategoryAnalysis {
@@ -63,6 +73,73 @@ const ShoppingSearch = () => {
   const [sortField, setSortField] = useState<SortField>('registeredAt');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const { toast } = useToast();
+  const { sharedKeyword, setSharedKeyword } = useKeyword();
+
+  // 공유된 키워드로 초기화
+  useEffect(() => {
+    if (sharedKeyword && !keyword) {
+      setKeyword(sharedKeyword);
+    }
+  }, [sharedKeyword, keyword]);
+
+  // 고정 랜덤 데이터 생성 함수 (productId 기반)
+  const generateFixedRandomData = (productId: string, type: 'review' | 'score' | 'click' | 'rank' | 'ratio' | 'brand' | 'shopping') => {
+    // productId를 시드로 사용하여 일관된 랜덤값 생성
+    let hash = 0;
+    for (let i = 0; i < productId.length; i++) {
+      const char = productId.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash; // 32bit 정수로 변환
+    }
+    
+    // 타입별로 다른 시드 추가
+    const typeSeeds = {
+      'review': 12345,
+      'score': 23456,
+      'click': 34567,
+      'rank': 45678,
+      'ratio': 56789,
+      'brand': 67890,
+      'shopping': 78901
+    };
+    
+    hash = Math.abs(hash + typeSeeds[type]);
+    
+    switch (type) {
+      case 'review':
+        return Math.floor((hash % 5000) + 10);
+      case 'score':
+        return Math.floor((hash % 150000) + 50000);
+      case 'click':
+        return Math.floor((hash % 49000) + 1000);
+      case 'rank':
+        return Math.floor((hash % 100) + 1);
+      case 'ratio':
+        return ((hash % 10000) / 100).toFixed(2);
+      case 'brand':
+        return (hash % 2) === 0 ? "브랜드" : "일반";
+      case 'shopping':
+        return (hash % 10) < 3 ? "쇼핑몰" : "일반";
+      default:
+        return 0;
+    }
+  };
+
+  const generateFixedRandomDate = (productId: string) => {
+    let hash = 0;
+    for (let i = 0; i < productId.length; i++) {
+      const char = productId.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash;
+    }
+    
+    const start = new Date(2024, 0, 1).getTime();
+    const end = new Date().getTime();
+    const randomTime = start + (Math.abs(hash) % (end - start));
+    const randomDate = new Date(randomTime);
+    
+    return `${randomDate.getFullYear()}-${String(randomDate.getMonth() + 1).padStart(2, '0')}-${String(randomDate.getDate()).padStart(2, '0')} ${String(randomDate.getHours()).padStart(2, '0')}:${String(randomDate.getMinutes()).padStart(2, '0')}:${String(randomDate.getSeconds()).padStart(2, '0')}`;
+  };
 
   const searchProducts = async () => {
     if (!keyword.trim()) {
@@ -92,9 +169,16 @@ const ShoppingSearch = () => {
 
       const enhancedItems = data.items?.map((item: any, index: number) => ({
         ...item,
-        reviewCount: generateRandomReviewCount(),
+        reviewCount: generateFixedRandomData(item.productId, 'review'),
         reviewUrl: `${item.link}#review`,
-        registeredAt: generateRandomDate()
+        registeredAt: generateFixedRandomDate(item.productId),
+        integrationScore: generateFixedRandomData(item.productId, 'score'),
+        clickCount: generateFixedRandomData(item.productId, 'click'),
+        integrationRank: generateFixedRandomData(item.productId, 'rank'),
+        integrationClickRank: generateFixedRandomData(item.productId, 'rank'),
+        integrationSearchRatio: generateFixedRandomData(item.productId, 'ratio'),
+        brandKeywordType: generateFixedRandomData(item.productId, 'brand'),
+        shoppingMallKeyword: generateFixedRandomData(item.productId, 'shopping')
       })) || [];
 
       const newSearchHistory: SearchHistory = {
@@ -105,6 +189,9 @@ const ShoppingSearch = () => {
       };
 
       setSearchHistory(newSearchHistory);
+      
+      // 검색한 키워드를 전역 상태에 저장하여 다른 탭에서 사용 가능하게 함
+      setSharedKeyword(keyword.trim());
       
       localStorage.setItem('shoppingSearchHistory', JSON.stringify(newSearchHistory));
       
@@ -170,13 +257,13 @@ const ShoppingSearch = () => {
         item.maker,
         item.lprice,
         item.reviewCount || 0,
-        generateRandomScore(50000, 200000),
-        generateRandomScore(1000, 50000),
-        generateRandomScore(1, 100),
-        generateRandomScore(1, 100),
-        (Math.random() * 100).toFixed(2),
-        Math.random() > 0.5 ? "브랜드" : "일반",
-        Math.random() > 0.7 ? "쇼핑몰" : "일반",
+        item.integrationScore,
+        item.clickCount,
+        item.integrationRank,
+        item.integrationClickRank,
+        `${item.integrationSearchRatio}%`,
+        item.brandKeywordType,
+        item.shoppingMallKeyword,
         item.link,
         item.registeredAt
       ])
@@ -207,21 +294,6 @@ const ShoppingSearch = () => {
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
   };
 
-  const generateRandomScore = (min: number, max: number) => {
-    return Math.floor(Math.random() * (max - min + 1)) + min;
-  };
-
-  const generateRandomReviewCount = () => {
-    return Math.floor(Math.random() * 5000) + 10;
-  };
-
-  const generateRandomDate = () => {
-    const start = new Date(2024, 0, 1);
-    const end = new Date();
-    const randomDate = new Date(start.getTime() + Math.random() * (end.getTime() - start.getTime()));
-    return `${randomDate.getFullYear()}-${String(randomDate.getMonth() + 1).padStart(2, '0')}-${String(randomDate.getDate()).padStart(2, '0')} ${String(randomDate.getHours()).padStart(2, '0')}:${String(randomDate.getMinutes()).padStart(2, '0')}:${String(randomDate.getSeconds()).padStart(2, '0')}`;
-  };
-
   useState(() => {
     const savedHistory = localStorage.getItem('shoppingSearchHistory');
     if (savedHistory) {
@@ -243,6 +315,11 @@ const ShoppingSearch = () => {
             onKeyPress={(e) => e.key === 'Enter' && searchProducts()}
             className="h-12 text-lg"
           />
+          {sharedKeyword && sharedKeyword !== keyword && (
+            <p className="text-sm text-blue-600 mt-1">
+              AI 분석 키워드: "{sharedKeyword}" 사용 가능
+            </p>
+          )}
         </div>
         <Button 
           onClick={searchProducts} 
@@ -477,28 +554,28 @@ const ShoppingSearch = () => {
                             </div>
                           </TableCell>
                           <TableCell className="text-center text-sm font-medium">
-                            {generateRandomScore(50000, 200000).toLocaleString()}
+                            {item.integrationScore.toLocaleString()}
                           </TableCell>
                           <TableCell className="text-center text-sm">
-                            {generateRandomScore(1000, 50000).toLocaleString()}
+                            {item.clickCount.toLocaleString()}
                           </TableCell>
                           <TableCell className="text-center text-sm">
-                            {generateRandomScore(1, 100)}
+                            {item.integrationRank}
                           </TableCell>
                           <TableCell className="text-center text-sm">
-                            {generateRandomScore(1, 100)}
+                            {item.integrationClickRank}
                           </TableCell>
                           <TableCell className="text-center text-sm">
-                            {(Math.random() * 100).toFixed(2)}%
+                            {item.integrationSearchRatio}%
                           </TableCell>
                           <TableCell className="text-center text-sm">
-                            <Badge variant={Math.random() > 0.5 ? "default" : "secondary"} className="text-xs">
-                              {Math.random() > 0.5 ? "브랜드" : "일반"}
+                            <Badge variant={item.brandKeywordType === "브랜드" ? "default" : "secondary"} className="text-xs">
+                              {item.brandKeywordType}
                             </Badge>
                           </TableCell>
                           <TableCell className="text-center text-sm">
-                            <Badge variant={Math.random() > 0.7 ? "default" : "secondary"} className="text-xs">
-                              {Math.random() > 0.7 ? "쇼핑몰" : "일반"}
+                            <Badge variant={item.shoppingMallKeyword === "쇼핑몰" ? "default" : "secondary"} className="text-xs">
+                              {item.shoppingMallKeyword}
                             </Badge>
                           </TableCell>
                           <TableCell className="text-center">
