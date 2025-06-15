@@ -39,7 +39,7 @@ const ShoppingSearch = () => {
           keyword: keyword.trim(),
           display: 100,
           start: 1,
-          sort: 'rank'  // 네이버 쇼핑 랭킹순으로 변경 (sim -> rank)
+          sort: 'sim'  // rank에서 sim으로 변경 (네이버 API 호환성을 위해)
         }
       });
 
