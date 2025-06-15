@@ -67,6 +67,11 @@ const AutocompleteKeywordTable = ({ autocompleteKeywordsByKeyword, searchKeyword
     setAutocompleteCurrentPage(1);
   };
 
+  // Helper function to safely get number values
+  const getNumberValue = (value: number | undefined): number => {
+    return typeof value === 'number' ? value : 0;
+  };
+
   if (searchKeywords && searchKeywords.length > 1) {
     // 멀티키워드인 경우 - 블럭 형태로 표시
     return (
@@ -99,7 +104,7 @@ const AutocompleteKeywordTable = ({ autocompleteKeywordsByKeyword, searchKeyword
                               <span>PC검색</span>
                             </div>
                             <span className="font-semibold">
-                              {(item.monthlyPcSearchCount || 0).toLocaleString()}
+                              {getNumberValue(item.monthlyPcSearchCount).toLocaleString()}
                             </span>
                           </div>
                           <div className="flex items-center justify-between text-xs">
@@ -108,13 +113,13 @@ const AutocompleteKeywordTable = ({ autocompleteKeywordsByKeyword, searchKeyword
                               <span>모바일검색</span>
                             </div>
                             <span className="font-semibold">
-                              {(item.monthlyMobileSearchCount || 0).toLocaleString()}
+                              {getNumberValue(item.monthlyMobileSearchCount).toLocaleString()}
                             </span>
                           </div>
                           <div className="flex items-center justify-between text-xs border-t pt-1">
                             <span className="text-gray-600">전체검색</span>
                             <span className="font-bold text-purple-600">
-                              {((item.monthlyPcSearchCount || 0) + (item.monthlyMobileSearchCount || 0)).toLocaleString()}
+                              {(getNumberValue(item.monthlyPcSearchCount) + getNumberValue(item.monthlyMobileSearchCount)).toLocaleString()}
                             </span>
                           </div>
                           <div className="flex items-center justify-between text-xs">
@@ -123,7 +128,7 @@ const AutocompleteKeywordTable = ({ autocompleteKeywordsByKeyword, searchKeyword
                               <span>PC클릭</span>
                             </div>
                             <span className="font-semibold">
-                              {(item.monthlyAvgPcClick || 0).toLocaleString()}
+                              {getNumberValue(item.monthlyAvgPcClick).toLocaleString()}
                             </span>
                           </div>
                           <div className="flex items-center justify-between text-xs">
@@ -132,13 +137,13 @@ const AutocompleteKeywordTable = ({ autocompleteKeywordsByKeyword, searchKeyword
                               <span>모바일클릭</span>
                             </div>
                             <span className="font-semibold">
-                              {(item.monthlyAvgMobileClick || 0).toLocaleString()}
+                              {getNumberValue(item.monthlyAvgMobileClick).toLocaleString()}
                             </span>
                           </div>
                           <div className="flex items-center justify-between text-xs border-t pt-1">
                             <span className="text-gray-600">전체클릭</span>
                             <span className="font-bold text-red-600">
-                              {((item.monthlyAvgPcClick || 0) + (item.monthlyAvgMobileClick || 0)).toLocaleString()}
+                              {(getNumberValue(item.monthlyAvgPcClick) + getNumberValue(item.monthlyAvgMobileClick)).toLocaleString()}
                             </span>
                           </div>
                         </div>
@@ -264,17 +269,17 @@ const AutocompleteKeywordTable = ({ autocompleteKeywordsByKeyword, searchKeyword
                       <div className="flex items-center justify-center gap-1 text-sm">
                         <Monitor className="h-3 w-3 text-blue-500" />
                         <span className="text-blue-600 font-semibold">
-                          {(item.monthlyPcSearchCount || 0).toLocaleString()}
+                          {getNumberValue(item.monthlyPcSearchCount).toLocaleString()}
                         </span>
                       </div>
                       <div className="flex items-center justify-center gap-1 text-sm">
                         <Smartphone className="h-3 w-3 text-green-500" />
                         <span className="text-green-600 font-semibold">
-                          {(item.monthlyMobileSearchCount || 0).toLocaleString()}
+                          {getNumberValue(item.monthlyMobileSearchCount).toLocaleString()}
                         </span>
                       </div>
                       <div className="text-xs text-gray-500 border-t pt-1">
-                        전체: {((item.monthlyPcSearchCount || 0) + (item.monthlyMobileSearchCount || 0)).toLocaleString()}
+                        전체: {(getNumberValue(item.monthlyPcSearchCount) + getNumberValue(item.monthlyMobileSearchCount)).toLocaleString()}
                       </div>
                     </div>
                   </TableCell>
@@ -283,17 +288,17 @@ const AutocompleteKeywordTable = ({ autocompleteKeywordsByKeyword, searchKeyword
                       <div className="flex items-center justify-center gap-1 text-sm">
                         <Monitor className="h-3 w-3 text-blue-500" />
                         <span className="text-blue-600 font-semibold">
-                          {(item.monthlyAvgPcClick || 0).toLocaleString()}
+                          {getNumberValue(item.monthlyAvgPcClick).toLocaleString()}
                         </span>
                       </div>
                       <div className="flex items-center justify-center gap-1 text-sm">
                         <Smartphone className="h-3 w-3 text-green-500" />
                         <span className="text-green-600 font-semibold">
-                          {(item.monthlyAvgMobileClick || 0).toLocaleString()}
+                          {getNumberValue(item.monthlyAvgMobileClick).toLocaleString()}
                         </span>
                       </div>
                       <div className="text-xs text-gray-500 border-t pt-1">
-                        전체: {((item.monthlyAvgPcClick || 0) + (item.monthlyAvgMobileClick || 0)).toLocaleString()}
+                        전체: {(getNumberValue(item.monthlyAvgPcClick) + getNumberValue(item.monthlyAvgMobileClick)).toLocaleString()}
                       </div>
                     </div>
                   </TableCell>
