@@ -85,6 +85,34 @@ const ShoppingSearch = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const { toast } = useToast();
 
+  // 문자열을 해시 코드로 변환 (시드 생성용)
+  const hashCode = (str: string): number => {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+      const char = str.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash; // 32bit integer로 변환
+    }
+    return Math.abs(hash);
+  };
+
+  // 시드 기반 랜덤 숫자 생성
+  const generateSeededRandom = (seed: number, min: number, max: number): number => {
+    const x = Math.sin(seed) * 10000;
+    const random = x - Math.floor(x);
+    return Math.floor(random * (max - min + 1)) + min;
+  };
+
+  // 시드 기반 랜덤 날짜 생성
+  const generateSeededDate = (seed: number): string => {
+    const start = new Date(2024, 0, 1).getTime();
+    const end = new Date().getTime();
+    const randomTime = start + (generateSeededRandom(seed, 0, 1000000) / 1000000) * (end - start);
+    const randomDate = new Date(randomTime);
+    
+    return `${randomDate.getFullYear()}-${String(randomDate.getMonth() + 1).padStart(2, '0')}-${String(randomDate.getDate()).padStart(2, '0')} ${String(randomDate.getHours()).padStart(2, '0')}:${String(randomDate.getMinutes()).padStart(2, '0')}:${String(randomDate.getSeconds()).padStart(2, '0')}`;
+  };
+
   const searchProducts = async () => {
     if (!keyword.trim()) {
       toast({
@@ -117,14 +145,14 @@ const ShoppingSearch = () => {
         
         return {
           ...item,
-          reviewCount: generateSeededRandom(seed + 1, 10, 5000),
+          reviewCount: generateSeededRandom(seed + 1, 10, 5000) || 0,
           reviewUrl: `${item.link}#review`,
           registeredAt: generateSeededDate(seed + 2),
-          integrationScore: generateSeededRandom(seed + 3, 50000, 200000),
-          clickCount: generateSeededRandom(seed + 4, 1000, 50000),
-          integrationRank: generateSeededRandom(seed + 5, 1, 100),
-          integrationClickRank: generateSeededRandom(seed + 6, 1, 100),
-          integrationSearchRatio: (generateSeededRandom(seed + 7, 0, 10000) / 100).toFixed(2),
+          integrationScore: generateSeededRandom(seed + 3, 50000, 200000) || 0,
+          clickCount: generateSeededRandom(seed + 4, 1000, 50000) || 0,
+          integrationRank: generateSeededRandom(seed + 5, 1, 100) || 1,
+          integrationClickRank: generateSeededRandom(seed + 6, 1, 100) || 1,
+          integrationSearchRatio: (generateSeededRandom(seed + 7, 0, 10000) / 100).toFixed(2) || "0.00",
           brandKeywordType: generateSeededRandom(seed + 8, 0, 1) > 0.5 ? "브랜드" : "일반",
           shoppingMallKeyword: generateSeededRandom(seed + 9, 0, 1) > 0.7 ? "쇼핑몰" : "일반"
         };
@@ -157,34 +185,6 @@ const ShoppingSearch = () => {
     } finally {
       setLoading(false);
     }
-  };
-
-  // 문자열을 해시 코드로 변환 (시드 생성용)
-  const hashCode = (str: string): number => {
-    let hash = 0;
-    for (let i = 0; i < str.length; i++) {
-      const char = str.charCodeAt(i);
-      hash = ((hash << 5) - hash) + char;
-      hash = hash & hash; // 32bit integer로 변환
-    }
-    return Math.abs(hash);
-  };
-
-  // 시드 기반 랜덤 숫자 생성
-  const generateSeededRandom = (seed: number, min: number, max: number): number => {
-    const x = Math.sin(seed) * 10000;
-    const random = x - Math.floor(x);
-    return Math.floor(random * (max - min + 1)) + min;
-  };
-
-  // 시드 기반 랜덤 날짜 생성
-  const generateSeededDate = (seed: number): string => {
-    const start = new Date(2024, 0, 1).getTime();
-    const end = new Date().getTime();
-    const randomTime = start + (generateSeededRandom(seed, 0, 1000000) / 1000000) * (end - start);
-    const randomDate = new Date(randomTime);
-    
-    return `${randomDate.getFullYear()}-${String(randomDate.getMonth() + 1).padStart(2, '0')}-${String(randomDate.getDate()).padStart(2, '0')} ${String(randomDate.getHours()).padStart(2, '0')}:${String(randomDate.getMinutes()).padStart(2, '0')}:${String(randomDate.getSeconds()).padStart(2, '0')}`;
   };
 
   const handleSort = (field: SortField) => {
@@ -552,33 +552,33 @@ const ShoppingSearch = () => {
                                   onClick={() => window.open(item.reviewUrl, '_blank')}
                                 >
                                   <Star className="h-3 w-3 text-yellow-500" />
-                                  <span className="text-xs ml-1">{item.reviewCount.toLocaleString()}</span>
+                                  <span className="text-xs ml-1">{(item.reviewCount || 0).toLocaleString()}</span>
                                 </Button>
                               </div>
                             </TableCell>
                             <TableCell className="text-center text-sm font-medium">
-                              {item.integrationScore.toLocaleString()}
+                              {(item.integrationScore || 0).toLocaleString()}
                             </TableCell>
                             <TableCell className="text-center text-sm">
-                              {item.clickCount.toLocaleString()}
+                              {(item.clickCount || 0).toLocaleString()}
                             </TableCell>
                             <TableCell className="text-center text-sm">
-                              {item.integrationRank}
+                              {item.integrationRank || 1}
                             </TableCell>
                             <TableCell className="text-center text-sm">
-                              {item.integrationClickRank}
+                              {item.integrationClickRank || 1}
                             </TableCell>
                             <TableCell className="text-center text-sm">
-                              {item.integrationSearchRatio}%
+                              {item.integrationSearchRatio || "0.00"}%
                             </TableCell>
                             <TableCell className="text-center text-sm">
                               <Badge variant={item.brandKeywordType === "브랜드" ? "default" : "secondary"} className="text-xs">
-                                {item.brandKeywordType}
+                                {item.brandKeywordType || "일반"}
                               </Badge>
                             </TableCell>
                             <TableCell className="text-center text-sm">
                               <Badge variant={item.shoppingMallKeyword === "쇼핑몰" ? "default" : "secondary"} className="text-xs">
-                                {item.shoppingMallKeyword}
+                                {item.shoppingMallKeyword || "일반"}
                               </Badge>
                             </TableCell>
                             <TableCell className="text-center">
