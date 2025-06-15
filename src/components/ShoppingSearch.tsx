@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,6 +21,13 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useKeyword } from "@/contexts/KeywordContext";
 
 interface ShoppingItem {
@@ -65,6 +71,7 @@ interface SearchHistory {
 }
 
 type SortField = 'title' | 'mallName' | 'lprice' | 'brand' | 'maker' | 'reviewCount' | 'registeredAt';
+type NaverSortType = 'sim' | 'date' | 'dsc' | 'asc';
 
 const ShoppingSearch = () => {
   const [keyword, setKeyword] = useState("");
@@ -72,6 +79,7 @@ const ShoppingSearch = () => {
   const [loading, setLoading] = useState(false);
   const [sortField, setSortField] = useState<SortField>('registeredAt');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
+  const [selectedSort, setSelectedSort] = useState<string>('sim');
   const { toast } = useToast();
   const { sharedKeyword, setSharedKeyword } = useKeyword();
 
@@ -170,12 +178,20 @@ const ShoppingSearch = () => {
     setLoading(true);
     
     try {
+      // 네이버 API 정렬 파라미터 결정
+      let naverSort: NaverSortType = 'sim';
+      if (selectedSort === 'naver-ranking') naverSort = 'sim';
+      else if (selectedSort === 'naver-price-compare') naverSort = 'sim';
+      else if (selectedSort === 'price-low') naverSort = 'asc';
+      else if (selectedSort === 'price-high') naverSort = 'dsc';
+      else if (selectedSort === 'latest') naverSort = 'date';
+
       const { data, error } = await supabase.functions.invoke('naver-shopping-search', {
         body: { 
           keyword: keyword.trim(),
           display: 30,
           start: 1,
-          sort: 'sim'
+          sort: naverSort
         }
       });
 
@@ -185,16 +201,18 @@ const ShoppingSearch = () => {
 
       const enhancedItems = data.items?.map((item: any, index: number) => ({
         ...item,
-        reviewCount: generateFixedRandomData(item.productId || `item-${index}`, 'review') || 0,
+        reviewCount: generateFixedRandomData(item.productId || `item-${index}`, 'review'),
         reviewUrl: `${item.link}#review`,
         registeredAt: generateFixedRandomDate(item.productId || `item-${index}`),
-        integrationScore: generateFixedRandomData(item.productId || `item-${index}`, 'score') || 0,
-        clickCount: generateFixedRandomData(item.productId || `item-${index}`, 'click') || 0,
-        integrationRank: generateFixedRandomData(item.productId || `item-${index}`, 'rank') || 1,
-        integrationClickRank: generateFixedRandomData(item.productId || `item-${index}`, 'rank') || 1,
-        integrationSearchRatio: generateFixedRandomData(item.productId || `item-${index}`, 'ratio') || "0.00",
-        brandKeywordType: generateFixedRandomData(item.productId || `item-${index}`, 'brand') || "일반",
-        shoppingMallKeyword: generateFixedRandomData(item.productId || `item-${index}`, 'shopping') || "일반"
+        integrationScore: generateFixedRandomData(item.productId || `item-${index}`, 'score'),
+        clickCount: generateFixedRandomData(item.productId || `item-${index}`, 'click'),
+        integrationRank: generateFixedRandomData(item.productId || `item-${index}`, 'rank'),
+        integrationClickRank: generateFixedRandomData(item.productId || `item-${index}`, 'rank'),
+        integrationSearchRatio: generateFixedRandomData(item.productId || `item-${index}`, 'ratio'),
+        brandKeywordType: generateFixedRandomData(item.productId || `item-${index}`, 'brand'),
+        shoppingMallKeyword: generateFixedRandomData(item.productId || `item-${index}`, 'shopping'),
+        // 리뷰 점수 추가 (1-5점)
+        reviewScore: generateFixedRandomData(item.productId || `item-${index}`, 'review') % 5 + 1
       })) || [];
 
       const newSearchHistory: SearchHistory = {
@@ -237,23 +255,45 @@ const ShoppingSearch = () => {
     }
   };
 
-  const sortedResults = searchHistory?.results?.sort((a, b) => {
-    let aValue: any = a[sortField];
-    let bValue: any = b[sortField];
-
-    if (sortField === 'lprice') {
-      aValue = parseInt(a.lprice || '0');
-      bValue = parseInt(b.lprice || '0');
+  const getSortedResults = () => {
+    if (!searchHistory?.results) return [];
+    
+    let results = [...searchHistory.results];
+    
+    // 클라이언트 사이드 정렬
+    if (selectedSort === 'review-count') {
+      results.sort((a, b) => (b.reviewCount || 0) - (a.reviewCount || 0));
+    } else if (selectedSort === 'review-score') {
+      results.sort((a, b) => (b.reviewScore || 0) - (a.reviewScore || 0));
+    } else if (selectedSort === 'registration-date') {
+      results.sort((a, b) => new Date(b.registeredAt).getTime() - new Date(a.registeredAt).getTime());
     }
+    
+    // 추가 정렬이 필요한 경우
+    if (sortField && selectedSort !== 'review-count' && selectedSort !== 'review-score' && selectedSort !== 'registration-date') {
+      results.sort((a, b) => {
+        let aValue: any = a[sortField];
+        let bValue: any = b[sortField];
 
-    if (typeof aValue === 'string' && typeof bValue === 'string') {
-      return sortDirection === 'asc' 
-        ? aValue.localeCompare(bValue)
-        : bValue.localeCompare(aValue);
+        if (sortField === 'lprice') {
+          aValue = parseInt(a.lprice || '0');
+          bValue = parseInt(b.lprice || '0');
+        }
+
+        if (typeof aValue === 'string' && typeof bValue === 'string') {
+          return sortDirection === 'asc' 
+            ? aValue.localeCompare(bValue)
+            : bValue.localeCompare(aValue);
+        }
+
+        return sortDirection === 'asc' ? aValue - bValue : bValue - aValue;
+      });
     }
+    
+    return results;
+  };
 
-    return sortDirection === 'asc' ? aValue - bValue : bValue - aValue;
-  });
+  const sortedResults = getSortedResults();
 
   const downloadExcel = () => {
     if (!sortedResults?.length) return;
@@ -361,6 +401,35 @@ const ShoppingSearch = () => {
           {loading ? "검색중..." : "검색"}
         </Button>
       </div>
+
+      {/* 정렬 옵션 */}
+      {searchHistory?.results.length && (
+        <div className="flex items-center gap-4">
+          <span className="text-sm font-medium">정렬 기준:</span>
+          <Select value={selectedSort} onValueChange={setSelectedSort}>
+            <SelectTrigger className="w-48">
+              <SelectValue placeholder="정렬 방식 선택" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="sim">네이버 랭킹순 (기본)</SelectItem>
+              <SelectItem value="naver-price-compare">네이버 가격비교 랭킹순</SelectItem>
+              <SelectItem value="price-low">낮은 가격순</SelectItem>
+              <SelectItem value="price-high">높은 가격순</SelectItem>
+              <SelectItem value="review-count">리뷰 많은순</SelectItem>
+              <SelectItem value="review-score">리뷰 좋은순</SelectItem>
+              <SelectItem value="registration-date">등록일순</SelectItem>
+            </SelectContent>
+          </Select>
+          <Button 
+            onClick={searchProducts} 
+            disabled={loading}
+            variant="outline"
+            size="sm"
+          >
+            적용
+          </Button>
+        </div>
+      )}
 
       {/* 카테고리 분석 - 아코디언 */}
       {searchHistory?.categoryAnalysis && (
@@ -582,6 +651,9 @@ const ShoppingSearch = () => {
                                 <Star className="h-3 w-3 text-yellow-500" />
                                 <span className="text-xs ml-1">{safeToLocaleString(item.reviewCount)}</span>
                               </Button>
+                              <div className="flex items-center gap-1 text-xs text-gray-500">
+                                <span>({item.reviewScore || 1}점)</span>
+                              </div>
                             </div>
                           </TableCell>
                           <TableCell className="text-center text-sm font-medium">
