@@ -1,3 +1,4 @@
+
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
@@ -130,7 +131,10 @@ serve(async (req) => {
             level2: pathParts[1] || cat.split('>')[1] || '',
             level3: pathParts[2] || cat.split('>')[2] || '',
             count,
-            percentage
+            percentage,
+            hasRealCategory: !!dbCategory,
+            realCategoryId: dbCategory?.category_id,
+            realCategoryPath: dbCategory?.category_path
           };
         })
       },
@@ -180,45 +184,18 @@ function analyzeCategoryFromItemsWithDB(items: any[], dbCategories: any[]) {
   items.forEach(item => {
     if (item.category1) {
       // 네이버 쇼핑 API의 카테고리 구조와 DB 카테고리 매칭
-      const naverCategoryPath = `${item.category1}>${item.category2 || ''}>${item.category3 || ''}`;
-      const cleanPath = naverCategoryPath.replace(/>/g, ' > ').replace(/\s+>\s+$/g, '').trim();
+      const level1 = item.category1?.trim();
+      const level2 = item.category2?.trim();
+      const level3 = item.category3?.trim();
       
-      // DB에서 매칭되는 카테고리 찾기
-      let matchedCategory = null;
+      // 대/중/소 분류에 따라 적절한 카테고리 ID 찾기
+      let matchedCategory = findBestMatchingCategory(level1, level2, level3, dbCategories);
       
-      // 1. 정확한 경로 매칭
-      matchedCategory = dbCategories.find(cat => 
-        cat.category_path === cleanPath ||
-        cat.category_name === cleanPath
-      );
+      // 카테고리 경로 생성
+      const pathParts = [level1, level2, level3].filter(Boolean);
+      const categoryPath = pathParts.join(' > ');
       
-      // 2. 부분 매칭 (대분류부터 순차적으로)
-      if (!matchedCategory && item.category1) {
-        matchedCategory = dbCategories.find(cat => {
-          if (!cat.category_path) return false;
-          const pathParts = cat.category_path.split(' > ');
-          
-          // 대분류만 매칭
-          if (!item.category2) {
-            return pathParts[0] === item.category1 && pathParts.length === 1;
-          }
-          
-          // 중분류까지 매칭
-          if (!item.category3) {
-            return pathParts[0] === item.category1 && 
-                   pathParts[1] === item.category2 && 
-                   pathParts.length === 2;
-          }
-          
-          // 소분류까지 매칭
-          return pathParts[0] === item.category1 && 
-                 pathParts[1] === item.category2 && 
-                 pathParts[2] === item.category3 && 
-                 pathParts.length === 3;
-        });
-      }
-      
-      const key = matchedCategory?.category_path || cleanPath;
+      const key = matchedCategory?.category_path || categoryPath;
       const existing = categoryMap.get(key) || [key, 0, matchedCategory];
       categoryMap.set(key, [key, existing[1] + 1, matchedCategory]);
     }
@@ -232,6 +209,63 @@ function analyzeCategoryFromItemsWithDB(items: any[], dbCategories: any[]) {
     mainCategory: sortedCategories[0] || null,
     allCategories: sortedCategories
   };
+}
+
+function findBestMatchingCategory(level1: string, level2: string, level3: string, dbCategories: any[]) {
+  // 1. 소분류가 있으면 소분류로 매칭 시도 (가장 구체적)
+  if (level3) {
+    const level3Match = dbCategories.find(cat => {
+      if (!cat.category_path) return false;
+      const pathParts = cat.category_path.split(' > ');
+      return pathParts.length === 3 && 
+             pathParts[0] === level1 && 
+             pathParts[1] === level2 && 
+             pathParts[2] === level3;
+    });
+    if (level3Match) return level3Match;
+    
+    // 소분류 직접 매칭
+    const directLevel3Match = dbCategories.find(cat => 
+      cat.category_name === level3 && cat.category_level === 3
+    );
+    if (directLevel3Match) return directLevel3Match;
+  }
+  
+  // 2. 중분류로 매칭 시도
+  if (level2) {
+    const level2Match = dbCategories.find(cat => {
+      if (!cat.category_path) return false;
+      const pathParts = cat.category_path.split(' > ');
+      return pathParts.length === 2 && 
+             pathParts[0] === level1 && 
+             pathParts[1] === level2;
+    });
+    if (level2Match) return level2Match;
+    
+    // 중분류 직접 매칭
+    const directLevel2Match = dbCategories.find(cat => 
+      cat.category_name === level2 && cat.category_level === 2
+    );
+    if (directLevel2Match) return directLevel2Match;
+  }
+  
+  // 3. 대분류로 매칭 시도
+  if (level1) {
+    const level1Match = dbCategories.find(cat => {
+      if (!cat.category_path) return false;
+      const pathParts = cat.category_path.split(' > ');
+      return pathParts.length === 1 && pathParts[0] === level1;
+    });
+    if (level1Match) return level1Match;
+    
+    // 대분류 직접 매칭
+    const directLevel1Match = dbCategories.find(cat => 
+      cat.category_name === level1 && cat.category_level === 1
+    );
+    if (directLevel1Match) return directLevel1Match;
+  }
+  
+  return null;
 }
 
 function analyzePriceRange(items: any[]) {
@@ -304,28 +338,6 @@ function findBestCategoryMatch(categoryAnalysis: any, keyword: string, dbCategor
   const mainCategoryData = categoryAnalysis.mainCategory[2]; // DB 카테고리 정보
   if (mainCategoryData && mainCategoryData.category_id) {
     return mainCategoryData.category_id;
-  }
-
-  // 기존 매핑 로직 fallback
-  const categoryMapping: { [key: string]: string } = {
-    '패션의류': '50000000',
-    '패션잡화': '50000001', 
-    '화장품/미용': '50000002',
-    '디지털/가전': '50000003',
-    '가구/인테리어': '50000004',
-    '출산/육아': '50000005',
-    '식품': '50000006',
-    '스포츠/레저': '50000007',
-    '생활/건강': '50000008',
-    '여가/생활편의': '50000009'
-  };
-
-  const mainCategoryText = categoryAnalysis.mainCategory[0];
-  
-  for (const [categoryName, categoryId] of Object.entries(categoryMapping)) {
-    if (mainCategoryText.includes(categoryName.split('/')[0])) {
-      return categoryId;
-    }
   }
 
   return null;
