@@ -9,6 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Search, TrendingUp, User, Calendar } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useQuery } from "@tanstack/react-query";
 
 interface PopularKeyword {
   keyword: string;
@@ -25,6 +26,20 @@ const PopularKeywords = () => {
   const [selectedCategoryInfo, setSelectedCategoryInfo] = useState<any>(null);
   const { toast } = useToast();
   const { user } = useAuth();
+
+  // 실제 카테고리 데이터 조회 
+  const { data: categoryData } = useQuery({
+    queryKey: ['naver-categories-active'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('naver_categories')
+        .select('*')
+        .eq('is_active', true)
+        .order('category_path', { ascending: true });
+      if (error) throw error;
+      return data;
+    },
+  });
 
   // 선택된 카테고리 정보 로드
   useEffect(() => {
@@ -163,6 +178,11 @@ const PopularKeywords = () => {
             <p className="text-sm text-green-600 mt-1">
               {selectedCategoryInfo.categoryName} (ID: {selectedCategoryInfo.categoryId})
             </p>
+            {selectedCategoryInfo.categoryPath && (
+              <p className="text-xs text-green-500 mt-1">
+                경로: {selectedCategoryInfo.categoryPath}
+              </p>
+            )}
           </CardContent>
         </Card>
       )}
@@ -185,11 +205,12 @@ const PopularKeywords = () => {
                 <SelectValue placeholder="카테고리 선택" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="50000000">패션의류</SelectItem>
-                <SelectItem value="50000001">화장품/미용</SelectItem>
-                <SelectItem value="50000002">디지털/가전</SelectItem>
-                <SelectItem value="50000003">식품</SelectItem>
-                <SelectItem value="50000004">스포츠/레저</SelectItem>
+                {/* 대분류 카테고리만 표시 */}
+                {categoryData?.filter(cat => cat.category_level === 1).map((category) => (
+                  <SelectItem key={category.category_id} value={category.category_id}>
+                    {category.category_name}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
             <Input

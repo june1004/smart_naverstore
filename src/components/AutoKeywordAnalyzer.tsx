@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -234,7 +233,7 @@ const AutoKeywordAnalyzer = () => {
       // 카테고리 클릭 시 통합검색어 트렌드로 이동하면서 카테고리 정보 전달
       const categoryInfo = {
         categoryId: category.realCategoryId,
-        categoryName: category.level1,
+        categoryName: category.realCategoryPath || category.name,
         categoryPath: category.realCategoryPath
       };
       
@@ -243,8 +242,22 @@ const AutoKeywordAnalyzer = () => {
       
       toast({
         title: "카테고리 선택됨",
-        description: `${category.level1} 카테고리가 선택되었습니다. 통합검색어 트렌드 탭에서 확인하세요.`,
+        description: `${categoryInfo.categoryName} 카테고리가 선택되었습니다. 통합검색어 트렌드 탭으로 이동합니다.`,
       });
+
+      // 통합검색어 트렌드 탭으로 이동
+      const trendTab = document.querySelector('[value="trend"]') as HTMLElement;
+      if (trendTab) {
+        trendTab.click();
+        
+        // 페이지 이동 후 잠시 대기하고 분야별 인기검색어 탭으로 이동
+        setTimeout(() => {
+          const popularTab = document.querySelector('[value="popular"]') as HTMLElement;
+          if (popularTab) {
+            popularTab.click();
+          }
+        }, 100);
+      }
     } else {
       toast({
         title: "카테고리 정보 없음",
@@ -352,7 +365,7 @@ const AutoKeywordAnalyzer = () => {
                         <TableCell>
                           <div className="space-y-1">
                             <div className="font-medium flex items-center gap-2">
-                              {category.level1}
+                              {category.realCategoryPath || category.name}
                               {category.hasRealCategory && user && (
                                 <ExternalLink className="h-3 w-3 text-blue-500" />
                               )}
@@ -360,11 +373,10 @@ const AutoKeywordAnalyzer = () => {
                                 <Lock className="h-3 w-3 text-gray-400" />
                               )}
                             </div>
-                            {category.level2 && (
-                              <div className="text-sm text-gray-500">└ {category.level2}</div>
-                            )}
-                            {category.level3 && (
-                              <div className="text-sm text-gray-400">　└ {category.level3}</div>
+                            {category.realCategoryPath && (
+                              <div className="text-xs text-gray-500">
+                                경로: {category.realCategoryPath}
+                              </div>
                             )}
                           </div>
                         </TableCell>
