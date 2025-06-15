@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { Search } from "lucide-react";
@@ -40,7 +39,7 @@ const ShoppingSearch = () => {
           keyword: keyword.trim(),
           display: 100,
           start: 1,
-          sort: 'sim'
+          sort: 'rank'  // 네이버 쇼핑 랭킹순으로 변경 (sim -> rank)
         }
       });
 
