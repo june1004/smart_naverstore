@@ -1,6 +1,6 @@
-
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -17,6 +17,8 @@ serve(async (req) => {
     
     const clientId = Deno.env.get('NAVER_CLIENT_ID');
     const clientSecret = Deno.env.get('NAVER_CLIENT_SECRET');
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
     if (!clientId || !clientSecret) {
       return new Response(JSON.stringify({ error: 'API 키가 설정되지 않았습니다.' }), {
@@ -24,6 +26,8 @@ serve(async (req) => {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
+
+    const supabase = createClient(supabaseUrl, supabaseKey);
 
     // 1. 네이버 쇼핑 검색으로 키워드의 카테고리 정보 수집
     const encodedKeyword = encodeURIComponent(keyword);
@@ -43,10 +47,16 @@ serve(async (req) => {
 
     const shoppingData = await response.json();
     
-    // 2. 카테고리 분석
-    const categoryAnalysis = analyzeCategoryFromItems(shoppingData.items);
+    // 2. 실제 카테고리 데이터베이스에서 카테고리 정보 조회
+    const { data: dbCategories } = await supabase
+      .from('naver_categories')
+      .select('*')
+      .eq('is_active', true);
+
+    // 3. 카테고리 분석 (실제 DB와 매칭)
+    const categoryAnalysis = analyzeCategoryFromItemsWithDB(shoppingData.items, dbCategories || []);
     
-    // 3. 12개월 검색 트렌드 데이터 수집
+    // 4. 12개월 검색 트렌드 데이터 수집
     const endDate = new Date();
     const startDate = new Date();
     startDate.setFullYear(endDate.getFullYear() - 1);
@@ -77,8 +87,8 @@ serve(async (req) => {
       trendData = trendResult.results?.[0]?.data || [];
     }
 
-    // 4. 인사이트 데이터 수집 (카테고리 기반)
-    const bestCategory = findBestCategoryMatch(categoryAnalysis, keyword);
+    // 5. 인사이트 데이터 수집 (카테고리 기반)
+    const bestCategory = findBestCategoryMatch(categoryAnalysis, keyword, dbCategories);
     let insightData = [];
     
     if (bestCategory) {
@@ -103,22 +113,22 @@ serve(async (req) => {
       }
     }
 
-    // 5. 가격대별 분석 (쇼핑 데이터에서 추출)
+    // 6. 가격대별 분석 (쇼핑 데이터에서 추출)
     const priceAnalysis = analyzePriceRange(shoppingData.items);
 
     return new Response(JSON.stringify({
       keyword,
       categoryAnalysis: {
         totalItems: shoppingData.total,
-        recommendedCategories: categoryAnalysis.allCategories.slice(0, 10).map(([cat, count]) => {
-          const [level1, level2, level3] = cat.split('>');
+        recommendedCategories: categoryAnalysis.allCategories.slice(0, 10).map(([cat, count, dbCategory]) => {
+          const pathParts = dbCategory?.category_path?.split(' > ') || cat.split('>');
           const percentage = ((count / shoppingData.items.length) * 100).toFixed(1);
           return {
-            name: cat,
-            code: findBestCategoryMatch({ allCategories: [[cat, count]] }, keyword) || 'N/A',
-            level1: level1 || cat,
-            level2: level2 || '',
-            level3: level3 || '',
+            name: dbCategory?.category_path || cat,
+            code: dbCategory?.category_id || 'N/A',
+            level1: pathParts[0] || cat.split('>')[0] || '',
+            level2: pathParts[1] || cat.split('>')[1] || '',
+            level3: pathParts[2] || cat.split('>')[2] || '',
             count,
             percentage
           };
@@ -164,17 +174,57 @@ serve(async (req) => {
   }
 });
 
-function analyzeCategoryFromItems(items: any[]) {
+function analyzeCategoryFromItemsWithDB(items: any[], dbCategories: any[]) {
   const categoryMap = new Map();
   
   items.forEach(item => {
     if (item.category1) {
-      const key = `${item.category1}>${item.category2 || ''}>${item.category3 || ''}`;
-      categoryMap.set(key, (categoryMap.get(key) || 0) + 1);
+      // 네이버 쇼핑 API의 카테고리 구조와 DB 카테고리 매칭
+      const naverCategoryPath = `${item.category1}>${item.category2 || ''}>${item.category3 || ''}`;
+      const cleanPath = naverCategoryPath.replace(/>/g, ' > ').replace(/\s+>\s+$/g, '').trim();
+      
+      // DB에서 매칭되는 카테고리 찾기
+      let matchedCategory = null;
+      
+      // 1. 정확한 경로 매칭
+      matchedCategory = dbCategories.find(cat => 
+        cat.category_path === cleanPath ||
+        cat.category_name === cleanPath
+      );
+      
+      // 2. 부분 매칭 (대분류부터 순차적으로)
+      if (!matchedCategory && item.category1) {
+        matchedCategory = dbCategories.find(cat => {
+          if (!cat.category_path) return false;
+          const pathParts = cat.category_path.split(' > ');
+          
+          // 대분류만 매칭
+          if (!item.category2) {
+            return pathParts[0] === item.category1 && pathParts.length === 1;
+          }
+          
+          // 중분류까지 매칭
+          if (!item.category3) {
+            return pathParts[0] === item.category1 && 
+                   pathParts[1] === item.category2 && 
+                   pathParts.length === 2;
+          }
+          
+          // 소분류까지 매칭
+          return pathParts[0] === item.category1 && 
+                 pathParts[1] === item.category2 && 
+                 pathParts[2] === item.category3 && 
+                 pathParts.length === 3;
+        });
+      }
+      
+      const key = matchedCategory?.category_path || cleanPath;
+      const existing = categoryMap.get(key) || [key, 0, matchedCategory];
+      categoryMap.set(key, [key, existing[1] + 1, matchedCategory]);
     }
   });
 
-  const sortedCategories = Array.from(categoryMap.entries())
+  const sortedCategories = Array.from(categoryMap.values())
     .sort((a, b) => b[1] - a[1])
     .slice(0, 10);
 
@@ -248,7 +298,15 @@ function generateDemographicAnalysis(keyword: string) {
   };
 }
 
-function findBestCategoryMatch(categoryAnalysis: any, keyword: string) {
+function findBestCategoryMatch(categoryAnalysis: any, keyword: string, dbCategories: any[]) {
+  if (!categoryAnalysis.mainCategory) return null;
+
+  const mainCategoryData = categoryAnalysis.mainCategory[2]; // DB 카테고리 정보
+  if (mainCategoryData && mainCategoryData.category_id) {
+    return mainCategoryData.category_id;
+  }
+
+  // 기존 매핑 로직 fallback
   const categoryMapping: { [key: string]: string } = {
     '패션의류': '50000000',
     '패션잡화': '50000001', 
@@ -262,40 +320,10 @@ function findBestCategoryMatch(categoryAnalysis: any, keyword: string) {
     '여가/생활편의': '50000009'
   };
 
-  if (!categoryAnalysis.mainCategory) return null;
-
   const mainCategoryText = categoryAnalysis.mainCategory[0];
   
   for (const [categoryName, categoryId] of Object.entries(categoryMapping)) {
     if (mainCategoryText.includes(categoryName.split('/')[0])) {
-      return categoryId;
-    }
-  }
-
-  const keywordMappings: { [key: string]: string } = {
-    '옷': '50000000',
-    '의류': '50000000',
-    '가방': '50000001',
-    '신발': '50000001',
-    '화장품': '50000002',
-    '스킨케어': '50000002',
-    '휴대폰': '50000003',
-    '컴퓨터': '50000003',
-    '가전': '50000003',
-    '가구': '50000004',
-    '침대': '50000004',
-    '육아': '50000005',
-    '기저귀': '50000005',
-    '음식': '50000006',
-    '식품': '50000006',
-    '운동': '50000007',
-    '스포츠': '50000007',
-    '건강': '50000008',
-    '생활': '50000008'
-  };
-
-  for (const [keywordPattern, categoryId] of Object.entries(keywordMappings)) {
-    if (keyword.includes(keywordPattern) || mainCategoryText.includes(keywordPattern)) {
       return categoryId;
     }
   }

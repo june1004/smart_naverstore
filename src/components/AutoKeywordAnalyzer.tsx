@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,11 +8,12 @@ import { useToast } from "@/hooks/use-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell } from "recharts";
-import { Search, Sparkles, TrendingUp, ShoppingBag, BarChart3, Target, Calendar, Users, ExternalLink } from "lucide-react";
+import { Search, Sparkles, TrendingUp, ShoppingBag, BarChart3, Target, Calendar, Users, ExternalLink, Lock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useKeyword } from "@/contexts/KeywordContext";
 import { useAnalysis } from "@/contexts/AnalysisContext";
 import { useQuery } from "@tanstack/react-query";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface CategoryInfo {
   name: string;
@@ -73,6 +75,7 @@ const AutoKeywordAnalyzer = () => {
   const { toast } = useToast();
   const { setSharedKeyword } = useKeyword();
   const { analysisResult, setAnalysisResult, isAnalysisValid } = useAnalysis();
+  const { user } = useAuth();
 
   // 실제 카테고리 데이터 조회
   const { data: categoryData } = useQuery({
@@ -136,20 +139,68 @@ const AutoKeywordAnalyzer = () => {
     if (!categories || !data.categoryAnalysis?.recommendedCategories) return data;
 
     const enhancedCategories = data.categoryAnalysis.recommendedCategories.map((category: any) => {
-      // 실제 카테고리 데이터에서 매칭되는 카테고리 찾기
-      const matchedCategory = categories.find(cat => 
-        cat.category_id === category.code || 
-        cat.category_name.includes(category.level1) ||
-        cat.category_name.includes(category.level2) ||
-        cat.category_name.includes(category.level3)
-      );
+      // 카테고리 매칭 로직 개선
+      let matchedCategory = null;
+      
+      // 1. 카테고리 ID로 직접 매칭
+      if (category.code && category.code !== 'N/A') {
+        matchedCategory = categories.find(cat => cat.category_id === category.code);
+      }
+      
+      // 2. 카테고리명으로 매칭 (정확한 매칭)
+      if (!matchedCategory && category.name) {
+        const categoryName = category.name.replace(/>/g, ' > ').trim();
+        matchedCategory = categories.find(cat => 
+          cat.category_path === categoryName ||
+          cat.category_name === categoryName
+        );
+      }
+      
+      // 3. 부분 매칭 (레벨별로)
+      if (!matchedCategory) {
+        // 대분류만으로 매칭
+        if (category.level1) {
+          matchedCategory = categories.find(cat => {
+            if (!cat.category_path) return false;
+            const pathParts = cat.category_path.split(' > ');
+            return pathParts[0] === category.level1 && pathParts.length === 1;
+          });
+        }
+        
+        // 중분류까지 매칭
+        if (!matchedCategory && category.level1 && category.level2) {
+          matchedCategory = categories.find(cat => {
+            if (!cat.category_path) return false;
+            const pathParts = cat.category_path.split(' > ');
+            return pathParts[0] === category.level1 && 
+                   pathParts[1] === category.level2 && 
+                   pathParts.length === 2;
+          });
+        }
+        
+        // 소분류까지 매칭
+        if (!matchedCategory && category.level1 && category.level2 && category.level3) {
+          matchedCategory = categories.find(cat => {
+            if (!cat.category_path) return false;
+            const pathParts = cat.category_path.split(' > ');
+            return pathParts[0] === category.level1 && 
+                   pathParts[1] === category.level2 && 
+                   pathParts[2] === category.level3 && 
+                   pathParts.length === 3;
+          });
+        }
+      }
 
       if (matchedCategory) {
+        const pathParts = matchedCategory.category_path ? matchedCategory.category_path.split(' > ') : [];
         return {
           ...category,
           realCategoryPath: matchedCategory.category_path,
           realCategoryId: matchedCategory.category_id,
           realCategoryLevel: matchedCategory.category_level,
+          level1: pathParts[0] || category.level1,
+          level2: pathParts[1] || category.level2,
+          level3: pathParts[2] || category.level3,
           hasRealCategory: true
         };
       }
@@ -170,6 +221,15 @@ const AutoKeywordAnalyzer = () => {
   };
 
   const handleCategoryClick = (category: any) => {
+    if (!user) {
+      toast({
+        title: "로그인이 필요합니다",
+        description: "카테고리 상세 분석을 위해서는 로그인이 필요합니다. 로그인 후 통합검색어 트렌드 페이지에서 해당 카테고리의 인기검색어를 확인하실 수 있습니다.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     if (category.hasRealCategory && category.realCategoryId) {
       // 카테고리 클릭 시 통합검색어 트렌드로 이동하면서 카테고리 정보 전달
       const categoryInfo = {
@@ -184,6 +244,12 @@ const AutoKeywordAnalyzer = () => {
       toast({
         title: "카테고리 선택됨",
         description: `${category.level1} 카테고리가 선택되었습니다. 통합검색어 트렌드 탭에서 확인하세요.`,
+      });
+    } else {
+      toast({
+        title: "카테고리 정보 없음",
+        description: "해당 카테고리는 등록된 카테고리 목록에서 찾을 수 없습니다.",
+        variant: "destructive",
       });
     }
   };
@@ -272,7 +338,7 @@ const AutoKeywordAnalyzer = () => {
                       <TableHead>상품 수</TableHead>
                       <TableHead>비율</TableHead>
                       <TableHead>카테고리 코드</TableHead>
-                      <TableHead>연동</TableHead>
+                      <TableHead>상세 분석</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -287,8 +353,11 @@ const AutoKeywordAnalyzer = () => {
                           <div className="space-y-1">
                             <div className="font-medium flex items-center gap-2">
                               {category.level1}
-                              {category.hasRealCategory && (
+                              {category.hasRealCategory && user && (
                                 <ExternalLink className="h-3 w-3 text-blue-500" />
+                              )}
+                              {!user && (
+                                <Lock className="h-3 w-3 text-gray-400" />
                               )}
                             </div>
                             {category.level2 && (
@@ -297,9 +366,6 @@ const AutoKeywordAnalyzer = () => {
                             {category.level3 && (
                               <div className="text-sm text-gray-400">　└ {category.level3}</div>
                             )}
-                            {category.hasRealCategory && category.realCategoryPath && (
-                              <div className="text-xs text-blue-600">실제: {category.realCategoryPath}</div>
-                            )}
                           </div>
                         </TableCell>
                         <TableCell>{category.count}개</TableCell>
@@ -307,11 +373,18 @@ const AutoKeywordAnalyzer = () => {
                           <Badge variant="secondary">{category.percentage}%</Badge>
                         </TableCell>
                         <TableCell className="font-mono text-sm">
-                          {category.hasRealCategory ? category.realCategoryId : category.code}
+                          {category.hasRealCategory ? category.realCategoryId : 'N/A'}
                         </TableCell>
                         <TableCell>
                           {category.hasRealCategory ? (
-                            <Badge variant="default" className="bg-green-600">연동됨</Badge>
+                            <div className="flex items-center gap-2">
+                              <Badge variant="default" className="bg-green-600">연동됨</Badge>
+                              {!user && (
+                                <Badge variant="outline" className="text-orange-600 border-orange-300">
+                                  로그인 필요
+                                </Badge>
+                              )}
+                            </div>
                           ) : (
                             <Badge variant="outline">미연동</Badge>
                           )}
@@ -320,6 +393,18 @@ const AutoKeywordAnalyzer = () => {
                     ))}
                   </TableBody>
                 </Table>
+                
+                {!user && (
+                  <div className="mt-4 p-3 bg-orange-50 border border-orange-200 rounded-lg">
+                    <div className="flex items-center gap-2 text-orange-700">
+                      <Lock className="h-4 w-4" />
+                      <span className="text-sm font-medium">상세 카테고리 분석</span>
+                    </div>
+                    <p className="text-sm text-orange-600 mt-1">
+                      로그인하시면 카테고리를 클릭하여 통합검색어 트렌드 페이지에서 해당 카테고리의 인기검색어를 확인하실 수 있습니다.
+                    </p>
+                  </div>
+                )}
               </CardContent>
             </Card>
 
