@@ -138,74 +138,72 @@ const AutoKeywordAnalyzer = () => {
     if (!categories || !data.categoryAnalysis?.recommendedCategories) return data;
 
     const enhancedCategories = data.categoryAnalysis.recommendedCategories.map((category: any) => {
-      // 카테고리 매칭 로직 개선
+      console.log('원본 카테고리 정보:', category);
+      
+      // 카테고리 경로를 대/중/소분류로 분리
+      let level1 = '', level2 = '', level3 = '';
       let matchedCategory = null;
       
-      // 1. 카테고리 ID로 직접 매칭
-      if (category.code && category.code !== 'N/A') {
-        matchedCategory = categories.find(cat => cat.category_id === category.code);
+      // 카테고리 이름에서 경로 분리 (예: "생활/건강 > 청소용품 > 기타청소용품")
+      if (category.name && category.name.includes(' > ')) {
+        const pathParts = category.name.split(' > ').map((part: string) => part.trim());
+        level1 = pathParts[0] || '';
+        level2 = pathParts[1] || '';
+        level3 = pathParts[2] || '';
+        
+        console.log('분리된 카테고리:', { level1, level2, level3 });
+        
+        // DB에서 매칭되는 카테고리 찾기
+        if (level3) {
+          // 소분류까지 완전 매칭
+          matchedCategory = categories.find(cat => {
+            if (!cat.category_path) return false;
+            const dbParts = cat.category_path.split(' > ').map((part: string) => part.trim());
+            return dbParts[0] === level1 && 
+                   dbParts[1] === level2 && 
+                   dbParts[2] === level3 && 
+                   dbParts.length === 3;
+          });
+        } else if (level2) {
+          // 중분류까지 매칭
+          matchedCategory = categories.find(cat => {
+            if (!cat.category_path) return false;
+            const dbParts = cat.category_path.split(' > ').map((part: string) => part.trim());
+            return dbParts[0] === level1 && 
+                   dbParts[1] === level2 && 
+                   dbParts.length === 2;
+          });
+        } else if (level1) {
+          // 대분류만 매칭
+          matchedCategory = categories.find(cat => {
+            if (!cat.category_path) return false;
+            const dbParts = cat.category_path.split(' > ').map((part: string) => part.trim());
+            return dbParts[0] === level1 && dbParts.length === 1;
+          });
+        }
       }
       
-      // 2. 카테고리명으로 매칭 (정확한 매칭)
-      if (!matchedCategory && category.name) {
-        const categoryName = category.name.replace(/>/g, ' > ').trim();
-        matchedCategory = categories.find(cat => 
-          cat.category_path === categoryName ||
-          cat.category_name === categoryName
-        );
-      }
-      
-      // 3. 부분 매칭 (레벨별로)
-      if (!matchedCategory) {
-        // 대분류만으로 매칭
-        if (category.level1) {
-          matchedCategory = categories.find(cat => {
-            if (!cat.category_path) return false;
-            const pathParts = cat.category_path.split(' > ');
-            return pathParts[0] === category.level1 && pathParts.length === 1;
-          });
-        }
-        
-        // 중분류까지 매칭
-        if (!matchedCategory && category.level1 && category.level2) {
-          matchedCategory = categories.find(cat => {
-            if (!cat.category_path) return false;
-            const pathParts = cat.category_path.split(' > ');
-            return pathParts[0] === category.level1 && 
-                   pathParts[1] === category.level2 && 
-                   pathParts.length === 2;
-          });
-        }
-        
-        // 소분류까지 매칭
-        if (!matchedCategory && category.level1 && category.level2 && category.level3) {
-          matchedCategory = categories.find(cat => {
-            if (!cat.category_path) return false;
-            const pathParts = cat.category_path.split(' > ');
-            return pathParts[0] === category.level1 && 
-                   pathParts[1] === category.level2 && 
-                   pathParts[2] === category.level3 && 
-                   pathParts.length === 3;
-          });
-        }
-      }
+      console.log('매칭된 카테고리:', matchedCategory);
 
       if (matchedCategory) {
-        const pathParts = matchedCategory.category_path ? matchedCategory.category_path.split(' > ') : [];
+        const dbPathParts = matchedCategory.category_path ? matchedCategory.category_path.split(' > ').map((part: string) => part.trim()) : [];
         return {
           ...category,
           realCategoryPath: matchedCategory.category_path,
           realCategoryId: matchedCategory.category_id,
           realCategoryLevel: matchedCategory.category_level,
-          level1: pathParts[0] || category.level1,
-          level2: pathParts[1] || category.level2,
-          level3: pathParts[2] || category.level3,
+          level1: dbPathParts[0] || level1,
+          level2: dbPathParts[1] || level2,
+          level3: dbPathParts[2] || level3,
           hasRealCategory: true
         };
       }
 
       return {
         ...category,
+        level1,
+        level2,
+        level3,
         hasRealCategory: false
       };
     });
@@ -220,6 +218,8 @@ const AutoKeywordAnalyzer = () => {
   };
 
   const handleCategoryClick = (category: any) => {
+    console.log('클릭된 카테고리:', category);
+    
     if (!user) {
       toast({
         title: "로그인이 필요합니다",
@@ -234,8 +234,13 @@ const AutoKeywordAnalyzer = () => {
       const categoryInfo = {
         categoryId: category.realCategoryId,
         categoryName: category.realCategoryPath || category.name,
-        categoryPath: category.realCategoryPath
+        categoryPath: category.realCategoryPath,
+        level1: category.level1,
+        level2: category.level2,
+        level3: category.level3
       };
+      
+      console.log('저장할 카테고리 정보:', categoryInfo);
       
       // 로컬스토리지에 선택된 카테고리 정보 저장
       localStorage.setItem('selectedCategory', JSON.stringify(categoryInfo));
@@ -267,10 +272,10 @@ const AutoKeywordAnalyzer = () => {
     }
   };
 
-  // 페이지 로드 시 유효한 분석 결과가 있으면 표시
+  // 페이지 로드 시 유효한 분석 결과가 있으면 키워드만 표시 (값은 설정하지 않음)
   useEffect(() => {
     if (analysisResult && isAnalysisValid() && !keyword) {
-      setKeyword(analysisResult.keyword);
+      // 키워드 입력창은 비워두되, 분석 결과는 유지
     }
   }, [analysisResult, isAnalysisValid, keyword]);
 
@@ -348,6 +353,9 @@ const AutoKeywordAnalyzer = () => {
                     <TableRow>
                       <TableHead>순위</TableHead>
                       <TableHead>카테고리</TableHead>
+                      <TableHead>대분류</TableHead>
+                      <TableHead>중분류</TableHead>
+                      <TableHead>소분류</TableHead>
                       <TableHead>상품 수</TableHead>
                       <TableHead>비율</TableHead>
                       <TableHead>카테고리 코드</TableHead>
@@ -373,12 +381,22 @@ const AutoKeywordAnalyzer = () => {
                                 <Lock className="h-3 w-3 text-gray-400" />
                               )}
                             </div>
-                            {category.realCategoryPath && (
-                              <div className="text-xs text-gray-500">
-                                경로: {category.realCategoryPath}
-                              </div>
-                            )}
                           </div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline" className="bg-blue-50">
+                            {category.level1 || '-'}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline" className="bg-green-50">
+                            {category.level2 || '-'}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline" className="bg-purple-50">
+                            {category.level3 || '-'}
+                          </Badge>
                         </TableCell>
                         <TableCell>{category.count}개</TableCell>
                         <TableCell>
