@@ -60,6 +60,10 @@ interface AutocompleteKeyword {
   monthlyAvgPcClick?: number;
   monthlyAvgMobileClick?: number;
   totalAvgClick?: number;
+  competition?: string;
+  competitionScore?: number;
+  trend?: string;
+  cpc?: number;
 }
 
 interface KeywordData {
@@ -73,7 +77,7 @@ interface KeywordData {
 }
 
 type RelatedSortField = 'keyword' | 'searchKeyword' | 'totalSearchCount' | 'totalAvgClick' | 'avgCtr' | 'competition' | 'competitionScore' | 'plAvgDepth' | 'originalIndex';
-type AutocompleteSortField = 'keyword' | 'totalSearchCount' | 'totalAvgClick';
+type AutocompleteSortField = 'keyword' | 'totalSearchCount' | 'totalAvgClick' | 'monthlyPcSearchCount' | 'monthlyMobileSearchCount' | 'monthlyAvgPcClick' | 'monthlyAvgMobileClick';
 
 const ITEMS_PER_PAGE = 20;
 
@@ -166,8 +170,21 @@ const KeywordExtraction = () => {
         throw new Error(error.message);
       }
 
-      setKeywordData(data);
-      setOriginalKeywordData(data);
+      // Process autocomplete keywords to ensure they have proper calculated fields
+      const processedData = {
+        ...data,
+        autocompleteKeywordsByKeyword: Object.keys(data.autocompleteKeywordsByKeyword || {}).reduce((acc, key) => {
+          acc[key] = (data.autocompleteKeywordsByKeyword[key] || []).map((item: AutocompleteKeyword) => ({
+            ...item,
+            totalSearchCount: (item.monthlyPcSearchCount || 0) + (item.monthlyMobileSearchCount || 0),
+            totalAvgClick: (item.monthlyAvgPcClick || 0) + (item.monthlyAvgMobileClick || 0)
+          }));
+          return acc;
+        }, {} as { [key: string]: AutocompleteKeyword[] })
+      };
+
+      setKeywordData(processedData);
+      setOriginalKeywordData(processedData);
       setRelatedCurrentPage(1);
       setAutocompleteCurrentPage(1);
       setRelatedSortField('originalIndex');
@@ -809,6 +826,10 @@ const KeywordExtraction = () => {
                               <SelectItem value="keyword">키워드명</SelectItem>
                               <SelectItem value="totalSearchCount">전체검색수</SelectItem>
                               <SelectItem value="totalAvgClick">전체클릭수</SelectItem>
+                              <SelectItem value="monthlyPcSearchCount">PC검색수</SelectItem>
+                              <SelectItem value="monthlyMobileSearchCount">모바일검색수</SelectItem>
+                              <SelectItem value="monthlyAvgPcClick">PC클릭수</SelectItem>
+                              <SelectItem value="monthlyAvgMobileClick">모바일클릭수</SelectItem>
                             </SelectContent>
                           </Select>
                         </div>
