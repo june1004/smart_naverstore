@@ -48,6 +48,7 @@ interface ShoppingItem {
   reviewCount: number;
   reviewUrl: string;
   registeredAt: string;
+  reviewScore: number;
   // 고정 데이터를 위한 필드들
   integrationScore: number;
   clickCount: number;
