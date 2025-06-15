@@ -1,37 +1,34 @@
-import { useState, useEffect } from "react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { useToast } from "@/hooks/use-toast";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell } from "recharts";
-import { Search, Sparkles, TrendingUp, ShoppingBag, BarChart3, Target, Calendar, Users, ExternalLink, Lock } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
-import { useKeyword } from "@/contexts/KeywordContext";
-import { useAnalysis } from "@/contexts/AnalysisContext";
-import { useQuery } from "@tanstack/react-query";
-import { useAuth } from "@/contexts/AuthContext";
 
-interface CategoryInfo {
-  name: string;
-  code: string;
-  level1: string;
-  level2: string;
-  level3: string;
-  count: number;
-  percentage: string;
-}
+import { useEffect } from "react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ShoppingBag, BarChart3, TrendingUp } from "lucide-react";
+import { useAnalysis } from "@/contexts/AnalysisContext";
+import KeywordInputSection from "./analyzer/KeywordInputSection";
+import CategoryAnalysisTable from "./analyzer/CategoryAnalysisTable";
+import SearchStatsChart from "./analyzer/SearchStatsChart";
+import InsightsCharts from "./analyzer/InsightsCharts";
+import DemographicCharts from "./analyzer/DemographicCharts";
+import AnalysisSummary from "./analyzer/AnalysisSummary";
 
 interface AnalysisResult {
   keyword: string;
   categoryAnalysis: {
     totalItems: number;
-    recommendedCategories: CategoryInfo[];
+    recommendedCategories: Array<{
+      name: string;
+      code: string;
+      level1: string;
+      level2: string;
+      level3: string;
+      count: number;
+      percentage: string;
+      hasRealCategory?: boolean;
+      realCategoryId?: string;
+      realCategoryPath?: string;
+    }>;
   };
   insights: Array<{
-    category: CategoryInfo;
+    category: any;
     insight: {
       title: string;
       results: Array<{
@@ -69,256 +66,23 @@ interface AnalysisResult {
 }
 
 const AutoKeywordAnalyzer = () => {
-  const [keyword, setKeyword] = useState("");
-  const [loading, setLoading] = useState(false);
-  const { toast } = useToast();
-  const { setSharedKeyword } = useKeyword();
-  const { analysisResult, setAnalysisResult, isAnalysisValid } = useAnalysis();
-  const { user } = useAuth();
+  const { analysisResult, isAnalysisValid } = useAnalysis();
 
-  // 실제 카테고리 데이터 조회
-  const { data: categoryData } = useQuery({
-    queryKey: ['naver-categories'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('naver_categories')
-        .select('*')
-        .order('category_level', { ascending: true });
-      if (error) throw error;
-      return data;
-    },
-  });
-
-  const analyzeKeyword = async () => {
-    if (!keyword.trim()) {
-      toast({
-        title: "키워드를 입력해주세요",
-        description: "분석할 키워드를 입력해주세요.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setLoading(true);
-
-    try {
-      const { data, error } = await supabase.functions.invoke('auto-category-finder', {
-        body: { keyword: keyword.trim() }
-      });
-
-      if (error) {
-        throw new Error(error.message);
-      }
-
-      // 실제 카테고리 구조와 매핑
-      const enhancedData = enhanceWithRealCategories(data, categoryData);
-      setAnalysisResult(enhancedData);
-      
-      // 분석된 키워드를 전역 상태에 저장
-      setSharedKeyword(keyword.trim());
-
-      toast({
-        title: "분석 완료",
-        description: `'${keyword}' 키워드 AI 자동 분석이 완료되었습니다.`,
-      });
-
-    } catch (error) {
-      console.error('키워드 분석 오류:', error);
-      toast({
-        title: "분석 실패",
-        description: "키워드 분석 중 오류가 발생했습니다.",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const enhanceWithRealCategories = (data: any, categories: any[]) => {
-    if (!categories || !data.categoryAnalysis?.recommendedCategories) return data;
-
-    const enhancedCategories = data.categoryAnalysis.recommendedCategories.map((category: any) => {
-      console.log('원본 카테고리 정보:', category);
-      
-      // 카테고리 경로를 대/중/소분류로 분리
-      let level1 = '', level2 = '', level3 = '';
-      let matchedCategory = null;
-      
-      // 카테고리 이름에서 경로 분리 (예: "생활/건강 > 청소용품 > 기타청소용품")
-      if (category.name && category.name.includes(' > ')) {
-        const pathParts = category.name.split(' > ').map((part: string) => part.trim());
-        level1 = pathParts[0] || '';
-        level2 = pathParts[1] || '';
-        level3 = pathParts[2] || '';
-        
-        console.log('분리된 카테고리:', { level1, level2, level3 });
-        
-        // DB에서 매칭되는 카테고리 찾기
-        if (level3) {
-          // 소분류까지 완전 매칭
-          matchedCategory = categories.find(cat => {
-            if (!cat.category_path) return false;
-            const dbParts = cat.category_path.split(' > ').map((part: string) => part.trim());
-            return dbParts[0] === level1 && 
-                   dbParts[1] === level2 && 
-                   dbParts[2] === level3 && 
-                   dbParts.length === 3;
-          });
-        } else if (level2) {
-          // 중분류까지 매칭
-          matchedCategory = categories.find(cat => {
-            if (!cat.category_path) return false;
-            const dbParts = cat.category_path.split(' > ').map((part: string) => part.trim());
-            return dbParts[0] === level1 && 
-                   dbParts[1] === level2 && 
-                   dbParts.length === 2;
-          });
-        } else if (level1) {
-          // 대분류만 매칭
-          matchedCategory = categories.find(cat => {
-            if (!cat.category_path) return false;
-            const dbParts = cat.category_path.split(' > ').map((part: string) => part.trim());
-            return dbParts[0] === level1 && dbParts.length === 1;
-          });
-        }
-      }
-      
-      console.log('매칭된 카테고리:', matchedCategory);
-
-      if (matchedCategory) {
-        const dbPathParts = matchedCategory.category_path ? matchedCategory.category_path.split(' > ').map((part: string) => part.trim()) : [];
-        return {
-          ...category,
-          realCategoryPath: matchedCategory.category_path,
-          realCategoryId: matchedCategory.category_id,
-          realCategoryLevel: matchedCategory.category_level,
-          level1: dbPathParts[0] || level1,
-          level2: dbPathParts[1] || level2,
-          level3: dbPathParts[2] || level3,
-          hasRealCategory: true
-        };
-      }
-
-      return {
-        ...category,
-        level1,
-        level2,
-        level3,
-        hasRealCategory: false
-      };
-    });
-
-    return {
-      ...data,
-      categoryAnalysis: {
-        ...data.categoryAnalysis,
-        recommendedCategories: enhancedCategories
-      }
-    };
-  };
-
-  const handleCategoryClick = (category: any) => {
-    console.log('클릭된 카테고리:', category);
-    
-    if (!user) {
-      toast({
-        title: "로그인이 필요합니다",
-        description: "카테고리 상세 분석을 위해서는 로그인이 필요합니다. 로그인 후 통합검색어 트렌드 페이지에서 해당 카테고리의 인기검색어를 확인하실 수 있습니다.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (category.hasRealCategory && category.realCategoryId) {
-      // 카테고리 클릭 시 통합검색어 트렌드로 이동하면서 카테고리 정보 전달
-      const categoryInfo = {
-        categoryId: category.realCategoryId,
-        categoryName: category.realCategoryPath || category.name,
-        categoryPath: category.realCategoryPath,
-        level1: category.level1,
-        level2: category.level2,
-        level3: category.level3
-      };
-      
-      console.log('저장할 카테고리 정보:', categoryInfo);
-      
-      // 로컬스토리지에 선택된 카테고리 정보 저장
-      localStorage.setItem('selectedCategory', JSON.stringify(categoryInfo));
-      
-      toast({
-        title: "카테고리 선택됨",
-        description: `${categoryInfo.categoryName} 카테고리가 선택되었습니다. 통합검색어 트렌드 탭으로 이동합니다.`,
-      });
-
-      // 통합검색어 트렌드 탭으로 이동
-      const trendTab = document.querySelector('[value="trend"]') as HTMLElement;
-      if (trendTab) {
-        trendTab.click();
-        
-        // 페이지 이동 후 잠시 대기하고 분야별 인기검색어 탭으로 이동
-        setTimeout(() => {
-          const popularTab = document.querySelector('[value="popular"]') as HTMLElement;
-          if (popularTab) {
-            popularTab.click();
-          }
-        }, 100);
-      }
-    } else {
-      toast({
-        title: "카테고리 정보 없음",
-        description: "해당 카테고리는 등록된 카테고리 목록에서 찾을 수 없습니다.",
-        variant: "destructive",
-      });
-    }
+  const handleAnalysisComplete = (data: AnalysisResult) => {
+    console.log('분석 완료:', data);
   };
 
   // 페이지 로드 시 유효한 분석 결과가 있으면 키워드만 표시 (값은 설정하지 않음)
   useEffect(() => {
-    if (analysisResult && isAnalysisValid() && !keyword) {
+    if (analysisResult && isAnalysisValid()) {
       // 키워드 입력창은 비워두되, 분석 결과는 유지
     }
-  }, [analysisResult, isAnalysisValid, keyword]);
-
-  const colors = ["#3B82F6", "#10B981", "#F59E0B", "#EF4444", "#8B5CF6"];
+  }, [analysisResult, isAnalysisValid]);
 
   return (
     <div className="space-y-6">
       {/* 키워드 입력 및 분석 */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Sparkles className="h-5 w-5" />
-            AI 키워드 자동 분석
-          </CardTitle>
-          <p className="text-sm text-gray-600">
-            키워드를 입력하면 자동으로 카테고리, 검색량, 경쟁률, 트렌드 등을 종합 분석해드립니다.
-          </p>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex gap-4">
-            <Input
-              placeholder="분석할 키워드를 입력하세요.(예:듀라코트, 아이폰 등 1개의 키워드)"
-              value={keyword}
-              onChange={(e) => setKeyword(e.target.value)}
-              onKeyPress={(e) => e.key === 'Enter' && analyzeKeyword()}
-              className="flex-1"
-            />
-            <Button 
-              onClick={analyzeKeyword} 
-              disabled={loading}
-              className="bg-purple-600 hover:bg-purple-700"
-            >
-              <Search className="h-4 w-4 mr-2" />
-              {loading ? "분석중..." : "AI 분석"}
-            </Button>
-          </div>
-          {analysisResult && isAnalysisValid() && (
-            <div className="text-sm text-green-600 bg-green-50 p-2 rounded">
-              마지막 분석: {analysisResult.keyword} (분석 결과는 1시간 동안 유지됩니다)
-            </div>
-          )}
-        </CardContent>
-      </Card>
+      <KeywordInputSection onAnalysisComplete={handleAnalysisComplete} />
 
       {/* 분석 결과 */}
       {analysisResult && isAnalysisValid() && (
@@ -340,336 +104,39 @@ const AutoKeywordAnalyzer = () => {
 
           <TabsContent value="categories" className="space-y-4">
             {/* 키워드 및 카테고리 분석 */}
-            <Card>
-              <CardHeader>
-                <CardTitle>'{analysisResult.keyword}' 카테고리 분석 결과</CardTitle>
-                <p className="text-sm text-gray-600">
-                  총 {analysisResult.categoryAnalysis?.totalItems || 0}개 상품 분석 (실제 카테고리 구조 연동)
-                </p>
-              </CardHeader>
-              <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>순위</TableHead>
-                      <TableHead>카테고리</TableHead>
-                      <TableHead>대분류</TableHead>
-                      <TableHead>중분류</TableHead>
-                      <TableHead>소분류</TableHead>
-                      <TableHead>상품 수</TableHead>
-                      <TableHead>비율</TableHead>
-                      <TableHead>카테고리 코드</TableHead>
-                      <TableHead>상세 분석</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {(analysisResult.categoryAnalysis?.recommendedCategories || []).map((category, index) => (
-                      <TableRow 
-                        key={index}
-                        className={category.hasRealCategory ? "cursor-pointer hover:bg-blue-50" : ""}
-                        onClick={() => handleCategoryClick(category)}
-                      >
-                        <TableCell>{index + 1}</TableCell>
-                        <TableCell>
-                          <div className="space-y-1">
-                            <div className="font-medium flex items-center gap-2">
-                              {category.realCategoryPath || category.name}
-                              {category.hasRealCategory && user && (
-                                <ExternalLink className="h-3 w-3 text-blue-500" />
-                              )}
-                              {!user && (
-                                <Lock className="h-3 w-3 text-gray-400" />
-                              )}
-                            </div>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="outline" className="bg-blue-50">
-                            {category.level1 || '-'}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="outline" className="bg-green-50">
-                            {category.level2 || '-'}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="outline" className="bg-purple-50">
-                            {category.level3 || '-'}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>{category.count}개</TableCell>
-                        <TableCell>
-                          <Badge variant="secondary">{category.percentage}%</Badge>
-                        </TableCell>
-                        <TableCell className="font-mono text-sm">
-                          {category.hasRealCategory ? category.realCategoryId : 'N/A'}
-                        </TableCell>
-                        <TableCell>
-                          {category.hasRealCategory ? (
-                            <div className="flex items-center gap-2">
-                              <Badge variant="default" className="bg-green-600">연동됨</Badge>
-                              {!user && (
-                                <Badge variant="outline" className="text-orange-600 border-orange-300">
-                                  로그인 필요
-                                </Badge>
-                              )}
-                            </div>
-                          ) : (
-                            <Badge variant="outline">미연동</Badge>
-                          )}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-                
-                {!user && (
-                  <div className="mt-4 p-3 bg-orange-50 border border-orange-200 rounded-lg">
-                    <div className="flex items-center gap-2 text-orange-700">
-                      <Lock className="h-4 w-4" />
-                      <span className="text-sm font-medium">상세 카테고리 분석</span>
-                    </div>
-                    <p className="text-sm text-orange-600 mt-1">
-                      로그인하시면 카테고리를 클릭하여 통합검색어 트렌드 페이지에서 해당 카테고리의 인기검색어를 확인하실 수 있습니다.
-                    </p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+            <CategoryAnalysisTable
+              keyword={analysisResult.keyword}
+              totalItems={analysisResult.categoryAnalysis?.totalItems || 0}
+              categories={analysisResult.categoryAnalysis?.recommendedCategories || []}
+            />
 
             {/* 월별 검색량과 경쟁률 */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Calendar className="h-5 w-5" />
-                  12개월 검색량 추이 및 경쟁률
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-2 gap-4 mb-6">
-                  <div className="p-4 bg-blue-50 rounded-lg">
-                    <div className="text-sm text-gray-600">경쟁률</div>
-                    <div className="text-2xl font-bold text-blue-600">
-                      {analysisResult.monthlySearchStats?.competitiveness || 'N/A'}
-                    </div>
-                  </div>
-                  <div className="p-4 bg-green-50 rounded-lg">
-                    <div className="text-sm text-gray-600">검색어 유효성</div>
-                    <div className="text-2xl font-bold text-green-600">
-                      {analysisResult.monthlySearchStats?.validity || 'N/A'}
-                    </div>
-                  </div>
-                </div>
-                <div className="h-80">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={analysisResult.monthlySearchStats?.monthlyData || []}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="period" />
-                      <YAxis />
-                      <Tooltip 
-                        formatter={(value: any) => [`${value}`, '검색량 지수']}
-                        labelFormatter={(label) => `기간: ${label}`}
-                      />
-                      <Line 
-                        type="monotone" 
-                        dataKey="ratio" 
-                        stroke="#3B82F6" 
-                        strokeWidth={3}
-                        dot={{ fill: "#3B82F6", strokeWidth: 2, r: 4 }}
-                      />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </div>
-              </CardContent>
-            </Card>
+            <SearchStatsChart monthlySearchStats={analysisResult.monthlySearchStats} />
           </TabsContent>
 
           <TabsContent value="insights" className="space-y-4">
-            {/* 가격대별 검색 비중 분석 */}
-            <Card>
-              <CardHeader>
-                <CardTitle>가격대별 검색 비중 분석</CardTitle>
-                <p className="text-sm text-gray-600">시장 가격대 추정을 위한 분석</p>
-              </CardHeader>
-              <CardContent>
-                <div className="h-80">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={analysisResult.priceAnalysis || []}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="range" />
-                      <YAxis />
-                      <Tooltip 
-                        formatter={(value: any) => [`${value}개`, '상품 수']}
-                      />
-                      <Bar dataKey="count" fill="#10B981" radius={[4, 4, 0, 0]} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* 실시간 검색 클릭 추이 */}
-            <Card>
-              <CardHeader>
-                <CardTitle>실시간 검색 클릭 추이 분석</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="h-80">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={analysisResult.clickTrends || []}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="period" />
-                      <YAxis />
-                      <Tooltip 
-                        formatter={(value: any) => [`${value}`, '클릭 지수']}
-                        labelFormatter={(label) => `기간: ${label}`}
-                      />
-                      <Line 
-                        type="monotone" 
-                        dataKey="ratio" 
-                        stroke="#F59E0B" 
-                        strokeWidth={3}
-                        dot={{ fill: "#F59E0B", strokeWidth: 2, r: 4 }}
-                      />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </div>
-              </CardContent>
-            </Card>
+            <InsightsCharts
+              priceAnalysis={analysisResult.priceAnalysis || []}
+              clickTrends={analysisResult.clickTrends || []}
+            />
           </TabsContent>
 
           <TabsContent value="trends" className="space-y-4">
             {/* 연령/성별/기기별 검색 패턴 분석 */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {/* 연령별 분석 */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg flex items-center gap-2">
-                    <Users className="h-4 w-4" />
-                    연령별 검색 패턴
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="h-48">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={analysisResult.demographicAnalysis?.age || []}>
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis dataKey="range" />
-                        <YAxis />
-                        <Tooltip formatter={(value: any) => `${value}%`} />
-                        <Bar dataKey="percentage" fill="#3B82F6" radius={[4, 4, 0, 0]} />
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* 성별 분석 */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">성별 검색 패턴</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="h-48">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <PieChart>
-                        <Pie
-                          data={analysisResult.demographicAnalysis?.gender || []}
-                          cx="50%"
-                          cy="50%"
-                          innerRadius={40}
-                          outerRadius={80}
-                          dataKey="percentage"
-                          label={({ type, percentage }) => `${type} ${percentage}%`}
-                        >
-                          {(analysisResult.demographicAnalysis?.gender || []).map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={colors[index]} />
-                          ))}
-                        </Pie>
-                        <Tooltip formatter={(value: any) => `${value}%`} />
-                      </PieChart>
-                    </ResponsiveContainer>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* 기기별 분석 */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">기기별 검색 패턴</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="h-48">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <PieChart>
-                        <Pie
-                          data={analysisResult.demographicAnalysis?.device || []}
-                          cx="50%"
-                          cy="50%"
-                          innerRadius={40}
-                          outerRadius={80}
-                          dataKey="percentage"
-                          label={({ type, percentage }) => `${type} ${percentage}%`}
-                        >
-                          {(analysisResult.demographicAnalysis?.device || []).map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={colors[index + 2]} />
-                          ))}
-                        </Pie>
-                        <Tooltip formatter={(value: any) => `${value}%`} />
-                      </PieChart>
-                    </ResponsiveContainer>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
+            <DemographicCharts demographicAnalysis={analysisResult.demographicAnalysis} />
 
             {/* 종합 분석 요약 */}
-            <Card>
-              <CardHeader>
-                <CardTitle>종합 분석 요약</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                  <div className="p-4 bg-blue-50 rounded-lg">
-                    <div className="text-2xl font-bold text-blue-600">
-                      {analysisResult.categoryAnalysis?.totalItems || 0}
-                    </div>
-                    <div className="text-sm text-gray-600">총 분석 상품</div>
-                  </div>
-                  <div className="p-4 bg-green-50 rounded-lg">
-                    <div className="text-2xl font-bold text-green-600">
-                      {(analysisResult.categoryAnalysis?.recommendedCategories || []).length}
-                    </div>
-                    <div className="text-sm text-gray-600">발견된 카테고리</div>
-                  </div>
-                  <div className="p-4 bg-purple-50 rounded-lg">
-                    <div className="text-2xl font-bold text-purple-600">
-                      {analysisResult.monthlySearchStats?.competitiveness || 'N/A'}
-                    </div>
-                    <div className="text-sm text-gray-600">경쟁률</div>
-                  </div>
-                  <div className="p-4 bg-orange-50 rounded-lg">
-                    <div className="text-2xl font-bold text-orange-600">
-                      {analysisResult.categoryAnalysis?.recommendedCategories?.[0]?.percentage || 0}%
-                    </div>
-                    <div className="text-sm text-gray-600">주요 카테고리 비율</div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+            <AnalysisSummary
+              totalItems={analysisResult.categoryAnalysis?.totalItems || 0}
+              categoriesCount={(analysisResult.categoryAnalysis?.recommendedCategories || []).length}
+              competitiveness={analysisResult.monthlySearchStats?.competitiveness || 'N/A'}
+              mainCategoryPercentage={analysisResult.categoryAnalysis?.recommendedCategories?.[0]?.percentage || '0'}
+            />
           </TabsContent>
         </Tabs>
       )}
 
-      {/* 로딩 상태 */}
-      {loading && (
-        <div className="text-center py-8">
-          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
-          <p className="mt-4 text-gray-600">AI가 키워드를 종합 분석하고 있습니다...</p>
-          <p className="text-sm text-gray-500">카테고리, 검색량, 경쟁률, 트렌드 분석 중</p>
-        </div>
-      )}
+      {/* 로딩 상태는 KeywordInputSection에서 처리됨 */}
     </div>
   );
 };
