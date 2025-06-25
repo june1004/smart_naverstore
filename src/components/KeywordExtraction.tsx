@@ -54,9 +54,13 @@ interface KeywordData {
   };
 }
 
-const KeywordExtraction = () => {
+interface Props {
+  keywordData: KeywordData | null;
+  setKeywordData: (data: KeywordData | null) => void;
+}
+
+const KeywordExtraction = ({ keywordData, setKeywordData }: Props) => {
   const [keywordInput, setKeywordInput] = useState("");
-  const [keywordData, setKeywordData] = useState<KeywordData | null>(null);
   const [originalKeywordData, setOriginalKeywordData] = useState<KeywordData | null>(null);
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState("related");

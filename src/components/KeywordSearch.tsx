@@ -14,6 +14,7 @@ const KeywordSearch = () => {
   const { user } = useAuth();
   const { sharedKeyword } = useKeyword();
   const [activeTab, setActiveTab] = useState("shopping");
+  const [keywordData, setKeywordData] = useState(null);
 
   // 로그인하지 않은 사용자를 위한 안내 컴포넌트
   const LoginRequiredMessage = () => (
@@ -104,7 +105,7 @@ const KeywordSearch = () => {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <KeywordExtraction />
+              <KeywordExtraction keywordData={keywordData} setKeywordData={setKeywordData} />
             </CardContent>
           </Card>
         </TabsContent>
@@ -116,10 +117,8 @@ const KeywordSearch = () => {
             </CardHeader>
             <CardContent>
               <KeywordQuality
-                relatedKeywords={/* 연관키워드 데이터 전달 */ keywordData?.relatedKeywords || []}
-                autocompleteKeywords={/* 자동완성키워드 데이터 통합 전달 */
-                  Object.values(keywordData?.autocompleteKeywordsByKeyword || {}).flat()
-                }
+                relatedKeywords={keywordData?.relatedKeywords || []}
+                autocompleteKeywords={Object.values(keywordData?.autocompleteKeywordsByKeyword || {}).flat()}
               />
             </CardContent>
           </Card>
