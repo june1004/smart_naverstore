@@ -42,40 +42,34 @@ const CategoryStats = ({ onLevelFilter }: CategoryStatsProps) => {
           throw categoriesError;
         }
 
-        // 레벨별 카테고리 개수 계산
-        let largeCategoryCount = 0;
-        let mediumCategoryCount = 0;
-        let smallCategoryCount = 0;
-        let smallestCategoryCount = 0;
+        // 분류별 유니크 값, 개수, 예시 추출
+        const largeSet = new Set<string>();
+        const mediumSet = new Set<string>();
+        const smallSet = new Set<string>();
+        const smallestSet = new Set<string>();
+        const largeArr: string[] = [];
+        const mediumArr: string[] = [];
+        const smallArr: string[] = [];
+        const smallestArr: string[] = [];
 
         allCategories?.forEach(category => {
           if (category.category_path) {
-            const pathParts = category.category_path.split(' > ')
-              .map(part => part.trim())
-              .filter(part => part !== '');
-            
-            const level = pathParts.length;
-
-            if (level === 1) {
-              largeCategoryCount++;
-            } else if (level === 2) {
-              mediumCategoryCount++;
-            } else if (level === 3) {
-              smallCategoryCount++;
-            } else if (level === 4) {
-              smallestCategoryCount++;
-            }
+            const pathParts = category.category_path.split(' > ').map(s => s.trim()).filter(Boolean);
+            if (pathParts[0]) { largeSet.add(pathParts[0]); largeArr.push(pathParts[0]); }
+            if (pathParts[1]) { mediumSet.add(pathParts[1]); mediumArr.push(pathParts[1]); }
+            if (pathParts[2]) { smallSet.add(pathParts[2]); smallArr.push(pathParts[2]); }
+            if (pathParts[3]) { smallestSet.add(pathParts[3]); smallestArr.push(pathParts[3]); }
           }
         });
-
+        // 가나다순, 중복제거, 최대 3개 예시
+        const getExamples = (arr: string[]) => Array.from(new Set(arr)).sort((a, b) => a.localeCompare(b, 'ko')).slice(0, 3);
         const stats = {
           total: totalCount || 0,
-          level1: largeCategoryCount,
-          level2: mediumCategoryCount,
-          level3: smallCategoryCount,
-          level4: smallestCategoryCount
+          large: { count: largeSet.size, examples: getExamples(largeArr) },
+          medium: { count: mediumSet.size, examples: getExamples(mediumArr) },
+          small: { count: smallSet.size, examples: getExamples(smallArr) },
+          smallest: { count: smallestSet.size, examples: getExamples(smallestArr) }
         };
-
         console.log('카테고리 통계 조회 완료:', stats);
         return stats;
       } catch (error) {
@@ -123,50 +117,44 @@ const CategoryStats = ({ onLevelFilter }: CategoryStatsProps) => {
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="grid grid-cols-4 gap-4">
-          <Card 
-            className={`p-3 transition-colors ${user ? 'cursor-pointer hover:bg-gray-50' : 'cursor-not-allowed opacity-75'}`} 
-            onClick={() => handleCategoryClick(null)}
-          >
+        <div className="grid grid-cols-5 gap-4">
+          {/* 전체 */}
+          <Card className="p-3">
             <div className="text-center">
               <div className="text-2xl font-bold text-gray-900">{categoryStats?.total || 0}</div>
               <div className="text-sm text-gray-600">전체</div>
             </div>
           </Card>
-          <Card 
-            className={`p-3 transition-colors ${user ? 'cursor-pointer hover:bg-blue-50' : 'cursor-not-allowed opacity-75'}`} 
-            onClick={() => handleCategoryClick(1)}
-          >
+          {/* 대분류 */}
+          <Card className="p-3">
             <div className="text-center">
-              <div className="text-2xl font-bold text-blue-600">{categoryStats?.level1 || 0}</div>
+              <div className="text-2xl font-bold text-blue-600">{categoryStats?.large?.count || 0}</div>
               <div className="text-sm text-gray-600">대분류</div>
+              <div className="text-xs text-gray-500 mt-1">{categoryStats?.large?.examples?.join(', ')}</div>
             </div>
           </Card>
-          <Card 
-            className={`p-3 transition-colors ${user ? 'cursor-pointer hover:bg-green-50' : 'cursor-not-allowed opacity-75'}`} 
-            onClick={() => handleCategoryClick(2)}
-          >
+          {/* 중분류 */}
+          <Card className="p-3">
             <div className="text-center">
-              <div className="text-2xl font-bold text-green-600">{categoryStats?.level2 || 0}</div>
+              <div className="text-2xl font-bold text-green-600">{categoryStats?.medium?.count || 0}</div>
               <div className="text-sm text-gray-600">중분류</div>
+              <div className="text-xs text-gray-500 mt-1">{categoryStats?.medium?.examples?.join(', ')}</div>
             </div>
           </Card>
-          <Card 
-            className={`p-3 transition-colors ${user ? 'cursor-pointer hover:bg-orange-50' : 'cursor-not-allowed opacity-75'}`} 
-            onClick={() => handleCategoryClick(3)}
-          >
+          {/* 소분류 */}
+          <Card className="p-3">
             <div className="text-center">
-              <div className="text-2xl font-bold text-orange-600">{categoryStats?.level3 || 0}</div>
+              <div className="text-2xl font-bold text-orange-600">{categoryStats?.small?.count || 0}</div>
               <div className="text-sm text-gray-600">소분류</div>
+              <div className="text-xs text-gray-500 mt-1">{categoryStats?.small?.examples?.join(', ')}</div>
             </div>
           </Card>
-          <Card 
-            className={`p-3 transition-colors ${user ? 'cursor-pointer hover:bg-purple-50' : 'cursor-not-allowed opacity-75'}`} 
-            onClick={() => handleCategoryClick(4)}
-          >
+          {/* 세분류 */}
+          <Card className="p-3">
             <div className="text-center">
-              <div className="text-2xl font-bold text-purple-600">{categoryStats?.level4 || 0}</div>
+              <div className="text-2xl font-bold text-purple-600">{categoryStats?.smallest?.count || 0}</div>
               <div className="text-sm text-gray-600">세분류</div>
+              <div className="text-xs text-gray-500 mt-1">{categoryStats?.smallest?.examples?.join(', ')}</div>
             </div>
           </Card>
         </div>
