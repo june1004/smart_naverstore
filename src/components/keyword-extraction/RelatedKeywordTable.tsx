@@ -51,6 +51,21 @@ interface Props {
 
 const ITEMS_PER_PAGE = 20;
 
+// 품질 점수 계산 함수 (KeywordQuality.tsx와 동일하게)
+function calcQualityScore(k) {
+  const searchScore = (k.totalSearchCount || 0) > 1000 ? 2 : (k.totalSearchCount || 0) > 100 ? 1 : 0;
+  const clickScore = (k.totalAvgClick || 0) > 100 ? 2 : (k.totalAvgClick || 0) > 10 ? 1 : 0;
+  const ctrScore = (k.avgCtr || 0) > 5 ? 2 : (k.avgCtr || 0) > 2 ? 1 : 0;
+  const compScore = (k.competitionScore || 0) < 0.3 ? 2 : (k.competitionScore || 0) < 0.7 ? 1 : 0;
+  return searchScore + clickScore + ctrScore + compScore;
+}
+function getGrade(score) {
+  if (score >= 7) return "A";
+  if (score >= 5) return "B";
+  if (score >= 3) return "C";
+  return "D";
+}
+
 const RelatedKeywordTable = ({ relatedKeywords, onKeywordClick, onSearchRelatedKeyword, loading, addedAutocompleteKeywords, onAddAutocompleteKeyword }: Props) => {
   const [relatedSortField, setRelatedSortField] = useState<RelatedSortField>('originalIndex');
   const [relatedSortDirection, setRelatedSortDirection] = useState<'asc' | 'desc'>('asc');
@@ -177,6 +192,8 @@ const RelatedKeywordTable = ({ relatedKeywords, onKeywordClick, onSearchRelatedK
                   <ArrowUpDown className="h-4 w-4" />
                 </div>
               </TableHead>
+              <TableHead className="text-center w-20">품질점수</TableHead>
+              <TableHead className="text-center w-20">등급</TableHead>
               <TableHead 
                 className="cursor-pointer hover:bg-blue-100 text-center w-28"
                 onClick={() => handleRelatedSort('plAvgDepth')}
@@ -229,12 +246,8 @@ const RelatedKeywordTable = ({ relatedKeywords, onKeywordClick, onSearchRelatedK
                     </div>
                   </div>
                 </TableCell>
-                <TableCell className="text-center">
-                  {item.totalAvgClick?.toLocaleString() || '-'}
-                </TableCell>
-                <TableCell className="text-center">
-                  {item.avgCtr ? `${item.avgCtr.toFixed(2)}%` : '-'}
-                </TableCell>
+                <TableCell className="text-center">{(item.totalAvgClick ?? 0).toFixed(1)}</TableCell>
+                <TableCell className="text-center">{(item.avgCtr ?? 0).toFixed(2)}%</TableCell>
                 <TableCell className="text-center">
                   <Badge 
                     variant={item.competition === '높음' ? 'destructive' : 
@@ -244,6 +257,8 @@ const RelatedKeywordTable = ({ relatedKeywords, onKeywordClick, onSearchRelatedK
                     {item.competition}
                   </Badge>
                 </TableCell>
+                <TableCell className="text-center">{calcQualityScore(item)}</TableCell>
+                <TableCell className="text-center">{getGrade(calcQualityScore(item))}</TableCell>
                 <TableCell className="text-center">
                   {item.plAvgDepth || '-'}
                 </TableCell>

@@ -6,6 +6,9 @@ interface RelatedKeyword {
   totalAvgClick: number;
   avgCtr: number;
   competitionScore: number;
+  searchKeyword?: string;
+  monthlyPcSearchCount?: number;
+  monthlyMobileSearchCount?: number;
 }
 
 interface AutocompleteKeyword {
@@ -14,6 +17,9 @@ interface AutocompleteKeyword {
   totalAvgClick?: number;
   avgCtr?: number;
   competitionScore?: number;
+  searchKeyword?: string;
+  monthlyPcSearchCount?: number;
+  monthlyMobileSearchCount?: number;
 }
 
 interface Props {
@@ -73,6 +79,9 @@ const KeywordQuality: React.FC<Props> = ({ relatedKeywords, autocompleteKeywords
           <tr>
             <th className="border px-2 py-1">구분</th>
             <th className="border px-2 py-1">키워드</th>
+            <th className="border px-2 py-1">검색키워드</th>
+            <th className="border px-2 py-1">월간검색수(PC)</th>
+            <th className="border px-2 py-1">월간검색수(모바일)</th>
             <th className="border px-2 py-1">검색량</th>
             <th className="border px-2 py-1">클릭수</th>
             <th className="border px-2 py-1">클릭률(%)</th>
@@ -86,9 +95,12 @@ const KeywordQuality: React.FC<Props> = ({ relatedKeywords, autocompleteKeywords
             <tr key={i}>
               <td className="border px-2 py-1">{k.type}</td>
               <td className="border px-2 py-1">{k.keyword}</td>
+              <td className="border px-2 py-1">{k.searchKeyword ?? '-'}</td>
+              <td className="border px-2 py-1 text-right">{k.monthlyPcSearchCount ?? '-'}</td>
+              <td className="border px-2 py-1 text-right">{k.monthlyMobileSearchCount ?? '-'}</td>
               <td className="border px-2 py-1 text-right">{k.totalSearchCount ?? '-'}</td>
-              <td className="border px-2 py-1 text-right">{k.totalAvgClick ?? '-'}</td>
-              <td className="border px-2 py-1 text-right">{k.avgCtr ?? '-'}</td>
+              <td className="border px-2 py-1 text-right">{(k.totalAvgClick ?? 0).toFixed(1)}</td>
+              <td className="border px-2 py-1 text-right">{(k.avgCtr ?? 0).toFixed(2)}</td>
               <td className="border px-2 py-1 text-right">{k.competitionScore ?? '-'}</td>
               <td className="border px-2 py-1 text-center font-bold">{k.qualityScore}</td>
               <td className="border px-2 py-1 text-center font-bold text-blue-700">{k.grade}</td>
