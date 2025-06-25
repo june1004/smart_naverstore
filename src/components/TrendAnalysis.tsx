@@ -8,6 +8,7 @@ import { Search, TrendingUp, Calendar, User } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useKeyword } from "@/contexts/KeywordContext";
 import { useAuth } from "@/contexts/AuthContext";
+import LoginRequiredMessage from "./ui/LoginRequiredMessage";
 
 interface TrendData {
   date: string;
@@ -125,17 +126,12 @@ const TrendAnalysis = () => {
     <div className="space-y-6">
       {/* 로그인 안내 */}
       {!user && (
-        <Card className="border-orange-200 bg-orange-50">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 text-orange-700">
-              <User className="h-4 w-4" />
-              <span className="font-medium">로그인이 필요한 기능입니다</span>
-            </div>
-            <p className="text-sm text-orange-600 mt-1">
-              트렌드 분석 기능을 사용하려면 회원가입 또는 로그인해주세요.
-            </p>
-          </CardContent>
-        </Card>
+        <LoginRequiredMessage
+          title="로그인이 필요한 기능입니다"
+          description="트렌드 분석 기능을 사용하려면 회원가입 또는 로그인해주세요."
+          keyword={sharedKeyword}
+          highlightColor="green"
+        />
       )}
 
       {/* 검색 영역 */}
