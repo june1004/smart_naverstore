@@ -1,5 +1,6 @@
-
+// @ts-ignore
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
+// @ts-ignore
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 const corsHeaders = {
@@ -16,7 +17,9 @@ serve(async (req) => {
     const { keyword, display = 20, start = 1, sort = 'sim' } = await req.json();
     
     // 환경 변수에서 네이버 API 키 가져오기
+    // @ts-ignore
     const clientId = Deno.env.get('NAVER_CLIENT_ID');
+    // @ts-ignore
     const clientSecret = Deno.env.get('NAVER_CLIENT_SECRET');
 
     if (!clientId || !clientSecret) {
