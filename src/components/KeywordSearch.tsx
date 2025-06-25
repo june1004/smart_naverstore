@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,6 +8,7 @@ import { useKeyword } from "@/contexts/KeywordContext";
 import ShoppingSearch from "./ShoppingSearch";
 import MonthlySearchStats from "./MonthlySearchStats";
 import KeywordExtraction from "./KeywordExtraction";
+import KeywordQuality from "./KeywordQuality";
 
 const KeywordSearch = () => {
   const { user } = useAuth();
@@ -60,10 +60,11 @@ const KeywordSearch = () => {
       )}
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-3 mb-6">
+        <TabsList className="grid w-full grid-cols-4 mb-6">
           <TabsTrigger value="shopping">쇼핑검색</TabsTrigger>
           <TabsTrigger value="monthly">월간검색통계</TabsTrigger>
           <TabsTrigger value="extraction">키워드추출</TabsTrigger>
+          <TabsTrigger value="quality">키워드 품질 분석</TabsTrigger>
         </TabsList>
 
         <TabsContent value="shopping">
@@ -104,6 +105,22 @@ const KeywordSearch = () => {
             </CardHeader>
             <CardContent>
               <KeywordExtraction />
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="quality">
+          <Card>
+            <CardHeader>
+              <CardTitle>키워드 품질 분석</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <KeywordQuality
+                relatedKeywords={/* 연관키워드 데이터 전달 */ keywordData?.relatedKeywords || []}
+                autocompleteKeywords={/* 자동완성키워드 데이터 통합 전달 */
+                  Object.values(keywordData?.autocompleteKeywordsByKeyword || {}).flat()
+                }
+              />
             </CardContent>
           </Card>
         </TabsContent>
