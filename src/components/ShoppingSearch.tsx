@@ -258,9 +258,13 @@ const ShoppingSearch = () => {
 
   const getSortedResults = () => {
     if (!searchHistory?.results) return [];
-    
     let results = [...searchHistory.results];
-    
+
+    // 네이버 랭킹순(기본)일 때는 원본 순서 유지
+    if ((selectedSort === 'sim' || !selectedSort) && (!sortField || sortField === 'registeredAt')) {
+      return results;
+    }
+
     // 클라이언트 사이드 정렬
     if (selectedSort === 'review-count') {
       results.sort((a, b) => (b.reviewCount || 0) - (a.reviewCount || 0));
@@ -269,7 +273,7 @@ const ShoppingSearch = () => {
     } else if (selectedSort === 'registration-date') {
       results.sort((a, b) => new Date(b.registeredAt).getTime() - new Date(a.registeredAt).getTime());
     }
-    
+
     // 추가 정렬이 필요한 경우
     if (sortField && selectedSort !== 'review-count' && selectedSort !== 'review-score' && selectedSort !== 'registration-date') {
       results.sort((a, b) => {
@@ -290,7 +294,7 @@ const ShoppingSearch = () => {
         return sortDirection === 'asc' ? aValue - bValue : bValue - aValue;
       });
     }
-    
+
     return results;
   };
 
