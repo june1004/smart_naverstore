@@ -144,27 +144,6 @@ const PopularKeywords = () => {
   lastWeek.setDate(lastWeek.getDate() - 7);
   const lastWeekFormatted = formatDate(lastWeek);
 
-  // 로그인하지 않은 사용자를 위한 안내 컴포넌트
-  const LoginRequiredMessage = () => (
-    <Card className="border-orange-200 bg-orange-50">
-      <CardContent className="p-6 text-center">
-        <User className="h-12 w-12 text-orange-500 mx-auto mb-4" />
-        <h3 className="text-lg font-semibold text-orange-700 mb-2">로그인이 필요한 기능입니다</h3>
-        <p className="text-orange-600 mb-4">
-          분야별 인기검색어 기능을 사용하려면 회원가입 또는 로그인해주세요.
-        </p>
-      </CardContent>
-    </Card>
-  );
-
-  if (!user) {
-    return (
-      <div className="space-y-6">
-        <LoginRequiredMessage />
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-6">
       {/* 선택된 카테고리 정보 표시 */}
