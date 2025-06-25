@@ -51,12 +51,13 @@ serve(async (req) => {
     const data = await response.json();
 
     // 카테고리 정보를 추출하여 분석
-    const categoryAnalysis = analyzeCategoryFromItems(data.items);
+    const categoryAnalysis = analyzeCategoryFromItems(data.items || []);
 
     console.log(`검색 완료: ${data.items?.length || 0}개 상품 찾음`);
 
     return new Response(JSON.stringify({
       ...data,
+      items: data.items || [],
       categoryAnalysis
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
