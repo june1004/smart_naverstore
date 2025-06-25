@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -30,6 +29,7 @@ interface ParsedCategory {
   large_category: string;
   medium_category: string;
   small_category: string;
+  smallest_category: string;
   category_level: number;
   category_path: string;
   is_active: boolean;
@@ -61,7 +61,6 @@ const CategoryList = ({ selectedLevel, onLevelFilter }: CategoryListProps) => {
   // 카테고리 경로를 파싱하여 각 분류 레벨을 추출하는 함수
   const parseCategoryPath = (category: Category): ParsedCategory => {
     const pathParts = category.category_path ? category.category_path.split(' > ').filter(part => part.trim() !== '') : [];
-    
     return {
       id: category.id,
       category_id: category.category_id,
@@ -69,6 +68,7 @@ const CategoryList = ({ selectedLevel, onLevelFilter }: CategoryListProps) => {
       large_category: pathParts[0] || '',
       medium_category: pathParts[1] || '',
       small_category: pathParts[2] || '',
+      smallest_category: pathParts[3] || '',
       category_level: category.category_level,
       category_path: category.category_path || '',
       is_active: category.is_active,
