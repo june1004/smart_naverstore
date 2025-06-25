@@ -116,12 +116,10 @@ const CategoryList = ({ selectedLevel, onLevelFilter }: CategoryListProps) => {
   const { data: categoriesData, isLoading: categoriesLoading, error: categoriesError } = useQuery({
     queryKey: ['naver-categories-paginated', searchTerm, selectedLevel, currentPage, itemsPerPage, sortField, sortDirection],
     queryFn: async () => {
-      console.log('카테고리 목록 조회 시작:', { searchTerm, selectedLevel, currentPage, sortField, sortDirection });
-      
       let query = supabase
         .from('naver_categories')
         .select('*', { count: 'exact' })
-        .eq('is_active', true); // 활성 카테고리만 조회
+        .eq('is_active', true);
 
       // 검색 조건 추가 (단일 키워드 검색 지원)
       if (searchTerm) {
@@ -131,46 +129,49 @@ const CategoryList = ({ selectedLevel, onLevelFilter }: CategoryListProps) => {
         }
       }
 
-      // 기본 정렬 (계층구조 정렬을 제외한 나머지)
-      if (sortField !== 'category_hierarchy') {
-        query = query.order(sortField, { ascending: sortDirection === 'asc' });
+      // 전체 클릭 시 limit 없이 모두 조회
+      // (selectedLevel === null 이면 전체)
+      if (selectedLevel === null) {
+        // limit 없이 전체 조회
       } else {
-        // 계층구조 정렬은 클라이언트 사이드에서 처리
-        query = query.order('category_id', { ascending: true });
+        // 기본 정렬 (계층구조 정렬을 제외한 나머지)
+        if (sortField !== 'category_hierarchy') {
+          query = query.order(sortField, { ascending: sortDirection === 'asc' });
+        } else {
+          query = query.order('category_id', { ascending: true });
+        }
       }
 
       const { data, error, count } = await query;
-      
-      if (error) {
-        console.error('카테고리 목록 조회 오류:', error);
-        throw error;
-      }
+      if (error) throw error;
 
-      console.log('카테고리 목록 조회 완료:', { count, dataLength: data?.length });
-      
       // 카테고리 데이터 파싱
       let parsedCategories = data ? data.map(parseCategoryPath) : [];
-      
-      // 레벨 필터링 (실제 경로 기반)
+
+      // 분류별 필터링
       if (selectedLevel !== null) {
         parsedCategories = parsedCategories.filter(category => {
           const actualLevel = getActualLevel(category);
           return actualLevel === selectedLevel;
         });
+        // 대분류만: 대분류 11개만
+        // 중분류: 대+중 조합 전체
+        // 소분류: 대+중+소 조합 전체
+        // 세분류: 대+중+소+세 조합 전체
       }
-      
+
       // 계층구조 정렬이 선택된 경우 클라이언트에서 정렬
       if (sortField === 'category_hierarchy') {
         parsedCategories.sort((a, b) => sortByHierarchy(a, b, sortDirection));
       }
 
-      // 페이지네이션 적용
+      // 페이지네이션 적용 (단, 전체 클릭 시도 모두 적용)
       const totalCount = parsedCategories.length;
       const totalPages = Math.ceil(totalCount / itemsPerPage);
       const startIndex = (currentPage - 1) * itemsPerPage;
       const endIndex = startIndex + itemsPerPage;
       const paginatedCategories = parsedCategories.slice(startIndex, endIndex);
-      
+
       return {
         categories: paginatedCategories,
         totalCount,
