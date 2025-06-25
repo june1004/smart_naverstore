@@ -1,8 +1,8 @@
-
 import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import KeywordExtraction from "@/components/KeywordExtraction";
+import KeywordSearch from "@/components/KeywordSearch";
 import SearchTrend from "@/components/SearchTrend";
 import ShoppingInsight from "@/components/ShoppingInsight";
 import AutoKeywordAnalyzer from "@/components/AutoKeywordAnalyzer";
@@ -36,7 +36,7 @@ const Index = () => {
             </TabsTrigger>
             <TabsTrigger value="keyword" className="flex items-center gap-2 py-3 px-6 data-[state=active]:bg-blue-600 data-[state=active]:text-white">
               <Search className="h-4 w-4" />
-              키워드 추출
+              키워드 분석
             </TabsTrigger>
             <TabsTrigger value="trend" className="flex items-center gap-2 py-3 px-6 data-[state=active]:bg-green-600 data-[state=active]:text-white">
               <TrendingUp className="h-4 w-4" />
@@ -70,20 +70,7 @@ const Index = () => {
           </TabsContent>
 
           <TabsContent value="keyword" className="space-y-6">
-            <Card className="shadow-lg border-0 bg-white/80 backdrop-blur-sm">
-              <CardHeader className="bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-t-lg">
-                <CardTitle className="flex items-center gap-2">
-                  <Search className="h-5 w-5" />
-                  키워드 추출
-                </CardTitle>
-                <CardDescription className="text-blue-100">
-                  네이버 검색광고 API를 통해 연관키워드와 자동완성키워드를 추출하고 분석하세요 (로그인 필요)
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="p-6">
-                <KeywordExtraction />
-              </CardContent>
-            </Card>
+            <KeywordSearch />
           </TabsContent>
 
           <TabsContent value="trend" className="space-y-6">
