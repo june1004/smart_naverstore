@@ -46,6 +46,7 @@ const CategoryStats = ({ onLevelFilter }: CategoryStatsProps) => {
         let largeCategoryCount = 0;
         let mediumCategoryCount = 0;
         let smallCategoryCount = 0;
+        let smallestCategoryCount = 0;
 
         allCategories?.forEach(category => {
           if (category.category_path) {
@@ -61,6 +62,8 @@ const CategoryStats = ({ onLevelFilter }: CategoryStatsProps) => {
               mediumCategoryCount++;
             } else if (level === 3) {
               smallCategoryCount++;
+            } else if (level === 4) {
+              smallestCategoryCount++;
             }
           }
         });
@@ -69,7 +72,8 @@ const CategoryStats = ({ onLevelFilter }: CategoryStatsProps) => {
           total: totalCount || 0,
           level1: largeCategoryCount,
           level2: mediumCategoryCount,
-          level3: smallCategoryCount
+          level3: smallCategoryCount,
+          level4: smallestCategoryCount
         };
 
         console.log('카테고리 통계 조회 완료:', stats);
@@ -154,6 +158,15 @@ const CategoryStats = ({ onLevelFilter }: CategoryStatsProps) => {
             <div className="text-center">
               <div className="text-2xl font-bold text-orange-600">{categoryStats?.level3 || 0}</div>
               <div className="text-sm text-gray-600">소분류</div>
+            </div>
+          </Card>
+          <Card 
+            className={`p-3 transition-colors ${user ? 'cursor-pointer hover:bg-purple-50' : 'cursor-not-allowed opacity-75'}`} 
+            onClick={() => handleCategoryClick(4)}
+          >
+            <div className="text-center">
+              <div className="text-2xl font-bold text-purple-600">{categoryStats?.level4 || 0}</div>
+              <div className="text-sm text-gray-600">세분류</div>
             </div>
           </Card>
         </div>
