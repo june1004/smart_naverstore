@@ -55,9 +55,11 @@ serve(async (req) => {
     const analyzedItems = analyzeItems(data.items);
     const competitorStats = analyzeCompetitorStats(analyzedItems);
 
-    // (트렌드/인사이트 API 연동 구조만 마련)
-    // const trendData = await fetchTrendData(keyword);
-    // const shoppingInsight = await fetchShoppingInsight(keyword);
+    // 트렌드/인사이트 API 비동기 호출
+    const [trendData, shoppingInsight] = await Promise.all([
+      fetchTrendData(keyword, clientId, clientSecret),
+      fetchShoppingInsight(keyword, clientId, clientSecret)
+    ]);
 
     console.log(`검색 완료: ${data.items?.length || 0}개 상품 찾음`);
 
@@ -66,8 +68,8 @@ serve(async (req) => {
       items: analyzedItems,
       categoryAnalysis,
       competitorStats,
-      // trendData,
-      // shoppingInsight,
+      trendData,
+      shoppingInsight,
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
@@ -166,4 +168,74 @@ function scoreByRecency(pubDate, now) {
   } catch {
     return 3;
   }
+}
+
+// 네이버 DataLab 통합검색어 트렌드 API 호출
+async function fetchTrendData(keyword, clientId, clientSecret) {
+  try {
+    const url = 'https://openapi.naver.com/v1/datalab/search';
+    const body = JSON.stringify({
+      startDate: getPastDate(30),
+      endDate: getToday(),
+      timeUnit: 'date',
+      keywordGroups: [{ groupName: keyword, keywords: [keyword] }],
+      device: 'pc',
+      ages: [],
+      gender: ''
+    });
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'X-Naver-Client-Id': clientId,
+        'X-Naver-Client-Secret': clientSecret,
+        'Content-Type': 'application/json',
+      },
+      body
+    });
+    if (!res.ok) throw new Error('트렌드 API 오류');
+    return await res.json();
+  } catch (e) {
+    console.error('트렌드 데이터 오류:', e);
+    return null;
+  }
+}
+
+// 네이버 DataLab 쇼핑인사이트 API 호출
+async function fetchShoppingInsight(keyword, clientId, clientSecret) {
+  try {
+    const url = 'https://openapi.naver.com/v1/datalab/shopping/categories';
+    const body = JSON.stringify({
+      startDate: getPastDate(30),
+      endDate: getToday(),
+      timeUnit: 'date',
+      category: [{ name: '패션의류', param: [keyword] }], // 예시: 실제 카테고리명/파라미터 조정 필요
+      device: '',
+      gender: '',
+      ages: []
+    });
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'X-Naver-Client-Id': clientId,
+        'X-Naver-Client-Secret': clientSecret,
+        'Content-Type': 'application/json',
+      },
+      body
+    });
+    if (!res.ok) throw new Error('쇼핑인사이트 API 오류');
+    return await res.json();
+  } catch (e) {
+    console.error('쇼핑인사이트 데이터 오류:', e);
+    return null;
+  }
+}
+
+function getToday() {
+  const d = new Date();
+  return d.toISOString().slice(0, 10);
+}
+function getPastDate(days) {
+  const d = new Date();
+  d.setDate(d.getDate() - days);
+  return d.toISOString().slice(0, 10);
 }
