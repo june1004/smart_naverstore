@@ -397,13 +397,30 @@ const KeywordExtraction = ({ keywordData, setKeywordData }: Props) => {
             </div>
             {/* 카테고리 정보 표시 (예시: 첫 번째 연관키워드의 카테고리 정보) */}
             {keywordData.relatedKeywords && keywordData.relatedKeywords.length > 0 && (
-              <div className="mt-4 p-3 bg-gray-50 rounded-lg border text-sm">
-                <div className="font-semibold mb-1 text-gray-700">카테고리 정보 (예시)</div>
-                <div>카테고리 경로: <span className="font-medium">디지털/가전 &gt; 카메라/캠코더용품 &gt; 충전기/배터리 &gt; 전용정품충전기</span></div>
-                <div>카테고리 ID: <span className="font-mono">50002083</span></div>
-                <div>대분류: 디지털/가전 | 중분류: 카메라/캠코더용품 | 소분류: 충전기/배터리 | 세분류: 전용정품충전기</div>
-                <div className="text-xs text-gray-500 mt-1">※ 실제 카테고리 연동은 추후 API/DB 연동 필요</div>
-              </div>
+              <>
+                <div className="mt-4 p-3 bg-gray-50 rounded-lg border text-sm">
+                  <div className="font-semibold mb-1 text-gray-700">카테고리 정보 (예시)</div>
+                  <div>카테고리 경로: <span className="font-medium">디지털/가전 &gt; 카메라/캠코더용품 &gt; 충전기/배터리 &gt; 전용정품충전기</span></div>
+                  <div>카테고리 ID: <span className="font-mono">50002083</span></div>
+                  <div>대분류: 디지털/가전 | 중분류: 카메라/캠코더용품 | 소분류: 충전기/배터리 | 세분류: 전용정품충전기</div>
+                  <div className="text-xs text-gray-500 mt-1">※ 실제 카테고리 연동은 추후 API/DB 연동 필요</div>
+                </div>
+                {/* 카테고리 트렌드 그래프 (더미 데이터) */}
+                <div className="mt-4 p-3 bg-white rounded-lg border text-sm">
+                  <div className="font-semibold mb-2 text-purple-700">카테고리 검색 트렌드 (예시)</div>
+                  <div className="w-full h-32 flex items-end gap-1">
+                    {/* 더미 바 차트 */}
+                    {[20, 40, 60, 80, 60, 40, 30, 50, 70, 90, 60, 30].map((v, i) => (
+                      <div key={i} style={{height: `${v}%`}} className="flex-1 bg-purple-300 rounded-t"></div>
+                    ))}
+                  </div>
+                  <div className="flex justify-between text-xs text-gray-400 mt-1">
+                    <span>2023.07</span>
+                    <span>2024.06</span>
+                  </div>
+                  <div className="text-xs text-gray-500 mt-1">※ 실제 트렌드 데이터 연동은 추후 API/DB 연동 필요</div>
+                </div>
+              </>
             )}
           </CardContent>
         </Card>
