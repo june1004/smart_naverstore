@@ -47,28 +47,23 @@ const CategoryStats = ({ onLevelFilter }: CategoryStatsProps) => {
         const mediumSet = new Set<string>();
         const smallSet = new Set<string>();
         const smallestSet = new Set<string>();
-        const largeArr: string[] = [];
-        const mediumArr: string[] = [];
-        const smallArr: string[] = [];
-        const smallestArr: string[] = [];
-
         allCategories?.forEach(category => {
           if (category.category_path) {
             const pathParts = category.category_path.split(' > ').map(s => s.trim()).filter(Boolean);
-            if (pathParts[0]) { largeSet.add(pathParts[0]); largeArr.push(pathParts[0]); }
-            if (pathParts[1]) { mediumSet.add(pathParts[1]); mediumArr.push(pathParts[1]); }
-            if (pathParts[2]) { smallSet.add(pathParts[2]); smallArr.push(pathParts[2]); }
-            if (pathParts[3]) { smallestSet.add(pathParts[3]); smallestArr.push(pathParts[3]); }
+            if (pathParts[0]) largeSet.add(pathParts[0]);
+            if (pathParts[1]) mediumSet.add(pathParts[1]);
+            if (pathParts[2]) smallSet.add(pathParts[2]);
+            if (pathParts[3]) smallestSet.add(pathParts[3]);
           }
         });
-        // 가나다순, 중복제거, 최대 3개 예시
-        const getExamples = (arr: string[]) => Array.from(new Set(arr)).sort((a, b) => a.localeCompare(b, 'ko')).slice(0, 3);
+        // 가나다순, 최대 5개 예시
+        const getExamples = (set: Set<string>) => Array.from(set).sort((a, b) => a.localeCompare(b, 'ko')).slice(0, 5);
         const stats = {
           total: totalCount || 0,
-          large: { count: largeSet.size, examples: getExamples(largeArr) },
-          medium: { count: mediumSet.size, examples: getExamples(mediumArr) },
-          small: { count: smallSet.size, examples: getExamples(smallArr) },
-          smallest: { count: smallestSet.size, examples: getExamples(smallestArr) }
+          large: { count: largeSet.size, examples: getExamples(largeSet) },
+          medium: { count: mediumSet.size, examples: getExamples(mediumSet) },
+          small: { count: smallSet.size, examples: getExamples(smallSet) },
+          smallest: { count: smallestSet.size, examples: getExamples(smallestSet) }
         };
         console.log('카테고리 통계 조회 완료:', stats);
         return stats;
@@ -119,14 +114,14 @@ const CategoryStats = ({ onLevelFilter }: CategoryStatsProps) => {
       <CardContent>
         <div className="grid grid-cols-5 gap-4">
           {/* 전체 */}
-          <Card className="p-3">
+          <Card className="p-3 cursor-pointer hover:bg-gray-50" onClick={() => handleCategoryClick(null)}>
             <div className="text-center">
               <div className="text-2xl font-bold text-gray-900">{categoryStats?.total || 0}</div>
               <div className="text-sm text-gray-600">전체</div>
             </div>
           </Card>
           {/* 대분류 */}
-          <Card className="p-3">
+          <Card className="p-3 cursor-pointer hover:bg-blue-50" onClick={() => handleCategoryClick(1)}>
             <div className="text-center">
               <div className="text-2xl font-bold text-blue-600">{categoryStats?.large?.count || 0}</div>
               <div className="text-sm text-gray-600">대분류</div>
@@ -134,7 +129,7 @@ const CategoryStats = ({ onLevelFilter }: CategoryStatsProps) => {
             </div>
           </Card>
           {/* 중분류 */}
-          <Card className="p-3">
+          <Card className="p-3 cursor-pointer hover:bg-green-50" onClick={() => handleCategoryClick(2)}>
             <div className="text-center">
               <div className="text-2xl font-bold text-green-600">{categoryStats?.medium?.count || 0}</div>
               <div className="text-sm text-gray-600">중분류</div>
@@ -142,7 +137,7 @@ const CategoryStats = ({ onLevelFilter }: CategoryStatsProps) => {
             </div>
           </Card>
           {/* 소분류 */}
-          <Card className="p-3">
+          <Card className="p-3 cursor-pointer hover:bg-orange-50" onClick={() => handleCategoryClick(3)}>
             <div className="text-center">
               <div className="text-2xl font-bold text-orange-600">{categoryStats?.small?.count || 0}</div>
               <div className="text-sm text-gray-600">소분류</div>
@@ -150,7 +145,7 @@ const CategoryStats = ({ onLevelFilter }: CategoryStatsProps) => {
             </div>
           </Card>
           {/* 세분류 */}
-          <Card className="p-3">
+          <Card className="p-3 cursor-pointer hover:bg-purple-50" onClick={() => handleCategoryClick(4)}>
             <div className="text-center">
               <div className="text-2xl font-bold text-purple-600">{categoryStats?.smallest?.count || 0}</div>
               <div className="text-sm text-gray-600">세분류</div>
