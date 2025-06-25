@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -69,6 +68,7 @@ const KeywordExtraction = () => {
   const { toast } = useToast();
   const { sharedKeyword } = useKeyword();
   const { user } = useAuth();
+  const [addedAutocompleteKeywords, setAddedAutocompleteKeywords] = useState<string[]>([]);
 
   // 공유된 키워드로 초기화
   useEffect(() => {
@@ -279,6 +279,48 @@ const KeywordExtraction = () => {
     });
   };
 
+  const handleAddAutocompleteKeyword = async (keyword: string) => {
+    if (addedAutocompleteKeywords.length >= 5) {
+      toast({
+        title: "최대 5개까지 추가할 수 있습니다.",
+        description: "자동완성키워드는 최대 5개까지만 추가 가능합니다.",
+        variant: "destructive",
+      });
+      return;
+    }
+    if (addedAutocompleteKeywords.includes(keyword)) return;
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('naver-keyword-extraction', {
+        body: { keyword }
+      });
+      if (error) throw new Error(error.message);
+      setKeywordData(prev => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          autocompleteKeywordsByKeyword: {
+            ...prev.autocompleteKeywordsByKeyword,
+            [keyword]: data?.autocompleteKeywords || []
+          }
+        };
+      });
+      setAddedAutocompleteKeywords(prev => [...prev, keyword]);
+      toast({
+        title: `자동완성키워드 추가 완료`,
+        description: `"${keyword}"의 자동완성키워드가 추가되었습니다.`
+      });
+    } catch (error) {
+      toast({
+        title: "자동완성키워드 추가 실패",
+        description: "API 호출 중 오류가 발생했습니다.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* 로그인 안내 */}
@@ -372,6 +414,8 @@ const KeywordExtraction = () => {
                   onKeywordClick={handleKeywordClick}
                   onSearchRelatedKeyword={searchRelatedKeyword}
                   loading={loading}
+                  addedAutocompleteKeywords={addedAutocompleteKeywords}
+                  onAddAutocompleteKeyword={handleAddAutocompleteKeyword}
                 />
               </CardContent>
             </Card>

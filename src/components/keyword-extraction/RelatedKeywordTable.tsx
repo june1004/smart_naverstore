@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -46,11 +45,13 @@ interface Props {
   onKeywordClick: (keyword: RelatedKeyword) => void;
   onSearchRelatedKeyword: (keyword: string) => void;
   loading: boolean;
+  addedAutocompleteKeywords?: string[];
+  onAddAutocompleteKeyword?: (keyword: string) => void;
 }
 
 const ITEMS_PER_PAGE = 20;
 
-const RelatedKeywordTable = ({ relatedKeywords, onKeywordClick, onSearchRelatedKeyword, loading }: Props) => {
+const RelatedKeywordTable = ({ relatedKeywords, onKeywordClick, onSearchRelatedKeyword, loading, addedAutocompleteKeywords, onAddAutocompleteKeyword }: Props) => {
   const [relatedSortField, setRelatedSortField] = useState<RelatedSortField>('originalIndex');
   const [relatedSortDirection, setRelatedSortDirection] = useState<'asc' | 'desc'>('asc');
   const [relatedCurrentPage, setRelatedCurrentPage] = useState(1);
@@ -199,7 +200,7 @@ const RelatedKeywordTable = ({ relatedKeywords, onKeywordClick, onSearchRelatedK
                 <TableCell className="font-medium">
                   <button
                     onClick={() => onKeywordClick(item)}
-                    className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer text-left"
+                    className="text-blue-700 hover:underline"
                   >
                     {item.keyword}
                   </button>
@@ -247,15 +248,17 @@ const RelatedKeywordTable = ({ relatedKeywords, onKeywordClick, onSearchRelatedK
                   {item.plAvgDepth || '-'}
                 </TableCell>
                 <TableCell className="text-center">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => onSearchRelatedKeyword(item.keyword)}
-                    className="h-7 w-7 p-0"
-                    disabled={loading}
-                  >
-                    <Plus className="h-3 w-3" />
-                  </Button>
+                  {onAddAutocompleteKeyword && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={addedAutocompleteKeywords?.includes(item.keyword)}
+                      onClick={() => onAddAutocompleteKeyword(item.keyword)}
+                    >
+                      <Plus className="h-4 w-4 mr-1" />
+                      자동완성추가
+                    </Button>
+                  )}
                 </TableCell>
               </TableRow>
             ))}
