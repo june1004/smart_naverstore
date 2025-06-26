@@ -66,68 +66,65 @@ const CategoryStats = ({ onLevelFilter, refetchRef }: CategoryStatsProps) => {
     };
   }
 
-  // 계층별 unique 집계
-  let filtered = allCategories || [];
-  let currentLevel = 0;
-  let currentLabel = "전체";
-  let currentList: string[] = [];
-  let currentCount = filtered.length;
-  let parentLabel = null;
+  // 대분류 리스트
+  const largeList = NAVER_LARGE_CATEGORIES;
+  // 중분류 리스트
+  const mediumList = selectedLarge
+    ? Array.from(
+        new Set(
+          (allCategories || [])
+            .filter((row) => matchLargeCategory(parseCategoryPathParts(row.category_path).large, selectedLarge))
+            .map((row) => parseCategoryPathParts(row.category_path).medium)
+            .filter(Boolean)
+        )
+      )
+    : [];
+  // 소분류 리스트
+  const smallList = selectedLarge && selectedMedium
+    ? Array.from(
+        new Set(
+          (allCategories || [])
+            .filter((row) => {
+              const parts = parseCategoryPathParts(row.category_path);
+              return matchLargeCategory(parts.large, selectedLarge) && parts.medium === selectedMedium;
+            })
+            .map((row) => parseCategoryPathParts(row.category_path).small)
+            .filter(Boolean)
+        )
+      )
+    : [];
+  // 세분류 리스트
+  const smallestList = selectedLarge && selectedMedium && selectedSmall
+    ? Array.from(
+        new Set(
+          (allCategories || [])
+            .filter((row) => {
+              const parts = parseCategoryPathParts(row.category_path);
+              return (
+                matchLargeCategory(parts.large, selectedLarge) &&
+                parts.medium === selectedMedium &&
+                parts.small === selectedSmall
+              );
+            })
+            .map((row) => parseCategoryPathParts(row.category_path).smallest)
+            .filter(Boolean)
+        )
+      )
+    : [];
 
-  if (selectedLarge && !selectedMedium && !selectedSmall) {
-    filtered = filtered.filter((row) => matchLargeCategory(parseCategoryPathParts(row.category_path).large, selectedLarge));
-    currentLevel = 1;
-    currentLabel = `대분류: ${selectedLarge}`;
-    currentList = Array.from(new Set(filtered.map((row) => parseCategoryPathParts(row.category_path).medium).filter(Boolean)));
-    currentCount = currentList.length;
-    parentLabel = selectedLarge;
-  } else if (selectedLarge && selectedMedium && !selectedSmall) {
-    filtered = filtered.filter((row) => {
-      const parts = parseCategoryPathParts(row.category_path);
-      return matchLargeCategory(parts.large, selectedLarge) && parts.medium === selectedMedium;
-    });
-    currentLevel = 2;
-    currentLabel = `중분류: ${selectedMedium}`;
-    currentList = Array.from(new Set(filtered.map((row) => parseCategoryPathParts(row.category_path).small).filter(Boolean)));
-    currentCount = currentList.length;
-    parentLabel = selectedMedium;
-  } else if (selectedLarge && selectedMedium && selectedSmall) {
-    filtered = filtered.filter((row) => {
-      const parts = parseCategoryPathParts(row.category_path);
-      return matchLargeCategory(parts.large, selectedLarge) && parts.medium === selectedMedium && parts.small === selectedSmall;
-    });
-    currentLevel = 3;
-    currentLabel = `소분류: ${selectedSmall}`;
-    currentList = Array.from(new Set(filtered.map((row) => parseCategoryPathParts(row.category_path).smallest).filter(Boolean)));
-    currentCount = currentList.length;
-    parentLabel = selectedSmall;
-  } else {
-    // 전체
-    currentLevel = 0;
-    currentLabel = "전체";
-    currentList = NAVER_LARGE_CATEGORIES;
-    currentCount = NAVER_LARGE_CATEGORIES.length;
-  }
-
-  // 상위로 이동 핸들러
-  const handleBack = () => {
-    if (selectedLarge && selectedMedium && selectedSmall) {
-      setSelectedSmall(null);
-    } else if (selectedLarge && selectedMedium) {
-      setSelectedMedium(null);
-    } else if (selectedLarge) {
-      setSelectedLarge(null);
-    }
+  // 핸들러
+  const handleLargeClick = (name: string) => {
+    setSelectedLarge(name);
+    setSelectedMedium(null);
+    setSelectedSmall(null);
   };
-
-  // 클릭 핸들러
-  const handleClick = (name: string) => {
-    if (!selectedLarge) setSelectedLarge(name);
-    else if (!selectedMedium) setSelectedMedium(name);
-    else if (!selectedSmall) setSelectedSmall(name);
+  const handleMediumClick = (name: string) => {
+    setSelectedMedium(name);
+    setSelectedSmall(null);
   };
-
-  // 전체로 이동
+  const handleSmallClick = (name: string) => {
+    setSelectedSmall(name);
+  };
   const handleReset = () => {
     setSelectedLarge(null);
     setSelectedMedium(null);
@@ -176,34 +173,77 @@ const CategoryStats = ({ onLevelFilter, refetchRef }: CategoryStatsProps) => {
       </CardHeader>
       <CardContent>
         <div className="mb-2 flex gap-2 items-center">
-          <span className="font-bold">{currentLabel}</span>
-          <span className="text-sm text-gray-500">({currentCount}개)</span>
-          {(selectedLarge || selectedMedium || selectedSmall) && (
-            <button className="ml-2 text-xs text-blue-600 underline" onClick={handleBack}>상위로</button>
-          )}
+          <span className="font-bold">카테고리 드릴다운</span>
           {(selectedLarge || selectedMedium || selectedSmall) && (
             <button className="ml-2 text-xs text-gray-500 underline" onClick={handleReset}>전체보기</button>
           )}
         </div>
-        <div className="flex flex-wrap gap-2 mb-4">
-          {currentList.map((name) => (
-            <button
-              key={name}
-              className="px-3 py-1 rounded border text-sm hover:bg-blue-50"
-              onClick={() => handleClick(name)}
-              disabled={currentLevel === 3}
-            >
-              {name}
-            </button>
-          ))}
+        <div className="flex flex-row gap-4 w-full">
+          {/* 대분류 */}
+          <div className="flex-1 min-w-[120px]">
+            <div className="font-semibold mb-1">대분류</div>
+            <div className="flex flex-col gap-1">
+              {largeList.map((name) => (
+                <button
+                  key={name}
+                  className={`px-3 py-1 rounded border text-sm text-left ${selectedLarge === name ? 'bg-blue-100 font-bold border-blue-400' : 'hover:bg-blue-50'}`}
+                  onClick={() => handleLargeClick(name)}
+                >
+                  {name}
+                </button>
+              ))}
+            </div>
+          </div>
+          {/* 중분류 */}
+          <div className="flex-1 min-w-[120px]">
+            <div className="font-semibold mb-1">중분류</div>
+            <div className="flex flex-col gap-1">
+              {mediumList.length === 0 && <div className="text-xs text-gray-400">대분류 선택</div>}
+              {mediumList.map((name) => (
+                <button
+                  key={name}
+                  className={`px-3 py-1 rounded border text-sm text-left ${selectedMedium === name ? 'bg-green-100 font-bold border-green-400' : 'hover:bg-green-50'}`}
+                  onClick={() => handleMediumClick(name)}
+                  disabled={!selectedLarge}
+                >
+                  {name}
+                </button>
+              ))}
+            </div>
+          </div>
+          {/* 소분류 */}
+          <div className="flex-1 min-w-[120px]">
+            <div className="font-semibold mb-1">소분류</div>
+            <div className="flex flex-col gap-1">
+              {smallList.length === 0 && <div className="text-xs text-gray-400">중분류 선택</div>}
+              {smallList.map((name) => (
+                <button
+                  key={name}
+                  className={`px-3 py-1 rounded border text-sm text-left ${selectedSmall === name ? 'bg-orange-100 font-bold border-orange-400' : 'hover:bg-orange-50'}`}
+                  onClick={() => handleSmallClick(name)}
+                  disabled={!selectedMedium}
+                >
+                  {name}
+                </button>
+              ))}
+            </div>
+          </div>
+          {/* 세분류 */}
+          <div className="flex-1 min-w-[120px]">
+            <div className="font-semibold mb-1">세분류</div>
+            <div className="flex flex-col gap-1">
+              {smallestList.length === 0 && <div className="text-xs text-gray-400">소분류 선택</div>}
+              {smallestList.map((name) => (
+                <div
+                  key={name}
+                  className={`px-3 py-1 rounded border text-sm text-left bg-purple-50`}
+                >
+                  {name}
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
-        {/* 예시 목록 */}
-        {currentLevel === 3 && (
-          <div className="text-xs text-gray-500">세분류 예시: {currentList.slice(0, 10).join(", ")}</div>
-        )}
-        {currentLevel === 0 && (
-          <div className="text-xs text-gray-500">대분류(11개): {NAVER_LARGE_CATEGORIES.join(", ")}</div>
-        )}
       </CardContent>
     </Card>
   );
