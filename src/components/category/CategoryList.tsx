@@ -237,6 +237,21 @@ const CategoryList = ({ selectedLevel, onLevelFilter, refetchRef }: CategoryList
     ).values()
   );
 
+  // 네이버 기준 11개 대분류명, 지정 순서
+  const NAVER_LARGE_CATEGORIES = [
+    '가구/인테리어',
+    '도서',
+    '디지털/가전',
+    '생활/건강',
+    '스포츠/레저',
+    '식품',
+    '여가/생활편의',
+    '출산/육아',
+    '패션의류',
+    '패션잡화',
+    '화장품/미용',
+  ];
+
   // 하위 분류 전체 필터링 및 갯수 집계
   let displayCategories = categoriesData?.categories || [];
   let filterInfo = '';
@@ -313,16 +328,20 @@ const CategoryList = ({ selectedLevel, onLevelFilter, refetchRef }: CategoryList
           {/* 대분류일 때만 대분류 클릭 활성화 */}
           {selectedLevel === 1 && (
             <div className="flex flex-wrap gap-2 mt-2">
-              {largeCategories.map((cat) => (
-                <Button
-                  key={cat.category_id}
-                  size="sm"
-                  variant={selectedLargeCategory === cat.large_category ? 'default' : 'outline'}
-                  onClick={() => handleLargeCategoryClick(cat.large_category)}
-                >
-                  {cat.large_category}
-                </Button>
-              ))}
+              {NAVER_LARGE_CATEGORIES.map((name) => {
+                const cat = largeCategories.find(c => c.large_category === name);
+                return (
+                  <Button
+                    key={name}
+                    size="sm"
+                    variant={selectedLargeCategory === name ? 'default' : 'outline'}
+                    onClick={cat ? () => handleLargeCategoryClick(name) : undefined}
+                    disabled={!cat}
+                  >
+                    {name}
+                  </Button>
+                );
+              })}
             </div>
           )}
           {categoriesLoading ? (
