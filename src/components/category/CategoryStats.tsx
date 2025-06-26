@@ -54,7 +54,7 @@ const CategoryStats = ({ onLevelFilter, refetchRef }: CategoryStatsProps) => {
         // 대/중/소/세분류 유니크 값 쿼리
         const { data: allCategories, error: categoriesError } = await supabase
           .from('naver_categories')
-          .select('category_name, category_path, category_level')
+          .select('category_path')
           .eq('is_active', true);
 
         if (categoriesError) {
@@ -62,33 +62,36 @@ const CategoryStats = ({ onLevelFilter, refetchRef }: CategoryStatsProps) => {
           throw categoriesError;
         }
 
-        // 대분류 집계: NAVER_LARGE_CATEGORIES 기준 11개
-        const largeCounts = NAVER_LARGE_CATEGORIES.map(name => {
-          const count = allCategories?.filter(c => c.category_level === 1 && matchLargeCategory(c.category_name, name)).length || 0;
-          return { name, count };
+        // NAVER_LARGE_CATEGORIES별 하위 분류 집계
+        const statsMap = NAVER_LARGE_CATEGORIES.reduce((acc, name) => {
+          acc[name] = { medium: new Set(), small: new Set(), smallest: new Set() };
+          return acc;
+        }, {} as Record<string, { medium: Set<string>, small: Set<string>, smallest: Set<string> }>);
+
+        allCategories?.forEach(row => {
+          if (!row.category_path) return;
+          const [large, medium, small, smallest] = row.category_path.split(' > ').map(s => s.trim());
+          const largeKey = NAVER_LARGE_CATEGORIES.find(name => matchLargeCategory(name, large));
+          if (!largeKey) return;
+          if (medium) statsMap[largeKey].medium.add(medium);
+          if (small) statsMap[largeKey].small.add(small);
+          if (smallest) statsMap[largeKey].smallest.add(smallest);
         });
-        // 기존 집계도 유지
-        const largeSet = new Set<string>();
-        const mediumSet = new Set<string>();
-        const smallSet = new Set<string>();
-        const smallestSet = new Set<string>();
-        allCategories?.forEach(category => {
-          if (category.category_path) {
-            const pathParts = category.category_path.split(' > ').map(s => s.trim()).filter(Boolean);
-            if (pathParts[0]) largeSet.add(pathParts[0]);
-            if (pathParts[1]) mediumSet.add(pathParts[1]);
-            if (pathParts[2]) smallSet.add(pathParts[2]);
-            if (pathParts[3]) smallestSet.add(pathParts[3]);
-          }
-        });
+
+        const largeCounts = NAVER_LARGE_CATEGORIES.map(name => ({
+          name,
+          medium: statsMap[name].medium.size,
+          small: statsMap[name].small.size,
+          smallest: statsMap[name].smallest.size,
+        }));
         // 가나다순, 최대 5개 예시
         const getExamples = (set: Set<string>) => Array.from(set).sort((a, b) => a.localeCompare(b, 'ko')).slice(0, 5);
         const stats = {
           total: totalCount || 0,
-          large: { count: largeCounts.length, details: largeCounts, examples: getExamples(largeSet) },
-          medium: { count: mediumSet.size, examples: getExamples(mediumSet) },
-          small: { count: smallSet.size, examples: getExamples(smallSet) },
-          smallest: { count: smallestSet.size, examples: getExamples(smallestSet) }
+          large: { count: largeCounts.length, details: largeCounts, examples: getExamples(new Set(largeCounts.map(d => d.name))) },
+          medium: { count: statsMap['가구/인테리어'].medium.size, examples: getExamples(statsMap['가구/인테리어'].medium) },
+          small: { count: statsMap['가구/인테리어'].small.size, examples: getExamples(statsMap['가구/인테리어'].small) },
+          smallest: { count: statsMap['가구/인테리어'].smallest.size, examples: getExamples(statsMap['가구/인테리어'].smallest) }
         };
         console.log('카테고리 통계 조회 완료:', stats);
         return stats;
@@ -152,10 +155,10 @@ const CategoryStats = ({ onLevelFilter, refetchRef }: CategoryStatsProps) => {
           {/* 대분류 */}
           <Card className="p-3 cursor-pointer hover:bg-blue-50" onClick={() => handleCategoryClick(1)}>
             <div className="text-center">
-              <div className="text-2xl font-bold text-blue-600">{categoryStats?.large?.details?.reduce((acc, cur) => acc + cur.count, 0) || 0}</div>
+              <div className="text-2xl font-bold text-blue-600">{categoryStats?.large?.details?.length || 0}</div>
               <div className="text-sm text-gray-600">대분류 (11개)</div>
               <div className="text-xs text-gray-500 mt-1">
-                {categoryStats?.large?.details?.map(d => `${d.name}(${d.count})`).join(', ')}
+                {categoryStats?.large?.details?.map(d => `${d.name}: 중분류(${d.medium}), 소분류(${d.small}), 세분류(${d.smallest})`).join(', ')}
               </div>
             </div>
           </Card>
