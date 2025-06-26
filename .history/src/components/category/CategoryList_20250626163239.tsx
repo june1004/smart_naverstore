@@ -287,15 +287,17 @@ const CategoryList = ({ selectedLevel, onLevelFilter, refetchRef }: CategoryList
   let displayCategories = categoriesData?.categories || [];
   let filterInfo = '';
   if (selectedLargeCategory && !selectedMediumCategory && !selectedSmallCategory) {
-    // 대분류 클릭 시: 해당 대분류의 모든 하위 카테고리 row 표출
-    displayCategories = all.filter(c => matchLargeCategory(c.large_category, selectedLargeCategory));
-    filterInfo = `대분류: "${selectedLargeCategory}" (${displayCategories.length}개)`;
-  } else if (selectedLargeCategory && selectedMediumCategory && !selectedSmallCategory) {
     // 중분류만 추출
     const mediums = Array.from(new Set(all.filter(c => matchLargeCategory(c.large_category, selectedLargeCategory) && c.medium_category).map(c => c.medium_category)));
     displayCategories = all.filter(c => matchLargeCategory(c.large_category, selectedLargeCategory));
     filterInfo = `대분류: "${selectedLargeCategory}" (${mediums.length} 중분류)`;
     if (showAllMedium) filterInfo += ' - 전체 중분류 보기';
+  } else if (selectedLargeCategory && selectedMediumCategory && !selectedSmallCategory) {
+    // 소분류만 추출
+    const smalls = Array.from(new Set(all.filter(c => matchLargeCategory(c.large_category, selectedLargeCategory) && c.medium_category === selectedMediumCategory && c.small_category).map(c => c.small_category)));
+    displayCategories = all.filter(c => matchLargeCategory(c.large_category, selectedLargeCategory) && c.medium_category === selectedMediumCategory);
+    filterInfo = `중분류: "${selectedMediumCategory}" (${smalls.length} 소분류)`;
+    if (showAllSmall) filterInfo += ' - 전체 소분류 보기';
   } else if (selectedLargeCategory && selectedMediumCategory && selectedSmallCategory) {
     // 세분류만 추출
     const smallests = Array.from(new Set(all.filter(c => matchLargeCategory(c.large_category, selectedLargeCategory) && c.medium_category === selectedMediumCategory && c.small_category === selectedSmallCategory && c.smallest_category).map(c => c.smallest_category)));
