@@ -226,7 +226,25 @@ const CategoryList = ({ selectedLevel, onLevelFilter, refetchRef }: CategoryList
     setSelectedLargeCategory(largeCategory === selectedLargeCategory ? null : largeCategory);
   };
 
-  const parsedCategoriesAll = categoriesData?.parsedCategoriesAll || [];
+  // 하위 분류 전체 필터링 및 갯수 집계
+  let displayCategories = categoriesData?.categories || [];
+  let filterInfo = '';
+  let subCounts = { medium: 0, small: 0, smallest: 0 };
+  if (selectedLevel === 1 && selectedLargeCategory) {
+    // 하위 분류 전체 추출
+    const all = categoriesData?.parsedCategoriesAll || [];
+    const medium = all.filter(c => c.large_category === selectedLargeCategory && c.category_level === 2);
+    const small = all.filter(c => c.large_category === selectedLargeCategory && c.category_level === 3);
+    const smallest = all.filter(c => c.large_category === selectedLargeCategory && c.category_level === 4);
+    subCounts = { medium: medium.length, small: small.length, smallest: smallest.length };
+    // 대분류 클릭 시 하위 전체 표출
+    displayCategories = all.filter(c => c.large_category === selectedLargeCategory);
+    filterInfo = `\"${selectedLargeCategory}\" 하위: 중분류(${subCounts.medium}), 소분류(${subCounts.small}), 세분류(${subCounts.smallest})`;
+  } else if (selectedLevel) {
+    filterInfo = `${getLevelName(selectedLevel)} (${categoriesData?.totalCount || 0}개)`;
+  } else {
+    filterInfo = `전체 (${categoriesData?.totalCount || 0}개)`;
+  }
 
   if (categoriesError) {
     console.error('카테고리 로딩 오류:', categoriesError);
@@ -249,6 +267,10 @@ const CategoryList = ({ selectedLevel, onLevelFilter, refetchRef }: CategoryList
           등록된 네이버 카테고리 정보를 확인합니다. 로그인 시 카테고리 클릭으로 인기검색어를 확인할 수 있습니다.
           {categoriesData && ` (총 ${categoriesData.totalCount}개)`}
         </CardDescription>
+        {/* 현재 필터/분류/갯수 안내 */}
+        <div className="mt-2 text-sm text-blue-700 font-semibold">
+          {filterInfo}
+        </div>
       </CardHeader>
       <CardContent>
         <div className="space-y-4">
@@ -270,7 +292,21 @@ const CategoryList = ({ selectedLevel, onLevelFilter, refetchRef }: CategoryList
               </Button>
             )}
           </div>
-          
+          {/* 대분류일 때만 대분류 클릭 활성화 */}
+          {selectedLevel === 1 && (
+            <div className="flex flex-wrap gap-2 mt-2">
+              {(categoriesData?.categories || []).map((cat) => (
+                <Button
+                  key={cat.category_id}
+                  size="sm"
+                  variant={selectedLargeCategory === cat.large_category ? 'default' : 'outline'}
+                  onClick={() => handleLargeCategoryClick(cat.large_category)}
+                >
+                  {cat.large_category}
+                </Button>
+              ))}
+            </div>
+          )}
           {categoriesLoading ? (
             <div className="text-center py-8">
               <p>로딩 중...</p>
@@ -283,10 +319,10 @@ const CategoryList = ({ selectedLevel, onLevelFilter, refetchRef }: CategoryList
                 </AlertDescription>
               </Alert>
             </div>
-          ) : categoriesData && categoriesData.categories.length > 0 ? (
+          ) : displayCategories.length > 0 ? (
             <>
               <CategoryListTable 
-                categories={categoriesData.categories}
+                categories={displayCategories}
                 sortField={sortField}
                 sortDirection={sortDirection}
                 onSort={handleSort}
@@ -297,7 +333,7 @@ const CategoryList = ({ selectedLevel, onLevelFilter, refetchRef }: CategoryList
                 <CategoryPagination 
                   currentPage={currentPage}
                   totalPages={categoriesData.totalPages}
-                  totalCount={categoriesData.totalCount}
+                  totalCount={displayCategories.length}
                   onPageChange={handlePageChange}
                 />
               )}
