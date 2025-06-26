@@ -1,5 +1,4 @@
-
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Shield, User } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -13,6 +12,7 @@ import { Card, CardContent } from "@/components/ui/card";
 const ServiceManager = () => {
   const [selectedLevel, setSelectedLevel] = useState<number | null>(null);
   const { user } = useAuth();
+  const uploadHistoryRef = useRef<any>(null);
 
   // 관리자 권한 확인 (june@nanumlab.com만 허용)
   const isAdmin = user?.email === 'june@nanumlab.com';
@@ -60,17 +60,19 @@ const ServiceManager = () => {
       {user && <ApiKeyManager />}
 
       {/* CSV/JSON 업로드 섹션 - 로그인 후에만 표시 */}
-      {user && <CategoryUpload isAdmin={isAdmin} />}
+      {user && <CategoryUpload isAdmin={isAdmin} onUploadSuccess={() => uploadHistoryRef.current?.()} />}
 
       {/* 업로드 기록 - 로그인 후에만 표시 */}
-      {user && <UploadHistory />}
+      {user && <UploadHistory refetchRef={uploadHistoryRef} />}
 
       {/* 카테고리 통계 - 항상 표시 */}
       <CategoryStats onLevelFilter={handleLevelFilter} />
 
       {/* 카테고리 목록 - 로그인 후에만 표시 */}
       {user ? (
-        <CategoryList selectedLevel={selectedLevel} onLevelFilter={handleLevelFilter} />
+        <div id="category-list-section">
+          <CategoryList selectedLevel={selectedLevel} onLevelFilter={handleLevelFilter} />
+        </div>
       ) : (
         <Card className="border-gray-200">
           <CardContent className="p-6 text-center">

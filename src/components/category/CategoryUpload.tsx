@@ -12,9 +12,10 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 interface CategoryUploadProps {
   isAdmin: boolean;
+  onUploadSuccess?: () => void;
 }
 
-const CategoryUpload = ({ isAdmin }: CategoryUploadProps) => {
+const CategoryUpload = ({ isAdmin, onUploadSuccess }: CategoryUploadProps) => {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadFormat, setUploadFormat] = useState<'csv' | 'json'>('csv');
@@ -66,6 +67,12 @@ const CategoryUpload = ({ isAdmin }: CategoryUploadProps) => {
       queryClient.invalidateQueries({ queryKey: ['category-uploads'] });
       setIsUploading(false);
       setUploadProgress(0);
+      // 업로드 성공 시 카테고리 목록 영역으로 스크롤 이동
+      setTimeout(() => {
+        document.getElementById('category-list-section')?.scrollIntoView({ behavior: 'smooth' });
+      }, 500);
+      // 업로드 성공 콜백 (UploadHistory 등 새로고침)
+      if (onUploadSuccess) onUploadSuccess();
     },
     onError: (error) => {
       toast({
@@ -151,9 +158,18 @@ const CategoryUpload = ({ isAdmin }: CategoryUploadProps) => {
         throw new Error('파일에 유효한 데이터가 없습니다.');
       }
 
-      // --- 카테고리번호 매핑 검증 추가 ---
-      // 업로드 파일에서 모든 카테고리번호 추출
+      // --- 업로드 파일 내 중복/빈값 체크 ---
       const categoryNumbers = data.map(row => row['카테고리번호']).filter(Boolean);
+      if (categoryNumbers.length !== data.length) {
+        throw new Error('카테고리번호가 비어있는 행이 있습니다.');
+      }
+      const duplicates = categoryNumbers.filter((item, idx) => categoryNumbers.indexOf(item) !== idx);
+      if (duplicates.length > 0) {
+        throw new Error(`중복된 카테고리번호가 있습니다: ${[...new Set(duplicates)].slice(0, 5).join(', ')}${duplicates.length > 5 ? ' 외 ' + (duplicates.length - 5) + '건' : ''}`);
+      }
+      // --- 중복/빈값 체크 끝 ---
+
+      // --- 카테고리번호 매핑 검증 추가 ---
       // DB에서 모든 category_id 조회
       const { data: dbCategories, error: dbError } = await supabase
         .from('naver_categories')
