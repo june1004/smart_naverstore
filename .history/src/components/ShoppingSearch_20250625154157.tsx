@@ -1,4 +1,3 @@
-import * as React from "react";
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -453,7 +452,7 @@ const ShoppingSearch = () => {
               <div className="flex items-center gap-2">
                 <span className="font-semibold">카테고리 분석</span>
                 {searchHistory.categoryAnalysis.mainCategory && (
-                  <Badge className="text-xs">
+                  <Badge variant="outline" className="text-sm">
                     주요: {searchHistory.categoryAnalysis.mainCategory[0]} ({searchHistory.categoryAnalysis.mainCategory[1]}개)
                   </Badge>
                 )}
@@ -466,7 +465,7 @@ const ShoppingSearch = () => {
                     {searchHistory.categoryAnalysis.mainCategory && (
                       <div>
                         <h4 className="font-medium mb-2">주요 카테고리</h4>
-                        <Badge className="text-xs">
+                        <Badge variant="outline" className="text-sm">
                           {searchHistory.categoryAnalysis.mainCategory[0]} ({searchHistory.categoryAnalysis.mainCategory[1]}개)
                         </Badge>
                       </div>
@@ -475,7 +474,7 @@ const ShoppingSearch = () => {
                       <h4 className="font-medium mb-2">전체 카테고리 분포</h4>
                       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
                         {searchHistory.categoryAnalysis.allCategories.slice(0, 12).map(([category, count], index) => (
-                          <Badge variant="secondary" className="text-xs">
+                          <Badge key={index} variant="secondary" className="text-xs">
                             {category.split('>')[0]} ({count})
                           </Badge>
                         ))}
@@ -637,7 +636,7 @@ const ShoppingSearch = () => {
                             />
                           </TableCell>
                           <TableCell className="text-center">
-                            <Badge className="text-xs">
+                            <Badge variant="outline" className="text-xs">
                               {item.mallName}
                             </Badge>
                           </TableCell>
@@ -694,12 +693,12 @@ const ShoppingSearch = () => {
                             {item.integrationSearchRatio || "0.00"}%
                           </TableCell>
                           <TableCell className="text-center text-sm">
-                            <Badge variant="outline" className="text-xs">
+                            <Badge variant={item.brandKeywordType === "브랜드" ? "default" : "secondary"} className="text-xs">
                               {item.brandKeywordType || "일반"}
                             </Badge>
                           </TableCell>
                           <TableCell className="text-center text-sm">
-                            <Badge variant="outline" className="text-xs">
+                            <Badge variant={item.shoppingMallKeyword === "쇼핑몰" ? "default" : "secondary"} className="text-xs">
                               {item.shoppingMallKeyword || "일반"}
                             </Badge>
                           </TableCell>

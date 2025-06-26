@@ -1,10 +1,9 @@
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Database } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Button } from "@/components/ui/button";
-import { MutableRefObject, useEffect } from "react";
 
 interface UploadRecord {
   id: string;
@@ -16,29 +15,20 @@ interface UploadRecord {
   created_at: string;
 }
 
-interface UploadHistoryProps {
-  onReloadAll?: () => void;
-  refetchRef?: MutableRefObject<any>;
-}
-
-const UploadHistory = ({ onReloadAll, refetchRef }: UploadHistoryProps) => {
+const UploadHistory = () => {
   // 업로드 기록 조회
-  const { data: uploadHistory, refetch } = useQuery({
+  const { data: uploadHistory } = useQuery({
     queryKey: ['category-uploads'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('category_uploads')
         .select('*')
         .order('created_at', { ascending: false })
-        .limit(1);
+        .limit(10);
       if (error) throw error;
       return data as UploadRecord[];
     },
   });
-
-  useEffect(() => {
-    if (refetchRef) refetchRef.current = refetch;
-  }, [refetch, refetchRef]);
 
   if (!uploadHistory || uploadHistory.length === 0) {
     return null;
@@ -50,14 +40,11 @@ const UploadHistory = ({ onReloadAll, refetchRef }: UploadHistoryProps) => {
         <CardTitle className="flex items-center gap-2">
           <Database className="h-5 w-5" />
           최근 업로드 기록
-          <Button size="sm" variant="outline" className="ml-auto" onClick={() => onReloadAll ? onReloadAll() : refetch()}>
-            리로드
-          </Button>
         </CardTitle>
       </CardHeader>
       <CardContent>
         <div className="space-y-2">
-          {uploadHistory.map((record) => (
+          {uploadHistory.slice(0, 5).map((record) => (
             <div key={record.id} className="flex items-center justify-between p-3 border rounded-lg">
               <div>
                 <p className="font-medium">{record.filename}</p>

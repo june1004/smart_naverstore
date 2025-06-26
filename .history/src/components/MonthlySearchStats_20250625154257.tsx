@@ -3,7 +3,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { Badge, BadgeProps } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { Search, Download } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -190,14 +190,14 @@ const MonthlySearchStats = () => {
   };
 
   // 컴포넌트 마운트 시 저장된 데이터 복원
-  React.useEffect(() => {
+  React.useState(() => {
     const savedHistory = localStorage.getItem('monthlyStatsHistory');
     if (savedHistory) {
       const parsedHistory = JSON.parse(savedHistory);
       setKeyword(parsedHistory.keyword);
       setMonthlyData(parsedHistory.data);
     }
-  }, []);
+  });
 
   const filteredMonthlyData = searchFilter.trim()
     ? monthlyData.filter(item =>

@@ -1,4 +1,4 @@
-import * as React from "react";
+
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -45,7 +45,6 @@ const MonthlySearchStats = () => {
   const [monthlyData, setMonthlyData] = useState<MonthlyStats[]>([]);
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
-  const [searchFilter, setSearchFilter] = useState("");
 
   const generateMonthlyStats = async () => {
     if (!keyword.trim()) {
@@ -64,7 +63,7 @@ const MonthlySearchStats = () => {
       const { data, error } = await supabase.functions.invoke('naver-shopping-search', {
         body: { 
           keyword: keyword.trim(),
-          display: 100,
+          display: 30,
           start: 1,
           sort: 'sim'
         }
@@ -190,20 +189,14 @@ const MonthlySearchStats = () => {
   };
 
   // 컴포넌트 마운트 시 저장된 데이터 복원
-  React.useEffect(() => {
+  useState(() => {
     const savedHistory = localStorage.getItem('monthlyStatsHistory');
     if (savedHistory) {
       const parsedHistory = JSON.parse(savedHistory);
       setKeyword(parsedHistory.keyword);
       setMonthlyData(parsedHistory.data);
     }
-  }, []);
-
-  const filteredMonthlyData = searchFilter.trim()
-    ? monthlyData.filter(item =>
-        item.productName.toLowerCase().includes(searchFilter.trim().toLowerCase())
-      )
-    : monthlyData;
+  });
 
   return (
     <div className="space-y-6">
@@ -238,21 +231,13 @@ const MonthlySearchStats = () => {
                     키워드: <span className="font-medium">{keyword}</span>
                   </div>
                   <div className="text-sm text-gray-600">
-                    총 검색결과: {filteredMonthlyData.length}개
+                    총 검색결과: {monthlyData.length}개
                   </div>
                 </div>
-                <div className="flex gap-2 items-center">
-                  <Input
-                    placeholder="상품명 검색..."
-                    value={searchFilter}
-                    onChange={e => setSearchFilter(e.target.value)}
-                    className="w-48"
-                  />
-                  <Button onClick={downloadExcel} variant="outline" className="gap-2">
-                    <Download className="h-4 w-4" />
-                    엑셀다운로드
-                  </Button>
-                </div>
+                <Button onClick={downloadExcel} variant="outline" className="gap-2">
+                  <Download className="h-4 w-4" />
+                  엑셀다운로드
+                </Button>
               </div>
             </CardContent>
           </Card>
@@ -279,7 +264,7 @@ const MonthlySearchStats = () => {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {filteredMonthlyData.map((item, index) => (
+                      {monthlyData.map((item, index) => (
                         <TableRow key={index} className="hover:bg-gray-50">
                           <TableCell className="text-center font-medium">
                             {item.rank}

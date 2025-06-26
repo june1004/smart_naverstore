@@ -1,10 +1,11 @@
-import { useState, useRef } from "react";
+
+import { useState } from "react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Shield } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import CategoryUpload from "./category/CategoryUpload";
-import UploadHistory from "./category/UploadHistory";
 import CategoryStats from "./category/CategoryStats";
+import UploadHistory from "./category/UploadHistory";
 import CategoryList from "./category/CategoryList";
 
 const CategoryManager = () => {
@@ -16,16 +17,6 @@ const CategoryManager = () => {
 
   const handleLevelFilter = (level: number | null) => {
     setSelectedLevel(level);
-  };
-
-  // refetch 함수 참조 저장
-  const statsRef = useRef<any>(null);
-  const listRef = useRef<any>(null);
-  const uploadRef = useRef<any>(null);
-  const handleReloadAll = () => {
-    if (uploadRef.current) uploadRef.current();
-    if (statsRef.current) statsRef.current();
-    if (listRef.current) listRef.current();
   };
 
   return (
@@ -53,13 +44,13 @@ const CategoryManager = () => {
       <CategoryUpload isAdmin={isAdmin} />
 
       {/* 업로드 기록 */}
-      <UploadHistory onReloadAll={handleReloadAll} refetchRef={uploadRef} />
+      <UploadHistory />
 
       {/* 카테고리 통계 */}
-      <CategoryStats onLevelFilter={handleLevelFilter} refetchRef={statsRef} />
+      <CategoryStats onLevelFilter={handleLevelFilter} />
 
       {/* 카테고리 목록 */}
-      <CategoryList selectedLevel={selectedLevel} onLevelFilter={handleLevelFilter} refetchRef={listRef} />
+      <CategoryList selectedLevel={selectedLevel} onLevelFilter={handleLevelFilter} />
     </div>
   );
 };

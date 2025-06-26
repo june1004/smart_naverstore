@@ -1,4 +1,3 @@
-import * as React from "react";
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -84,7 +83,6 @@ const ShoppingSearch = () => {
   const [selectedSort, setSelectedSort] = useState<string>('sim');
   const { toast } = useToast();
   const { sharedKeyword, setSharedKeyword } = useKeyword();
-  const [searchFilter, setSearchFilter] = useState("");
 
   // 공유된 키워드로 초기화
   useEffect(() => {
@@ -192,7 +190,7 @@ const ShoppingSearch = () => {
       const { data, error } = await supabase.functions.invoke('naver-shopping-search', {
         body: { 
           keyword: keyword.trim(),
-          display: 100,
+          display: 30,
           start: 1,
           sort: naverSort
         }
@@ -260,20 +258,9 @@ const ShoppingSearch = () => {
 
   const getSortedResults = () => {
     if (!searchHistory?.results) return [];
+    
     let results = [...searchHistory.results];
-
-    // 상품명(키워드) 필터링
-    if (searchFilter.trim()) {
-      results = results.filter(item =>
-        item.title.replace(/<[^>]*>/g, '').toLowerCase().includes(searchFilter.trim().toLowerCase())
-      );
-    }
-
-    // 네이버 랭킹순(기본)일 때는 원본 순서 유지
-    if ((selectedSort === 'sim' || !selectedSort) && (!sortField || sortField === 'registeredAt')) {
-      return results;
-    }
-
+    
     // 클라이언트 사이드 정렬
     if (selectedSort === 'review-count') {
       results.sort((a, b) => (b.reviewCount || 0) - (a.reviewCount || 0));
@@ -282,7 +269,7 @@ const ShoppingSearch = () => {
     } else if (selectedSort === 'registration-date') {
       results.sort((a, b) => new Date(b.registeredAt).getTime() - new Date(a.registeredAt).getTime());
     }
-
+    
     // 추가 정렬이 필요한 경우
     if (sortField && selectedSort !== 'review-count' && selectedSort !== 'review-score' && selectedSort !== 'registration-date') {
       results.sort((a, b) => {
@@ -303,7 +290,7 @@ const ShoppingSearch = () => {
         return sortDirection === 'asc' ? aValue - bValue : bValue - aValue;
       });
     }
-
+    
     return results;
   };
 
@@ -453,7 +440,7 @@ const ShoppingSearch = () => {
               <div className="flex items-center gap-2">
                 <span className="font-semibold">카테고리 분석</span>
                 {searchHistory.categoryAnalysis.mainCategory && (
-                  <Badge className="text-xs">
+                  <Badge variant="outline" className="text-sm">
                     주요: {searchHistory.categoryAnalysis.mainCategory[0]} ({searchHistory.categoryAnalysis.mainCategory[1]}개)
                   </Badge>
                 )}
@@ -466,7 +453,7 @@ const ShoppingSearch = () => {
                     {searchHistory.categoryAnalysis.mainCategory && (
                       <div>
                         <h4 className="font-medium mb-2">주요 카테고리</h4>
-                        <Badge className="text-xs">
+                        <Badge variant="outline" className="text-sm">
                           {searchHistory.categoryAnalysis.mainCategory[0]} ({searchHistory.categoryAnalysis.mainCategory[1]}개)
                         </Badge>
                       </div>
@@ -475,7 +462,7 @@ const ShoppingSearch = () => {
                       <h4 className="font-medium mb-2">전체 카테고리 분포</h4>
                       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
                         {searchHistory.categoryAnalysis.allCategories.slice(0, 12).map(([category, count], index) => (
-                          <Badge variant="secondary" className="text-xs">
+                          <Badge key={index} variant="secondary" className="text-xs">
                             {category.split('>')[0]} ({count})
                           </Badge>
                         ))}
@@ -505,18 +492,10 @@ const ShoppingSearch = () => {
                   총 검색결과: {searchHistory.results.length}개
                 </div>
               </div>
-              <div className="flex gap-2 items-center">
-                <Input
-                  placeholder="상품명 검색..."
-                  value={searchFilter}
-                  onChange={e => setSearchFilter(e.target.value)}
-                  className="w-48"
-                />
-                <Button onClick={downloadExcel} variant="outline" className="gap-2">
-                  <Download className="h-4 w-4" />
-                  엑셀다운로드
-                </Button>
-              </div>
+              <Button onClick={downloadExcel} variant="outline" className="gap-2">
+                <Download className="h-4 w-4" />
+                엑셀다운로드
+              </Button>
             </div>
           </CardContent>
         </Card>
@@ -637,7 +616,7 @@ const ShoppingSearch = () => {
                             />
                           </TableCell>
                           <TableCell className="text-center">
-                            <Badge className="text-xs">
+                            <Badge variant="outline" className="text-xs">
                               {item.mallName}
                             </Badge>
                           </TableCell>
@@ -694,12 +673,12 @@ const ShoppingSearch = () => {
                             {item.integrationSearchRatio || "0.00"}%
                           </TableCell>
                           <TableCell className="text-center text-sm">
-                            <Badge variant="outline" className="text-xs">
+                            <Badge variant={item.brandKeywordType === "브랜드" ? "default" : "secondary"} className="text-xs">
                               {item.brandKeywordType || "일반"}
                             </Badge>
                           </TableCell>
                           <TableCell className="text-center text-sm">
-                            <Badge variant="outline" className="text-xs">
+                            <Badge variant={item.shoppingMallKeyword === "쇼핑몰" ? "default" : "secondary"} className="text-xs">
                               {item.shoppingMallKeyword || "일반"}
                             </Badge>
                           </TableCell>

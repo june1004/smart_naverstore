@@ -1,4 +1,3 @@
-import * as React from "react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -190,14 +189,14 @@ const MonthlySearchStats = () => {
   };
 
   // 컴포넌트 마운트 시 저장된 데이터 복원
-  React.useEffect(() => {
+  useState(() => {
     const savedHistory = localStorage.getItem('monthlyStatsHistory');
     if (savedHistory) {
       const parsedHistory = JSON.parse(savedHistory);
       setKeyword(parsedHistory.keyword);
       setMonthlyData(parsedHistory.data);
     }
-  }, []);
+  });
 
   const filteredMonthlyData = searchFilter.trim()
     ? monthlyData.filter(item =>
@@ -302,7 +301,7 @@ const MonthlySearchStats = () => {
                             </div>
                           </TableCell>
                           <TableCell className="text-center">
-                            <Badge variant="outline" className="text-xs">
+                            <Badge className="text-xs">
                               {item.company}
                             </Badge>
                           </TableCell>

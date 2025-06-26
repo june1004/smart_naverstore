@@ -1,4 +1,3 @@
-import * as React from "react";
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -475,7 +474,7 @@ const ShoppingSearch = () => {
                       <h4 className="font-medium mb-2">전체 카테고리 분포</h4>
                       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
                         {searchHistory.categoryAnalysis.allCategories.slice(0, 12).map(([category, count], index) => (
-                          <Badge variant="secondary" className="text-xs">
+                          <Badge key={index} className="text-xs">
                             {category.split('>')[0]} ({count})
                           </Badge>
                         ))}
@@ -694,12 +693,12 @@ const ShoppingSearch = () => {
                             {item.integrationSearchRatio || "0.00"}%
                           </TableCell>
                           <TableCell className="text-center text-sm">
-                            <Badge variant="outline" className="text-xs">
+                            <Badge className="text-xs">
                               {item.brandKeywordType || "일반"}
                             </Badge>
                           </TableCell>
                           <TableCell className="text-center text-sm">
-                            <Badge variant="outline" className="text-xs">
+                            <Badge className="text-xs">
                               {item.shoppingMallKeyword || "일반"}
                             </Badge>
                           </TableCell>
