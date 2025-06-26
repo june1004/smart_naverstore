@@ -228,9 +228,14 @@ const CategoryList = ({ selectedLevel, onLevelFilter, refetchRef }: CategoryList
     setSelectedLargeCategory(largeCategory === selectedLargeCategory ? null : largeCategory);
   };
 
-  // 대분류만 추출 (category_level === 1 && parent_category_id === null)
+  // 대분류만 추출 (category_level === 1, 대분류명 기준 unique)
   const all = categoriesData?.parsedCategoriesAll || [];
-  const largeCategories = all.filter(c => c.category_level === 1 && (!c.parent_category_id || c.parent_category_id === ''));
+  const largeCategories = Array.from(
+    new Map(
+      all.filter(c => c.category_level === 1)
+        .map(c => [c.large_category, c])
+    ).values()
+  );
 
   // 하위 분류 전체 필터링 및 갯수 집계
   let displayCategories = categoriesData?.categories || [];
