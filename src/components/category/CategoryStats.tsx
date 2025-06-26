@@ -4,17 +4,19 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import { MutableRefObject, useEffect } from "react";
 
 interface CategoryStatsProps {
   onLevelFilter: (level: number | null) => void;
+  refetchRef?: MutableRefObject<any>;
 }
 
-const CategoryStats = ({ onLevelFilter }: CategoryStatsProps) => {
+const CategoryStats = ({ onLevelFilter, refetchRef }: CategoryStatsProps) => {
   const { user } = useAuth();
   const { toast } = useToast();
 
   // 카테고리 통계 조회 (실제 데이터베이스에서 정확한 카운트)
-  const { data: categoryStats, isLoading } = useQuery({
+  const { data: categoryStats, isLoading, refetch } = useQuery({
     queryKey: ['category-stats'],
     queryFn: async () => {
       console.log('카테고리 통계 조회 시작 - 레벨별 카운트');
@@ -31,7 +33,7 @@ const CategoryStats = ({ onLevelFilter }: CategoryStatsProps) => {
           throw totalError;
         }
 
-        // 모든 카테고리 데이터 조회
+        // 대/중/소/세분류 유니크 값 쿼리
         const { data: allCategories, error: categoriesError } = await supabase
           .from('naver_categories')
           .select('category_path')
@@ -42,7 +44,6 @@ const CategoryStats = ({ onLevelFilter }: CategoryStatsProps) => {
           throw categoriesError;
         }
 
-        // 분류별 유니크 값, 개수, 예시 추출
         const largeSet = new Set<string>();
         const mediumSet = new Set<string>();
         const smallSet = new Set<string>();
@@ -74,6 +75,10 @@ const CategoryStats = ({ onLevelFilter }: CategoryStatsProps) => {
     },
     refetchInterval: 30000, // 30초마다 자동 갱신
   });
+
+  useEffect(() => {
+    if (refetchRef) refetchRef.current = refetch;
+  }, [refetch, refetchRef]);
 
   const handleCategoryClick = (level: number | null) => {
     if (!user) {
