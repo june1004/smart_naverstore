@@ -1,4 +1,4 @@
-import { useState, useEffect, MutableRefObject } from "react";
+import { useState, useEffect, MutableRefObject, useMemo } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -9,6 +9,8 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import CategoryListTable from "./CategoryListTable";
 import CategoryPagination from "./CategoryPagination";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Breadcrumb, BreadcrumbItem, BreadcrumbSeparator } from "@/components/ui/breadcrumb";
 
 interface Category {
   id: string;
@@ -282,6 +284,21 @@ const CategoryList = ({ selectedLevel, onLevelFilter, refetchRef }: CategoryList
 
   // 대분류만 추출 (category_level === 1, 대분류명 기준 unique)
   const all = categoriesData?.parsedCategoriesAll || [];
+
+  // 드릴다운 바에 사용할 분류 데이터 메모이제이션 (all 이후로 이동)
+  const allCategoryParts = useMemo(() => all.map(c => parseCategoryPathParts(c.category_path)), [all]);
+  const largeOptions = useMemo(() => Array.from(new Set(allCategoryParts.map(p => p.large))).filter(Boolean), [allCategoryParts]);
+  const mediumOptions = useMemo(() => selectedLargeCategory ? Array.from(new Set(allCategoryParts.filter(p => matchCategory(p.large, selectedLargeCategory)).map(p => p.medium))).filter(Boolean) : [], [allCategoryParts, selectedLargeCategory]);
+  const smallOptions = useMemo(() => selectedLargeCategory && selectedMediumCategory ? Array.from(new Set(allCategoryParts.filter(p => matchCategory(p.large, selectedLargeCategory) && matchCategory(p.medium, selectedMediumCategory)).map(p => p.small))).filter(Boolean) : [], [allCategoryParts, selectedLargeCategory, selectedMediumCategory]);
+  const smallestOptions = useMemo(() => selectedLargeCategory && selectedMediumCategory && selectedSmallCategory ? Array.from(new Set(allCategoryParts.filter(p => matchCategory(p.large, selectedLargeCategory) && matchCategory(p.medium, selectedMediumCategory) && matchCategory(p.small, selectedSmallCategory)).map(p => p.smallest))).filter(Boolean) : [], [allCategoryParts, selectedLargeCategory, selectedMediumCategory, selectedSmallCategory]);
+
+  // 자동완성용 상태 (all 이후로 이동)
+  const [largeSearch, setLargeSearch] = useState("");
+  const [mediumSearch, setMediumSearch] = useState("");
+  const [smallSearch, setSmallSearch] = useState("");
+  const [smallestSearch, setSmallestSearch] = useState("");
+
+  // 대분류만 추출 (category_level === 1, 대분류명 기준 unique)
   const largeCategories = Array.from(
     new Map(
       all
@@ -420,6 +437,73 @@ const CategoryList = ({ selectedLevel, onLevelFilter, refetchRef }: CategoryList
           등록된 네이버 카테고리 정보를 확인합니다. 로그인 시 카테고리 클릭으로 인기검색어를 확인할 수 있습니다.
           {categoriesData && ` (총 ${categoriesData.totalCount}개)`}
         </CardDescription>
+        {/* 드릴다운 바 UI */}
+        <div className="flex flex-col gap-2 mt-4">
+          <Breadcrumb>
+            {selectedLargeCategory && <BreadcrumbItem>{selectedLargeCategory}</BreadcrumbItem>}
+            {selectedMediumCategory && <><BreadcrumbSeparator /> <BreadcrumbItem>{selectedMediumCategory}</BreadcrumbItem></>}
+            {selectedSmallCategory && <><BreadcrumbSeparator /> <BreadcrumbItem>{selectedSmallCategory}</BreadcrumbItem></>}
+            {selectedSmallestCategory && <><BreadcrumbSeparator /> <BreadcrumbItem>{selectedSmallestCategory}</BreadcrumbItem></>}
+          </Breadcrumb>
+          <div className="flex gap-2">
+            {/* 대분류 드롭다운+검색 */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline">{selectedLargeCategory || "대분류 선택"}</Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="max-h-60 overflow-y-auto">
+                <Input placeholder="대분류 검색" value={largeSearch} onChange={e => setLargeSearch(e.target.value)} className="mb-2" />
+                {largeOptions.filter(opt => !largeSearch || opt.includes(largeSearch)).map(opt => (
+                  <DropdownMenuItem key={opt} onClick={() => { setSelectedLargeCategory(opt); setSelectedMediumCategory(null); setSelectedSmallCategory(null); setSelectedSmallestCategory(null); setLargeSearch(""); }}>
+                    {opt}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+            {/* 중분류 드롭다운+검색 */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" disabled={!selectedLargeCategory}>{selectedMediumCategory || "중분류 선택"}</Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="max-h-60 overflow-y-auto">
+                <Input placeholder="중분류 검색" value={mediumSearch} onChange={e => setMediumSearch(e.target.value)} className="mb-2" />
+                {mediumOptions.filter(opt => !mediumSearch || opt.includes(mediumSearch)).map(opt => (
+                  <DropdownMenuItem key={opt} onClick={() => { setSelectedMediumCategory(opt); setSelectedSmallCategory(null); setSelectedSmallestCategory(null); setMediumSearch(""); }}>
+                    {opt}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+            {/* 소분류 드롭다운+검색 */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" disabled={!selectedMediumCategory}>{selectedSmallCategory || "소분류 선택"}</Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="max-h-60 overflow-y-auto">
+                <Input placeholder="소분류 검색" value={smallSearch} onChange={e => setSmallSearch(e.target.value)} className="mb-2" />
+                {smallOptions.filter(opt => !smallSearch || opt.includes(smallSearch)).map(opt => (
+                  <DropdownMenuItem key={opt} onClick={() => { setSelectedSmallCategory(opt); setSelectedSmallestCategory(null); setSmallSearch(""); }}>
+                    {opt}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+            {/* 세분류 드롭다운+검색 */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" disabled={!selectedSmallCategory}>{selectedSmallestCategory || "세분류 선택"}</Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="max-h-60 overflow-y-auto">
+                <Input placeholder="세분류 검색" value={smallestSearch} onChange={e => setSmallestSearch(e.target.value)} className="mb-2" />
+                {smallestOptions.filter(opt => !smallestSearch || opt.includes(smallestSearch)).map(opt => (
+                  <DropdownMenuItem key={opt} onClick={() => { setSelectedSmallestCategory(opt); setSmallestSearch(""); }}>
+                    {opt}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        </div>
         {/* 현재 필터/분류/갯수 안내 */}
         <div className="mt-2 text-sm text-blue-700 font-semibold">
           {filterInfo}
