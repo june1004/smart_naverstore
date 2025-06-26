@@ -206,78 +206,7 @@ const CategoryStats = ({ onLevelFilter, refetchRef }: CategoryStatsProps) => {
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="mb-2 flex gap-2 items-center">
-          <span className="font-bold">카테고리 드릴다운</span>
-          {(selectedLarge || selectedMedium || selectedSmall) && (
-            <button className="ml-2 text-xs text-gray-500 underline" onClick={handleReset}>전체보기</button>
-          )}
-        </div>
-        <div className="flex flex-row gap-4 w-full">
-          {/* 대분류 */}
-          <div className="flex-1 min-w-[120px]">
-            <div className="font-semibold mb-1">대분류</div>
-            <div className="flex flex-col gap-1" style={{ maxHeight: '352px', minHeight: '352px' }}>
-              {largeList.map((name) => (
-                <button
-                  key={name}
-                  className={`px-3 py-1 rounded border text-sm text-left ${selectedLarge === name ? 'bg-blue-100 font-bold border-blue-400' : 'hover:bg-blue-50'}`}
-                  onClick={() => handleLargeClick(name)}
-                >
-                  {name}
-                </button>
-              ))}
-            </div>
-          </div>
-          {/* 중분류 */}
-          <div className="flex-1 min-w-[120px]">
-            <div className="font-semibold mb-1">중분류</div>
-            <div className="flex flex-col gap-1 overflow-y-auto" style={{ maxHeight: '352px', minHeight: '352px' }}>
-              {mediumList.length === 0 && <div className="text-xs text-gray-400">대분류 선택</div>}
-              {mediumList.map((name) => (
-                <button
-                  key={name}
-                  className={`px-3 py-1 rounded border text-sm text-left ${selectedMedium === name ? 'bg-green-100 font-bold border-green-400' : 'hover:bg-green-50'}`}
-                  onClick={() => handleMediumClick(name)}
-                  disabled={!selectedLarge}
-                >
-                  {name}
-                </button>
-              ))}
-            </div>
-          </div>
-          {/* 소분류 */}
-          <div className="flex-1 min-w-[120px]">
-            <div className="font-semibold mb-1">소분류</div>
-            <div className="flex flex-col gap-1 overflow-y-auto" style={{ maxHeight: '352px', minHeight: '352px' }}>
-              {smallList.length === 0 && <div className="text-xs text-gray-400">중분류 선택</div>}
-              {smallList.map((name) => (
-                <button
-                  key={name}
-                  className={`px-3 py-1 rounded border text-sm text-left ${selectedSmall === name ? 'bg-orange-100 font-bold border-orange-400' : 'hover:bg-orange-50'}`}
-                  onClick={() => handleSmallClick(name)}
-                  disabled={!selectedMedium}
-                >
-                  {name}
-                </button>
-              ))}
-            </div>
-          </div>
-          {/* 세분류 */}
-          <div className="flex-1 min-w-[120px]">
-            <div className="font-semibold mb-1">세분류</div>
-            <div className="flex flex-col gap-1 overflow-y-auto" style={{ maxHeight: '352px', minHeight: '352px' }}>
-              {smallestList.length === 0 && <div className="text-xs text-gray-400">소분류 선택</div>}
-              {smallestList.map((name) => (
-                <div
-                  key={name}
-                  className={`px-3 py-1 rounded border text-sm text-left bg-purple-50`}
-                >
-                  {name}
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
+        {/* 드릴다운 UI 삭제됨. 여기에 통계/차트/요약 등만 남길 수 있음 */}
       </CardContent>
     </Card>
   );
