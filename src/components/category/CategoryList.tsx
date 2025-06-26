@@ -1,4 +1,4 @@
-import { useState, useEffect, MutableRefObject } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -42,16 +42,14 @@ type SortDirection = 'asc' | 'desc';
 interface CategoryListProps {
   selectedLevel: number | null;
   onLevelFilter: (level: number | null) => void;
-  refetchRef?: MutableRefObject<any>;
 }
 
-const CategoryList = ({ selectedLevel, onLevelFilter, refetchRef }: CategoryListProps) => {
+const CategoryList = ({ selectedLevel, onLevelFilter }: CategoryListProps) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(20);
   const [sortField, setSortField] = useState<SortField>('category_hierarchy');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
-  const [selectedLargeCategory, setSelectedLargeCategory] = useState<string | null>(null);
 
   // 초기화면에서 대분류만 표시하도록 설정
   useEffect(() => {
@@ -115,7 +113,7 @@ const CategoryList = ({ selectedLevel, onLevelFilter, refetchRef }: CategoryList
   };
 
   // 카테고리 목록 조회
-  const { data: categoriesData, isLoading: categoriesLoading, error: categoriesError, refetch } = useQuery({
+  const { data: categoriesData, isLoading: categoriesLoading, error: categoriesError } = useQuery({
     queryKey: ['naver-categories-paginated', searchTerm, selectedLevel, currentPage, itemsPerPage, sortField, sortDirection],
     queryFn: async () => {
       let query = supabase
@@ -149,19 +147,17 @@ const CategoryList = ({ selectedLevel, onLevelFilter, refetchRef }: CategoryList
 
       // 카테고리 데이터 파싱
       let parsedCategories = data ? data.map(parseCategoryPath) : [];
-      // 전체 데이터 보관 (드릴다운용)
-      const parsedCategoriesAll = parsedCategories;
 
-      if (selectedLevel === 1) {
-        // 대분류만: 대분류 11개만 표출
-        const uniqueLargeCategories = Array.from(new Set(parsedCategories.map(c => c.large_category))).filter(Boolean);
-        parsedCategories = uniqueLargeCategories.map(lc => parsedCategories.find(c => c.large_category === lc)).filter(Boolean) as ParsedCategory[];
-      } else if (selectedLevel !== null) {
-        // 중/소/세분류: 해당 레벨 전체 표출
+      // 분류별 필터링
+      if (selectedLevel !== null) {
         parsedCategories = parsedCategories.filter(category => {
           const actualLevel = getActualLevel(category);
           return actualLevel === selectedLevel;
         });
+        // 대분류만: 대분류 11개만
+        // 중분류: 대+중 조합 전체
+        // 소분류: 대+중+소 조합 전체
+        // 세분류: 대+중+소+세 조합 전체
       }
 
       // 계층구조 정렬이 선택된 경우 클라이언트에서 정렬
@@ -179,15 +175,10 @@ const CategoryList = ({ selectedLevel, onLevelFilter, refetchRef }: CategoryList
       return {
         categories: paginatedCategories,
         totalCount,
-        totalPages,
-        parsedCategoriesAll
+        totalPages
       };
     },
   });
-
-  useEffect(() => {
-    if (refetchRef) refetchRef.current = refetch;
-  }, [refetch, refetchRef]);
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -220,13 +211,6 @@ const CategoryList = ({ selectedLevel, onLevelFilter, refetchRef }: CategoryList
       default: return `${level}분류`;
     }
   };
-
-  // 대분류 드릴다운: 대분류 클릭 시 하위 분류 전체 표출
-  const handleLargeCategoryClick = (largeCategory: string) => {
-    setSelectedLargeCategory(largeCategory === selectedLargeCategory ? null : largeCategory);
-  };
-
-  const parsedCategoriesAll = categoriesData?.parsedCategoriesAll || [];
 
   if (categoriesError) {
     console.error('카테고리 로딩 오류:', categoriesError);
