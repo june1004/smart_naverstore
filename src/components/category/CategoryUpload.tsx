@@ -1,4 +1,3 @@
-
 import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -151,6 +150,24 @@ const CategoryUpload = ({ isAdmin }: CategoryUploadProps) => {
       if (data.length === 0) {
         throw new Error('파일에 유효한 데이터가 없습니다.');
       }
+
+      // --- 카테고리번호 매핑 검증 추가 ---
+      // 업로드 파일에서 모든 카테고리번호 추출
+      const categoryNumbers = data.map(row => row['카테고리번호']).filter(Boolean);
+      // DB에서 모든 category_id 조회
+      const { data: dbCategories, error: dbError } = await supabase
+        .from('naver_categories')
+        .select('category_id');
+      if (dbError) {
+        throw new Error('DB에서 카테고리 정보를 불러오지 못했습니다.');
+      }
+      const dbCategoryIds = dbCategories?.map(cat => cat.category_id) || [];
+      // 매핑 안 되는 카테고리번호 찾기
+      const notMatched = categoryNumbers.filter(num => !dbCategoryIds.includes(num));
+      if (notMatched.length > 0) {
+        throw new Error(`DB에 없는 카테고리번호가 있습니다: ${notMatched.slice(0, 5).join(', ')}${notMatched.length > 5 ? ' 외 ' + (notMatched.length - 5) + '건' : ''}`);
+      }
+      // --- 매핑 검증 끝 ---
 
       console.log(`파일 처리 완료: ${data.length}개 행`);
 
