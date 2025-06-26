@@ -306,31 +306,26 @@ const CategoryList = ({ selectedLevel, onLevelFilter, refetchRef }: CategoryList
     };
   }
 
-  // 문자열 normalize (공백/대소문자 제거)
-  function normalize(str: string) {
-    return (str || '').replace(/\s/g, '').toLowerCase();
-  }
-
   // 드릴다운 필터링
   let displayCategories = categoriesData?.categories || [];
   let filterInfo = '';
   if (selectedLargeCategory && !selectedMediumCategory && !selectedSmallCategory) {
-    // 대분류 클릭 시: category_path의 첫 파트 normalize 비교
-    displayCategories = all.filter(c => normalize(parseCategoryPathParts(c.category_path).large) === normalize(selectedLargeCategory));
+    // 대분류 클릭 시: category_path의 첫 파트로만 필터링
+    displayCategories = all.filter(c => parseCategoryPathParts(c.category_path).large === selectedLargeCategory);
     filterInfo = `대분류: "${selectedLargeCategory}" (${displayCategories.length}개)`;
   } else if (selectedLargeCategory && selectedMediumCategory && !selectedSmallCategory) {
-    // 중분류 클릭 시: category_path의 첫, 두 번째 파트 normalize 비교
+    // 중분류 클릭 시: category_path의 첫, 두 번째 파트로 필터링
     displayCategories = all.filter(c => {
       const parts = parseCategoryPathParts(c.category_path);
-      return normalize(parts.large) === normalize(selectedLargeCategory) && normalize(parts.medium) === normalize(selectedMediumCategory);
+      return parts.large === selectedLargeCategory && parts.medium === selectedMediumCategory;
     });
     filterInfo = `중분류: "${selectedMediumCategory}" (${displayCategories.length}개)`;
     if (showAllMedium) filterInfo += ' - 전체 중분류 보기';
   } else if (selectedLargeCategory && selectedMediumCategory && selectedSmallCategory) {
-    // 소분류 클릭 시: category_path의 첫~세 번째 파트 normalize 비교
+    // 소분류 클릭 시: category_path의 첫~세 번째 파트로 필터링
     displayCategories = all.filter(c => {
       const parts = parseCategoryPathParts(c.category_path);
-      return normalize(parts.large) === normalize(selectedLargeCategory) && normalize(parts.medium) === normalize(selectedMediumCategory) && normalize(parts.small) === normalize(selectedSmallCategory);
+      return parts.large === selectedLargeCategory && parts.medium === selectedMediumCategory && parts.small === selectedSmallCategory;
     });
     filterInfo = `소분류: "${selectedSmallCategory}" (${displayCategories.length}개)`;
     if (showAllSmallest) filterInfo += ' - 전체 세분류 보기';

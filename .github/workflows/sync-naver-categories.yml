@@ -1,0 +1,20 @@
+name: Sync Naver Categories
+
+on:
+  schedule:
+    - cron: '0 3 * * *' # 매일 새벽 3시
+  workflow_dispatch:
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 18
+      - run: npm install axios cheerio
+      - run: node scripts/sync-naver-categories.js
+        env:
+          SUPABASE_API_KEY: ${{ secrets.SUPABASE_API_KEY }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }} 
