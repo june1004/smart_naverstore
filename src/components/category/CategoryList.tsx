@@ -34,6 +34,7 @@ interface ParsedCategory {
   category_path: string;
   is_active: boolean;
   created_at: string;
+  parent_category_id?: string;
 }
 
 type SortField = 'category_id' | 'category_name' | 'category_hierarchy' | 'category_path' | 'created_at';
@@ -74,7 +75,8 @@ const CategoryList = ({ selectedLevel, onLevelFilter, refetchRef }: CategoryList
       category_level: category.category_level,
       category_path: category.category_path || '',
       is_active: category.is_active,
-      created_at: category.created_at
+      created_at: category.created_at,
+      parent_category_id: category.parent_category_id,
     };
   };
 
@@ -226,20 +228,31 @@ const CategoryList = ({ selectedLevel, onLevelFilter, refetchRef }: CategoryList
     setSelectedLargeCategory(largeCategory === selectedLargeCategory ? null : largeCategory);
   };
 
+  // 대분류만 추출 (category_level === 1 && parent_category_id === null)
+  const all = categoriesData?.parsedCategoriesAll || [];
+  const largeCategories = all.filter(c => c.category_level === 1 && (!c.parent_category_id || c.parent_category_id === ''));
+
   // 하위 분류 전체 필터링 및 갯수 집계
   let displayCategories = categoriesData?.categories || [];
   let filterInfo = '';
   let subCounts = { medium: 0, small: 0, smallest: 0 };
   if (selectedLevel === 1 && selectedLargeCategory) {
-    // 하위 분류 전체 추출
-    const all = categoriesData?.parsedCategoriesAll || [];
-    const medium = all.filter(c => c.large_category === selectedLargeCategory && c.category_level === 2);
-    const small = all.filter(c => c.large_category === selectedLargeCategory && c.category_level === 3);
-    const smallest = all.filter(c => c.large_category === selectedLargeCategory && c.category_level === 4);
-    subCounts = { medium: medium.length, small: small.length, smallest: smallest.length };
-    // 대분류 클릭 시 하위 전체 표출
-    displayCategories = all.filter(c => c.large_category === selectedLargeCategory);
-    filterInfo = `\"${selectedLargeCategory}\" 하위: 중분류(${subCounts.medium}), 소분류(${subCounts.small}), 세분류(${subCounts.smallest})`;
+    // 대분류의 category_id 찾기
+    const largeCat = largeCategories.find(c => c.large_category === selectedLargeCategory);
+    if (largeCat) {
+      // 중분류: parent_category_id === 대분류 category_id, level 2
+      const medium = all.filter(c => c.parent_category_id === largeCat.category_id && c.category_level === 2);
+      // 소분류: parent_category_id === 중분류 category_id, level 3
+      const mediumIds = medium.map(m => m.category_id);
+      const small = all.filter(c => mediumIds.includes(c.parent_category_id) && c.category_level === 3);
+      // 세분류: parent_category_id === 소분류 category_id, level 4
+      const smallIds = small.map(s => s.category_id);
+      const smallest = all.filter(c => smallIds.includes(c.parent_category_id) && c.category_level === 4);
+      subCounts = { medium: medium.length, small: small.length, smallest: smallest.length };
+      // 대분류 클릭 시 하위 전체 표출
+      displayCategories = all.filter(c => c.large_category === selectedLargeCategory);
+      filterInfo = `"${selectedLargeCategory}" : 중분류(${subCounts.medium}), 소분류(${subCounts.small}), 세분류(${subCounts.smallest})`;
+    }
   } else if (selectedLevel) {
     filterInfo = `${getLevelName(selectedLevel)} (${categoriesData?.totalCount || 0}개)`;
   } else {
@@ -295,7 +308,7 @@ const CategoryList = ({ selectedLevel, onLevelFilter, refetchRef }: CategoryList
           {/* 대분류일 때만 대분류 클릭 활성화 */}
           {selectedLevel === 1 && (
             <div className="flex flex-wrap gap-2 mt-2">
-              {(categoriesData?.categories || []).map((cat) => (
+              {largeCategories.map((cat) => (
                 <Button
                   key={cat.category_id}
                   size="sm"
