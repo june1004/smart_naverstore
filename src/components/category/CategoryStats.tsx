@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
-import { MutableRefObject, useEffect } from "react";
+import { MutableRefObject, useEffect, useState } from "react";
 
 interface CategoryStatsProps {
   onLevelFilter: (level: number | null) => void;
@@ -15,93 +15,124 @@ const CategoryStats = ({ onLevelFilter, refetchRef }: CategoryStatsProps) => {
   const { user } = useAuth();
   const { toast } = useToast();
 
-  // 카테고리 통계 조회 (실제 데이터베이스에서 정확한 카운트)
-  const { data: categoryStats, isLoading, refetch } = useQuery({
-    queryKey: ['category-stats'],
+  // 드릴다운 상태 관리
+  const [selectedLarge, setSelectedLarge] = useState<string | null>(null);
+  const [selectedMedium, setSelectedMedium] = useState<string | null>(null);
+  const [selectedSmall, setSelectedSmall] = useState<string | null>(null);
+
+  // 카테고리 전체 row 조회 (category_path)
+  const { data: allCategories, isLoading, error, refetch } = useQuery({
+    queryKey: ["category-stats-drilldown"],
     queryFn: async () => {
-      console.log('카테고리 통계 조회 시작 - 레벨별 카운트');
-      
-      try {
-        // 전체 카테고리 수 조회 (활성 카테고리만)
-        const { count: totalCount, error: totalError } = await supabase
-          .from('naver_categories')
-          .select('*', { count: 'exact', head: true })
-          .eq('is_active', true);
-
-        if (totalError) {
-          console.error('전체 카테고리 수 조회 오류:', totalError);
-          throw totalError;
-        }
-
-        // 네이버 기준 11개 대분류명, 지정 순서
-        const NAVER_LARGE_CATEGORIES = [
-          '가구/인테리어',
-          '도서',
-          '디지털/가전',
-          '생활/건강',
-          '스포츠/레저',
-          '식품',
-          '여가/생활편의',
-          '출산/육아',
-          '패션의류',
-          '패션잡화',
-          '화장품/미용',
-        ];
-        // 대분류명 매칭 함수 (트림, 대소문자 무시)
-        function matchLargeCategory(a: string, b: string) {
-          return a.replace(/\s/g, '').toLowerCase() === b.replace(/\s/g, '').toLowerCase();
-        }
-        // 대/중/소/세분류 유니크 값 쿼리
-        const { data: allCategories, error: categoriesError } = await supabase
-          .from('naver_categories')
-          .select('category_path')
-          .eq('is_active', true);
-
-        if (categoriesError) {
-          console.error('카테고리 데이터 조회 오류:', categoriesError);
-          throw categoriesError;
-        }
-
-        // NAVER_LARGE_CATEGORIES별 하위 분류 집계
-        const statsMap = NAVER_LARGE_CATEGORIES.reduce((acc, name) => {
-          acc[name] = { medium: new Set(), small: new Set(), smallest: new Set() };
-          return acc;
-        }, {} as Record<string, { medium: Set<string>, small: Set<string>, smallest: Set<string> }>);
-
-        allCategories?.forEach(row => {
-          if (!row.category_path) return;
-          const [large, medium, small, smallest] = row.category_path.split(' > ').map(s => s.trim());
-          const largeKey = NAVER_LARGE_CATEGORIES.find(name => matchLargeCategory(name, large));
-          if (!largeKey) return;
-          if (medium) statsMap[largeKey].medium.add(medium);
-          if (small) statsMap[largeKey].small.add(small);
-          if (smallest) statsMap[largeKey].smallest.add(smallest);
-        });
-
-        const largeCounts = NAVER_LARGE_CATEGORIES.map(name => ({
-          name,
-          medium: statsMap[name].medium.size,
-          small: statsMap[name].small.size,
-          smallest: statsMap[name].smallest.size,
-        }));
-        // 가나다순, 최대 5개 예시
-        const getExamples = (set: Set<string>) => Array.from(set).sort((a, b) => a.localeCompare(b, 'ko')).slice(0, 5);
-        const stats = {
-          total: totalCount || 0,
-          large: { count: largeCounts.length, details: largeCounts, examples: getExamples(new Set(largeCounts.map(d => d.name))) },
-          medium: { count: statsMap['가구/인테리어'].medium.size, examples: getExamples(statsMap['가구/인테리어'].medium) },
-          small: { count: statsMap['가구/인테리어'].small.size, examples: getExamples(statsMap['가구/인테리어'].small) },
-          smallest: { count: statsMap['가구/인테리어'].smallest.size, examples: getExamples(statsMap['가구/인테리어'].smallest) }
-        };
-        console.log('카테고리 통계 조회 완료:', stats);
-        return stats;
-      } catch (error) {
-        console.error('카테고리 통계 조회 중 오류:', error);
-        throw error;
-      }
+      const { data, error } = await supabase
+        .from("naver_categories")
+        .select("category_path")
+        .eq("is_active", true);
+      if (error) throw error;
+      return data || [];
     },
-    refetchInterval: 30000, // 30초마다 자동 갱신
+    refetchInterval: 30000,
   });
+
+  // 네이버 기준 11개 대분류명, 지정 순서
+  const NAVER_LARGE_CATEGORIES = [
+    "가구/인테리어",
+    "도서",
+    "디지털/가전",
+    "생활/건강",
+    "스포츠/레저",
+    "식품",
+    "여가/생활편의",
+    "출산/육아",
+    "패션의류",
+    "패션잡화",
+    "화장품/미용",
+  ];
+  function normalize(str: string) {
+    return (str || "").replace(/\s/g, "").toLowerCase();
+  }
+  function matchLargeCategory(a: string, b: string) {
+    return normalize(a) === normalize(b);
+  }
+
+  // 계층별 파싱
+  function parseCategoryPathParts(category_path: string = "") {
+    const parts = category_path.split(" > ").map((s) => s.trim());
+    return {
+      large: parts[0] || "",
+      medium: parts[1] || "",
+      small: parts[2] || "",
+      smallest: parts[3] || "",
+    };
+  }
+
+  // 계층별 unique 집계
+  let filtered = allCategories || [];
+  let currentLevel = 0;
+  let currentLabel = "전체";
+  let currentList: string[] = [];
+  let currentCount = filtered.length;
+  let parentLabel = null;
+
+  if (selectedLarge && !selectedMedium && !selectedSmall) {
+    filtered = filtered.filter((row) => matchLargeCategory(parseCategoryPathParts(row.category_path).large, selectedLarge));
+    currentLevel = 1;
+    currentLabel = `대분류: ${selectedLarge}`;
+    currentList = Array.from(new Set(filtered.map((row) => parseCategoryPathParts(row.category_path).medium).filter(Boolean)));
+    currentCount = currentList.length;
+    parentLabel = selectedLarge;
+  } else if (selectedLarge && selectedMedium && !selectedSmall) {
+    filtered = filtered.filter((row) => {
+      const parts = parseCategoryPathParts(row.category_path);
+      return matchLargeCategory(parts.large, selectedLarge) && parts.medium === selectedMedium;
+    });
+    currentLevel = 2;
+    currentLabel = `중분류: ${selectedMedium}`;
+    currentList = Array.from(new Set(filtered.map((row) => parseCategoryPathParts(row.category_path).small).filter(Boolean)));
+    currentCount = currentList.length;
+    parentLabel = selectedMedium;
+  } else if (selectedLarge && selectedMedium && selectedSmall) {
+    filtered = filtered.filter((row) => {
+      const parts = parseCategoryPathParts(row.category_path);
+      return matchLargeCategory(parts.large, selectedLarge) && parts.medium === selectedMedium && parts.small === selectedSmall;
+    });
+    currentLevel = 3;
+    currentLabel = `소분류: ${selectedSmall}`;
+    currentList = Array.from(new Set(filtered.map((row) => parseCategoryPathParts(row.category_path).smallest).filter(Boolean)));
+    currentCount = currentList.length;
+    parentLabel = selectedSmall;
+  } else {
+    // 전체
+    currentLevel = 0;
+    currentLabel = "전체";
+    currentList = NAVER_LARGE_CATEGORIES;
+    currentCount = NAVER_LARGE_CATEGORIES.length;
+  }
+
+  // 상위로 이동 핸들러
+  const handleBack = () => {
+    if (selectedLarge && selectedMedium && selectedSmall) {
+      setSelectedSmall(null);
+    } else if (selectedLarge && selectedMedium) {
+      setSelectedMedium(null);
+    } else if (selectedLarge) {
+      setSelectedLarge(null);
+    }
+  };
+
+  // 클릭 핸들러
+  const handleClick = (name: string) => {
+    if (!selectedLarge) setSelectedLarge(name);
+    else if (!selectedMedium) setSelectedMedium(name);
+    else if (!selectedSmall) setSelectedSmall(name);
+  };
+
+  // 전체로 이동
+  const handleReset = () => {
+    setSelectedLarge(null);
+    setSelectedMedium(null);
+    setSelectedSmall(null);
+  };
 
   useEffect(() => {
     if (refetchRef) refetchRef.current = refetch;
@@ -144,53 +175,34 @@ const CategoryStats = ({ onLevelFilter, refetchRef }: CategoryStatsProps) => {
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="grid grid-cols-5 gap-4">
-          {/* 전체 */}
-          <Card className="p-3 cursor-pointer hover:bg-gray-50" onClick={() => handleCategoryClick(null)}>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-gray-900">{categoryStats?.total || 0}</div>
-              <div className="text-sm text-gray-600">전체</div>
-            </div>
-          </Card>
-          {/* 대분류 */}
-          <Card className="p-3 cursor-pointer hover:bg-blue-50" onClick={() => handleCategoryClick(1)}>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-blue-600">{categoryStats?.large?.details?.length || 0}</div>
-              <div className="text-sm text-gray-600">대분류 (11개)</div>
-              <div className="text-xs text-gray-500 mt-1">
-                {categoryStats?.large?.details?.map(d => `${d.name}: 중분류(${d.medium}), 소분류(${d.small}), 세분류(${d.smallest})`).join(', ')}
-              </div>
-            </div>
-          </Card>
-          {/* 중분류 */}
-          <Card className="p-3 cursor-pointer hover:bg-green-50" onClick={() => handleCategoryClick(2)}>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-green-600">{categoryStats?.medium?.count || 0}</div>
-              <div className="text-sm text-gray-600">중분류</div>
-              <div className="text-xs text-gray-500 mt-1">{categoryStats?.medium?.examples?.join(', ')}</div>
-            </div>
-          </Card>
-          {/* 소분류 */}
-          <Card className="p-3 cursor-pointer hover:bg-orange-50" onClick={() => handleCategoryClick(3)}>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-orange-600">{categoryStats?.small?.count || 0}</div>
-              <div className="text-sm text-gray-600">소분류</div>
-              <div className="text-xs text-gray-500 mt-1">{categoryStats?.small?.examples?.join(', ')}</div>
-            </div>
-          </Card>
-          {/* 세분류 */}
-          <Card className="p-3 cursor-pointer hover:bg-purple-50" onClick={() => handleCategoryClick(4)}>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-purple-600">{categoryStats?.smallest?.count || 0}</div>
-              <div className="text-sm text-gray-600">세분류</div>
-              <div className="text-xs text-gray-500 mt-1">{categoryStats?.smallest?.examples?.join(', ')}</div>
-            </div>
-          </Card>
+        <div className="mb-2 flex gap-2 items-center">
+          <span className="font-bold">{currentLabel}</span>
+          <span className="text-sm text-gray-500">({currentCount}개)</span>
+          {(selectedLarge || selectedMedium || selectedSmall) && (
+            <button className="ml-2 text-xs text-blue-600 underline" onClick={handleBack}>상위로</button>
+          )}
+          {(selectedLarge || selectedMedium || selectedSmall) && (
+            <button className="ml-2 text-xs text-gray-500 underline" onClick={handleReset}>전체보기</button>
+          )}
         </div>
-        {!user && (
-          <div className="text-center mt-4">
-            <p className="text-xs text-gray-500">카테고리 상세 목록을 보려면 로그인이 필요합니다</p>
-          </div>
+        <div className="flex flex-wrap gap-2 mb-4">
+          {currentList.map((name) => (
+            <button
+              key={name}
+              className="px-3 py-1 rounded border text-sm hover:bg-blue-50"
+              onClick={() => handleClick(name)}
+              disabled={currentLevel === 3}
+            >
+              {name}
+            </button>
+          ))}
+        </div>
+        {/* 예시 목록 */}
+        {currentLevel === 3 && (
+          <div className="text-xs text-gray-500">세분류 예시: {currentList.slice(0, 10).join(", ")}</div>
+        )}
+        {currentLevel === 0 && (
+          <div className="text-xs text-gray-500">대분류(11개): {NAVER_LARGE_CATEGORIES.join(", ")}</div>
         )}
       </CardContent>
     </Card>
