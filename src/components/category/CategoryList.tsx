@@ -287,10 +287,10 @@ const CategoryList = ({ selectedLevel, onLevelFilter, refetchRef }: CategoryList
 
   // 드릴다운 바에 사용할 분류 데이터 메모이제이션 (all 이후로 이동)
   const allCategoryParts = useMemo(() => all.map(c => parseCategoryPathParts(c.category_path)), [all]);
-  const largeOptions = useMemo(() => Array.from(new Set(allCategoryParts.map(p => p.large))).filter(Boolean), [allCategoryParts]);
-  const mediumOptions = useMemo(() => selectedLargeCategory ? Array.from(new Set(allCategoryParts.filter(p => matchCategory(p.large, selectedLargeCategory)).map(p => p.medium))).filter(Boolean) : [], [allCategoryParts, selectedLargeCategory]);
-  const smallOptions = useMemo(() => selectedLargeCategory && selectedMediumCategory ? Array.from(new Set(allCategoryParts.filter(p => matchCategory(p.large, selectedLargeCategory) && matchCategory(p.medium, selectedMediumCategory)).map(p => p.small))).filter(Boolean) : [], [allCategoryParts, selectedLargeCategory, selectedMediumCategory]);
-  const smallestOptions = useMemo(() => selectedLargeCategory && selectedMediumCategory && selectedSmallCategory ? Array.from(new Set(allCategoryParts.filter(p => matchCategory(p.large, selectedLargeCategory) && matchCategory(p.medium, selectedMediumCategory) && matchCategory(p.small, selectedSmallCategory)).map(p => p.smallest))).filter(Boolean) : [], [allCategoryParts, selectedLargeCategory, selectedMediumCategory, selectedSmallCategory]);
+  const largeOptions = useMemo(() => Array.from(new Set(allCategoryParts.map(p => p.large))).filter(Boolean).sort((a, b) => a.localeCompare(b, 'ko')), [allCategoryParts]);
+  const mediumOptions = useMemo(() => selectedLargeCategory ? Array.from(new Set(allCategoryParts.filter(p => matchCategory(p.large, selectedLargeCategory)).map(p => p.medium))).filter(Boolean).sort((a, b) => a.localeCompare(b, 'ko')) : [], [allCategoryParts, selectedLargeCategory]);
+  const smallOptions = useMemo(() => selectedLargeCategory && selectedMediumCategory ? Array.from(new Set(allCategoryParts.filter(p => matchCategory(p.large, selectedLargeCategory) && matchCategory(p.medium, selectedMediumCategory)).map(p => p.small))).filter(Boolean).sort((a, b) => a.localeCompare(b, 'ko')) : [], [allCategoryParts, selectedLargeCategory, selectedMediumCategory]);
+  const smallestOptions = useMemo(() => selectedLargeCategory && selectedMediumCategory && selectedSmallCategory ? Array.from(new Set(allCategoryParts.filter(p => matchCategory(p.large, selectedLargeCategory) && matchCategory(p.medium, selectedMediumCategory) && matchCategory(p.small, selectedSmallCategory)).map(p => p.smallest))).filter(Boolean).sort((a, b) => a.localeCompare(b, 'ko')) : [], [allCategoryParts, selectedLargeCategory, selectedMediumCategory, selectedSmallCategory]);
 
   // 자동완성용 상태 (all 이후로 이동)
   const [largeSearch, setLargeSearch] = useState("");
