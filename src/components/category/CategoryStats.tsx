@@ -33,10 +33,28 @@ const CategoryStats = ({ onLevelFilter, refetchRef }: CategoryStatsProps) => {
           throw totalError;
         }
 
+        // 네이버 기준 11개 대분류명, 지정 순서
+        const NAVER_LARGE_CATEGORIES = [
+          '가구/인테리어',
+          '도서',
+          '디지털/가전',
+          '생활/건강',
+          '스포츠/레저',
+          '식품',
+          '여가/생활편의',
+          '출산/육아',
+          '패션의류',
+          '패션잡화',
+          '화장품/미용',
+        ];
+        // 대분류명 매칭 함수 (트림, 대소문자 무시)
+        function matchLargeCategory(a: string, b: string) {
+          return a.replace(/\s/g, '').toLowerCase() === b.replace(/\s/g, '').toLowerCase();
+        }
         // 대/중/소/세분류 유니크 값 쿼리
         const { data: allCategories, error: categoriesError } = await supabase
           .from('naver_categories')
-          .select('category_path')
+          .select('category_name, category_path, category_level')
           .eq('is_active', true);
 
         if (categoriesError) {
@@ -44,6 +62,12 @@ const CategoryStats = ({ onLevelFilter, refetchRef }: CategoryStatsProps) => {
           throw categoriesError;
         }
 
+        // 대분류 집계: NAVER_LARGE_CATEGORIES 기준 11개
+        const largeCounts = NAVER_LARGE_CATEGORIES.map(name => {
+          const count = allCategories?.filter(c => c.category_level === 1 && matchLargeCategory(c.category_name, name)).length || 0;
+          return { name, count };
+        });
+        // 기존 집계도 유지
         const largeSet = new Set<string>();
         const mediumSet = new Set<string>();
         const smallSet = new Set<string>();
@@ -61,7 +85,7 @@ const CategoryStats = ({ onLevelFilter, refetchRef }: CategoryStatsProps) => {
         const getExamples = (set: Set<string>) => Array.from(set).sort((a, b) => a.localeCompare(b, 'ko')).slice(0, 5);
         const stats = {
           total: totalCount || 0,
-          large: { count: largeSet.size, examples: getExamples(largeSet) },
+          large: { count: largeCounts.length, details: largeCounts, examples: getExamples(largeSet) },
           medium: { count: mediumSet.size, examples: getExamples(mediumSet) },
           small: { count: smallSet.size, examples: getExamples(smallSet) },
           smallest: { count: smallestSet.size, examples: getExamples(smallestSet) }
@@ -128,9 +152,11 @@ const CategoryStats = ({ onLevelFilter, refetchRef }: CategoryStatsProps) => {
           {/* 대분류 */}
           <Card className="p-3 cursor-pointer hover:bg-blue-50" onClick={() => handleCategoryClick(1)}>
             <div className="text-center">
-              <div className="text-2xl font-bold text-blue-600">{categoryStats?.large?.count || 0}</div>
-              <div className="text-sm text-gray-600">대분류</div>
-              <div className="text-xs text-gray-500 mt-1">{categoryStats?.large?.examples?.join(', ')}</div>
+              <div className="text-2xl font-bold text-blue-600">{categoryStats?.large?.details?.reduce((acc, cur) => acc + cur.count, 0) || 0}</div>
+              <div className="text-sm text-gray-600">대분류 (11개)</div>
+              <div className="text-xs text-gray-500 mt-1">
+                {categoryStats?.large?.details?.map(d => `${d.name}(${d.count})`).join(', ')}
+              </div>
             </div>
           </Card>
           {/* 중분류 */}
