@@ -313,7 +313,6 @@ const CategoryList = ({ selectedLevel, onLevelFilter, refetchRef }: CategoryList
 
   // 드릴다운 필터링 + 정렬 + 페이지네이션 일괄 적용
   let filtered = all;
-  let filterInfo = '';
   if (selectedLargeCategory && !selectedMediumCategory && !selectedSmallCategory) {
     filtered = all.filter(c => normalize(parseCategoryPathParts(c.category_path).large) === normalize(selectedLargeCategory));
     filterInfo = `대분류: "${selectedLargeCategory}" (${filtered.length}개)`;
