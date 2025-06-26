@@ -55,6 +55,9 @@ const CategoryList = ({ selectedLevel, onLevelFilter, refetchRef }: CategoryList
   const [selectedLargeCategory, setSelectedLargeCategory] = useState<string | null>(null);
   const [selectedMediumCategory, setSelectedMediumCategory] = useState<string | null>(null);
   const [selectedSmallCategory, setSelectedSmallCategory] = useState<string | null>(null);
+  const [showAllMedium, setShowAllMedium] = useState(false);
+  const [showAllSmall, setShowAllSmall] = useState(false);
+  const [showAllSmallest, setShowAllSmallest] = useState(false);
 
   // 초기화면에서 대분류만 표시하도록 설정
   useEffect(() => {
@@ -287,17 +290,20 @@ const CategoryList = ({ selectedLevel, onLevelFilter, refetchRef }: CategoryList
     // 중분류만 추출
     const mediums = Array.from(new Set(all.filter(c => matchLargeCategory(c.large_category, selectedLargeCategory) && c.medium_category).map(c => c.medium_category)));
     displayCategories = all.filter(c => matchLargeCategory(c.large_category, selectedLargeCategory));
-    filterInfo = `"${selectedLargeCategory}"의 중분류 (${mediums.length}개)`;
+    filterInfo = `대분류: "${selectedLargeCategory}" (${mediums.length} 중분류)`;
+    if (showAllMedium) filterInfo += ' - 전체 중분류 보기';
   } else if (selectedLargeCategory && selectedMediumCategory && !selectedSmallCategory) {
     // 소분류만 추출
     const smalls = Array.from(new Set(all.filter(c => matchLargeCategory(c.large_category, selectedLargeCategory) && c.medium_category === selectedMediumCategory && c.small_category).map(c => c.small_category)));
     displayCategories = all.filter(c => matchLargeCategory(c.large_category, selectedLargeCategory) && c.medium_category === selectedMediumCategory);
-    filterInfo = `"${selectedLargeCategory}" > "${selectedMediumCategory}"의 소분류 (${smalls.length}개)`;
+    filterInfo = `중분류: "${selectedMediumCategory}" (${smalls.length} 소분류)`;
+    if (showAllSmall) filterInfo += ' - 전체 소분류 보기';
   } else if (selectedLargeCategory && selectedMediumCategory && selectedSmallCategory) {
     // 세분류만 추출
     const smallests = Array.from(new Set(all.filter(c => matchLargeCategory(c.large_category, selectedLargeCategory) && c.medium_category === selectedMediumCategory && c.small_category === selectedSmallCategory && c.smallest_category).map(c => c.smallest_category)));
     displayCategories = all.filter(c => matchLargeCategory(c.large_category, selectedLargeCategory) && c.medium_category === selectedMediumCategory && c.small_category === selectedSmallCategory);
-    filterInfo = `"${selectedLargeCategory}" > "${selectedMediumCategory}" > "${selectedSmallCategory}"의 세분류 (${smallests.length}개)`;
+    filterInfo = `소분류: "${selectedSmallCategory}" (${smallests.length} 세분류)`;
+    if (showAllSmallest) filterInfo += ' - 전체 세분류 보기';
   } else if (selectedLevel === 1) {
     filterInfo = `대분류 (${NAVER_LARGE_CATEGORIES.length}개)`;
   } else if (selectedLevel) {
@@ -375,7 +381,11 @@ const CategoryList = ({ selectedLevel, onLevelFilter, refetchRef }: CategoryList
           {selectedLargeCategory && !selectedMediumCategory && (
             <div className="flex flex-wrap gap-2 mt-2">
               <Button size="sm" variant="outline" onClick={handleBackToLarge}>상위로</Button>
-              {Array.from(new Set(all.filter(c => matchLargeCategory(c.large_category, selectedLargeCategory) && c.medium_category).map(c => c.medium_category))).map(medium => (
+              <Button size="sm" variant="outline" onClick={() => setShowAllMedium(v => !v)}>{showAllMedium ? '중분류 접기' : '전체 중분류 보기'}</Button>
+              {(showAllMedium
+                ? Array.from(new Set(all.filter(c => matchLargeCategory(c.large_category, selectedLargeCategory) && c.medium_category).map(c => c.medium_category)))
+                : Array.from(new Set(all.filter(c => matchLargeCategory(c.large_category, selectedLargeCategory) && c.medium_category).map(c => c.medium_category))).slice(0, 20)
+              ).map(medium => (
                 <Button
                   key={medium}
                   size="sm"
@@ -391,7 +401,11 @@ const CategoryList = ({ selectedLevel, onLevelFilter, refetchRef }: CategoryList
           {selectedLargeCategory && selectedMediumCategory && !selectedSmallCategory && (
             <div className="flex flex-wrap gap-2 mt-2">
               <Button size="sm" variant="outline" onClick={handleBackToMedium}>상위로</Button>
-              {Array.from(new Set(all.filter(c => matchLargeCategory(c.large_category, selectedLargeCategory) && c.medium_category === selectedMediumCategory && c.small_category).map(c => c.small_category))).map(small => (
+              <Button size="sm" variant="outline" onClick={() => setShowAllSmall(v => !v)}>{showAllSmall ? '소분류 접기' : '전체 소분류 보기'}</Button>
+              {(showAllSmall
+                ? Array.from(new Set(all.filter(c => matchLargeCategory(c.large_category, selectedLargeCategory) && c.medium_category === selectedMediumCategory && c.small_category).map(c => c.small_category)))
+                : Array.from(new Set(all.filter(c => matchLargeCategory(c.large_category, selectedLargeCategory) && c.medium_category === selectedMediumCategory && c.small_category).map(c => c.small_category))).slice(0, 20)
+              ).map(small => (
                 <Button
                   key={small}
                   size="sm"
@@ -407,7 +421,11 @@ const CategoryList = ({ selectedLevel, onLevelFilter, refetchRef }: CategoryList
           {selectedLargeCategory && selectedMediumCategory && selectedSmallCategory && (
             <div className="flex flex-wrap gap-2 mt-2">
               <Button size="sm" variant="outline" onClick={handleBackToSmall}>상위로</Button>
-              {Array.from(new Set(all.filter(c => matchLargeCategory(c.large_category, selectedLargeCategory) && c.medium_category === selectedMediumCategory && c.small_category === selectedSmallCategory && c.smallest_category).map(c => c.smallest_category))).map(smallest => (
+              <Button size="sm" variant="outline" onClick={() => setShowAllSmallest(v => !v)}>{showAllSmallest ? '세분류 접기' : '전체 세분류 보기'}</Button>
+              {(showAllSmallest
+                ? Array.from(new Set(all.filter(c => matchLargeCategory(c.large_category, selectedLargeCategory) && c.medium_category === selectedMediumCategory && c.small_category === selectedSmallCategory && c.smallest_category).map(c => c.smallest_category)))
+                : Array.from(new Set(all.filter(c => matchLargeCategory(c.large_category, selectedLargeCategory) && c.medium_category === selectedMediumCategory && c.small_category === selectedSmallCategory && c.smallest_category).map(c => c.smallest_category))).slice(0, 20)
+              ).map(smallest => (
                 <Button
                   key={smallest}
                   size="sm"
