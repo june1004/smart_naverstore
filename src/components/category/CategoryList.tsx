@@ -55,6 +55,7 @@ const CategoryList = ({ selectedLevel, onLevelFilter, refetchRef }: CategoryList
   const [selectedLargeCategory, setSelectedLargeCategory] = useState<string | null>(null);
   const [selectedMediumCategory, setSelectedMediumCategory] = useState<string | null>(null);
   const [selectedSmallCategory, setSelectedSmallCategory] = useState<string | null>(null);
+  const [selectedSmallestCategory, setSelectedSmallestCategory] = useState<string | null>(null);
   const [showAllMedium, setShowAllMedium] = useState(false);
   const [showAllSmall, setShowAllSmall] = useState(false);
   const [showAllSmallest, setShowAllSmallest] = useState(false);
@@ -125,34 +126,51 @@ const CategoryList = ({ selectedLevel, onLevelFilter, refetchRef }: CategoryList
   const { data: categoriesData, isLoading: categoriesLoading, error: categoriesError, refetch } = useQuery({
     queryKey: ['naver-categories-paginated', searchTerm, selectedLevel, currentPage, itemsPerPage, sortField, sortDirection],
     queryFn: async () => {
-      let query = supabase
-        .from('naver_categories')
-        .select('*', { count: 'exact' })
-        .eq('is_active', true);
+      // --- 모든 row를 1000개씩 반복적으로 fetch해서 합치는 함수 ---
+      async function fetchAllCategories() {
+        const allRows = [];
+        let from = 0;
+        const batchSize = 1000;
+        let keepGoing = true;
+        while (keepGoing) {
+          let query = supabase
+            .from('naver_categories')
+            .select('*', { count: 'exact' })
+            .eq('is_active', true)
+            .range(from, from + batchSize - 1);
 
-      // 검색 조건 추가 (단일 키워드 검색 지원)
-      if (searchTerm) {
-        const searchQuery = buildSearchQuery(searchTerm);
-        if (searchQuery) {
-          query = query.or(searchQuery);
+          // 검색 조건 추가 (단일 키워드 검색 지원)
+          if (searchTerm) {
+            const searchQuery = buildSearchQuery(searchTerm);
+            if (searchQuery) {
+              query = query.or(searchQuery);
+            }
+          }
+
+          // 정렬
+          if (selectedLevel !== null) {
+            if (sortField !== 'category_hierarchy') {
+              query = query.order(sortField, { ascending: sortDirection === 'asc' });
+            } else {
+              query = query.order('category_id', { ascending: true });
+            }
+          }
+
+          const { data, error } = await query;
+          if (error) throw error;
+          if (!data || data.length === 0) break;
+          allRows.push(...data);
+          if (data.length < batchSize) {
+            keepGoing = false;
+          } else {
+            from += batchSize;
+          }
         }
+        return allRows;
       }
 
-      // 전체 클릭 시 limit 없이 모두 조회
-      // (selectedLevel === null 이면 전체)
-      if (selectedLevel === null) {
-        // limit 없이 전체 조회
-      } else {
-        // 기본 정렬 (계층구조 정렬을 제외한 나머지)
-        if (sortField !== 'category_hierarchy') {
-          query = query.order(sortField, { ascending: sortDirection === 'asc' });
-        } else {
-          query = query.order('category_id', { ascending: true });
-        }
-      }
-
-      const { data, error, count } = await query;
-      if (error) throw error;
+      // 실제 데이터 fetch
+      const data = await fetchAllCategories();
 
       // 카테고리 데이터 파싱
       const parsedCategoriesAll = data ? data.map(parseCategoryPath) : []; // 항상 전체 row
@@ -232,33 +250,43 @@ const CategoryList = ({ selectedLevel, onLevelFilter, refetchRef }: CategoryList
     setSelectedLargeCategory(largeCategory === selectedLargeCategory ? null : largeCategory);
     setSelectedMediumCategory(null);
     setSelectedSmallCategory(null);
+    setSelectedSmallestCategory(null);
   };
   const handleMediumCategoryClick = (mediumCategory: string) => {
     setSelectedMediumCategory(mediumCategory === selectedMediumCategory ? null : mediumCategory);
     setSelectedSmallCategory(null);
+    setSelectedSmallestCategory(null);
   };
   const handleSmallCategoryClick = (smallCategory: string) => {
     setSelectedSmallCategory(smallCategory === selectedSmallCategory ? null : smallCategory);
+    setSelectedSmallestCategory(null);
+  };
+  const handleSmallestCategoryClick = (smallestCategory: string) => {
+    setSelectedSmallestCategory(smallestCategory === selectedSmallestCategory ? null : smallestCategory);
   };
   const handleBackToLarge = () => {
     setSelectedLargeCategory(null);
     setSelectedMediumCategory(null);
     setSelectedSmallCategory(null);
+    setSelectedSmallestCategory(null);
   };
   const handleBackToMedium = () => {
     setSelectedMediumCategory(null);
     setSelectedSmallCategory(null);
+    setSelectedSmallestCategory(null);
   };
   const handleBackToSmall = () => {
     setSelectedSmallCategory(null);
+    setSelectedSmallestCategory(null);
   };
 
   // 대분류만 추출 (category_level === 1, 대분류명 기준 unique)
   const all = categoriesData?.parsedCategoriesAll || [];
   const largeCategories = Array.from(
     new Map(
-      all.filter(c => c.category_level === 1)
-        .map(c => [c.large_category, c])
+      all
+        .filter(c => c.category_level === 1 && c.large_category)
+        .map(c => [normalizeCategoryName(c.large_category), c])
     ).values()
   );
 
@@ -277,27 +305,30 @@ const CategoryList = ({ selectedLevel, onLevelFilter, refetchRef }: CategoryList
     '화장품/미용',
   ];
 
-  // 대분류명 매칭 함수 (트림, 대소문자 무시)
-  function matchLargeCategory(a: string, b: string) {
-    return a.replace(/\s/g, '').toLowerCase() === b.replace(/\s/g, '').toLowerCase();
+  // 문자열 normalize (공백/대소문자 및 특수문자 제거)
+  function normalizeCategoryName(str: string) {
+    return (str || '')
+      .replace(/[\s/\-_,·|]/g, '') // 공백, /, -, _, ,, ·, | 모두 제거
+      .toLowerCase();
+  }
+  function matchCategory(a: string, b: string) {
+    return normalizeCategoryName(a) === normalizeCategoryName(b);
   }
 
   // 대분류 유연 매칭 함수: category_level === 1, category_name, category_path 첫 파트 등도 포함
   function matchLargeCategoryFlexible(row: ParsedCategory, selected: string) {
-    // 1. category_level === 1 이고 대분류명 유사하면 무조건 포함
-    if (row.category_level === 1 && matchLargeCategory(row.large_category, selected)) return true;
-    // 2. category_path 첫 파트, category_name, large_category 등에서 유연하게 비교
+    if (row.category_level === 1 && matchCategory(row.large_category, selected)) return true;
     const candidates = [
       row.large_category,
       row.category_name,
       (row.category_path || '').split(' > ')[0] || '',
-    ];
-    return candidates.some(val => matchLargeCategory(val, selected));
+    ].filter(Boolean);
+    return candidates.some(val => matchCategory(val, selected));
   }
 
   // 계층별 파싱 함수
   function parseCategoryPathParts(category_path: string = '') {
-    const parts = category_path.split(' > ').map(s => s.trim());
+    const parts = (category_path || '').split(' > ').map(s => (s || '').trim());
     return {
       large: parts[0] || '',
       medium: parts[1] || '',
@@ -306,28 +337,27 @@ const CategoryList = ({ selectedLevel, onLevelFilter, refetchRef }: CategoryList
     };
   }
 
-  // 문자열 normalize (공백/대소문자 제거)
-  function normalize(str: string) {
-    return (str || '').replace(/\s/g, '').toLowerCase();
-  }
-
-  // 드릴다운 필터링 + 정렬 + 페이지네이션 일괄 적용
+  // 드릴다운 필터링 + 정렬 + 페이지네이션 일괄 적용 (대분류 필터링 강화)
   let filtered = all;
   let filterInfo = '';
   if (selectedLargeCategory && !selectedMediumCategory && !selectedSmallCategory) {
-    filtered = all.filter(c => normalize(parseCategoryPathParts(c.category_path).large) === normalize(selectedLargeCategory));
+    filtered = all.filter(c => {
+      // 대분류 후보군에서 normalizeCategoryName로 비교
+      const parts = parseCategoryPathParts(c.category_path);
+      return matchCategory(parts.large, selectedLargeCategory);
+    });
     filterInfo = `대분류: "${selectedLargeCategory}" (${filtered.length}개)`;
   } else if (selectedLargeCategory && selectedMediumCategory && !selectedSmallCategory) {
     filtered = all.filter(c => {
       const parts = parseCategoryPathParts(c.category_path);
-      return normalize(parts.large) === normalize(selectedLargeCategory) && normalize(parts.medium) === normalize(selectedMediumCategory);
+      return matchCategory(parts.large, selectedLargeCategory) && matchCategory(parts.medium, selectedMediumCategory);
     });
     filterInfo = `중분류: "${selectedMediumCategory}" (${filtered.length}개)`;
     if (showAllMedium) filterInfo += ' - 전체 중분류 보기';
   } else if (selectedLargeCategory && selectedMediumCategory && selectedSmallCategory) {
     filtered = all.filter(c => {
       const parts = parseCategoryPathParts(c.category_path);
-      return normalize(parts.large) === normalize(selectedLargeCategory) && normalize(parts.medium) === normalize(selectedMediumCategory) && normalize(parts.small) === normalize(selectedSmallCategory);
+      return matchCategory(parts.large, selectedLargeCategory) && matchCategory(parts.medium, selectedMediumCategory) && matchCategory(parts.small, selectedSmallCategory);
     });
     filterInfo = `소분류: "${selectedSmallCategory}" (${filtered.length}개)`;
     if (showAllSmallest) filterInfo += ' - 전체 세분류 보기';
@@ -360,6 +390,18 @@ const CategoryList = ({ selectedLevel, onLevelFilter, refetchRef }: CategoryList
   if (categoriesError) {
     console.error('카테고리 로딩 오류:', categoriesError);
   }
+
+  const mediumCategories = Array.from(
+    new Set(
+      all
+        .filter(c => matchCategory(parseCategoryPathParts(c.category_path).large, selectedLargeCategory) && parseCategoryPathParts(c.category_path).medium)
+        .map(c => parseCategoryPathParts(c.category_path).medium)
+    )
+  ).filter(Boolean);
+
+  console.log('selectedLargeCategory:', selectedLargeCategory);
+  console.log('all rows:', all.map(c => c.category_path));
+  console.log('중분류 후보군:', mediumCategories);
 
   return (
     <Card>
@@ -413,6 +455,7 @@ const CategoryList = ({ selectedLevel, onLevelFilter, refetchRef }: CategoryList
                 setSelectedLargeCategory(null);
                 setSelectedMediumCategory(null);
                 setSelectedSmallCategory(null);
+                setSelectedSmallestCategory(null);
                 if (refetch) refetch();
               }}
             >
@@ -426,7 +469,7 @@ const CategoryList = ({ selectedLevel, onLevelFilter, refetchRef }: CategoryList
                 <Button
                   key={name}
                   size="sm"
-                  variant={normalize(selectedLargeCategory) === normalize(name) ? 'default' : 'outline'}
+                  variant={normalizeCategoryName(selectedLargeCategory) === normalizeCategoryName(name) ? 'default' : 'outline'}
                   onClick={() => handleLargeCategoryClick(name)}
                 >
                   {name}
@@ -436,62 +479,80 @@ const CategoryList = ({ selectedLevel, onLevelFilter, refetchRef }: CategoryList
           )}
           {/* 중분류 버튼 */}
           {selectedLargeCategory && !selectedMediumCategory && (
-            <div className="flex flex-wrap gap-2 mt-2">
+            <div className="flex flex-wrap gap-2 mt-2 max-h-[300px] overflow-y-auto">
               <Button size="sm" variant="outline" onClick={handleBackToLarge}>상위로</Button>
               <Button size="sm" variant="outline" onClick={() => setShowAllMedium(v => !v)}>{showAllMedium ? '중분류 접기' : '전체 중분류 보기'}</Button>
-              {(showAllMedium
-                ? Array.from(new Set(all.filter(c => matchLargeCategory(c.large_category, selectedLargeCategory) && c.medium_category).map(c => c.medium_category)))
-                : Array.from(new Set(all.filter(c => matchLargeCategory(c.large_category, selectedLargeCategory) && c.medium_category).map(c => c.medium_category))).slice(0, 20)
-              ).map(medium => (
-                <Button
-                  key={medium}
-                  size="sm"
-                  variant={selectedMediumCategory === medium ? 'default' : 'outline'}
-                  onClick={() => handleMediumCategoryClick(medium)}
-                >
-                  {medium}
-                </Button>
-              ))}
+              {Array.from(new Set(
+                all
+                  .filter(c => matchCategory(parseCategoryPathParts(c.category_path).large, selectedLargeCategory) && parseCategoryPathParts(c.category_path).medium)
+                  .map(c => parseCategoryPathParts(c.category_path).medium)
+              ))
+                .filter(Boolean)
+                .map(medium => (
+                  <Button
+                    key={medium}
+                    size="sm"
+                    variant={selectedMediumCategory === medium ? 'default' : 'outline'}
+                    onClick={() => handleMediumCategoryClick(medium)}
+                  >
+                    {medium}
+                  </Button>
+                ))}
             </div>
           )}
           {/* 소분류 버튼 */}
           {selectedLargeCategory && selectedMediumCategory && !selectedSmallCategory && (
-            <div className="flex flex-wrap gap-2 mt-2">
+            <div className="flex flex-wrap gap-2 mt-2 max-h-[300px] overflow-y-auto">
               <Button size="sm" variant="outline" onClick={handleBackToMedium}>상위로</Button>
               <Button size="sm" variant="outline" onClick={() => setShowAllSmall(v => !v)}>{showAllSmall ? '소분류 접기' : '전체 소분류 보기'}</Button>
-              {(showAllSmall
-                ? Array.from(new Set(all.filter(c => matchLargeCategory(c.large_category, selectedLargeCategory) && c.medium_category === selectedMediumCategory && c.small_category).map(c => c.small_category)))
-                : Array.from(new Set(all.filter(c => matchLargeCategory(c.large_category, selectedLargeCategory) && c.medium_category === selectedMediumCategory && c.small_category).map(c => c.small_category))).slice(0, 20)
-              ).map(small => (
-                <Button
-                  key={small}
-                  size="sm"
-                  variant={selectedSmallCategory === small ? 'default' : 'outline'}
-                  onClick={() => handleSmallCategoryClick(small)}
-                >
-                  {small}
-                </Button>
-              ))}
+              {Array.from(new Set(
+                all
+                  .filter(c =>
+                    matchCategory(parseCategoryPathParts(c.category_path).large, selectedLargeCategory) &&
+                    matchCategory(parseCategoryPathParts(c.category_path).medium, selectedMediumCategory) &&
+                    parseCategoryPathParts(c.category_path).small
+                  )
+                  .map(c => parseCategoryPathParts(c.category_path).small)
+              ))
+                .filter(Boolean)
+                .map(small => (
+                  <Button
+                    key={small}
+                    size="sm"
+                    variant={selectedSmallCategory === small ? 'default' : 'outline'}
+                    onClick={() => handleSmallCategoryClick(small)}
+                  >
+                    {small}
+                  </Button>
+                ))}
             </div>
           )}
           {/* 세분류 버튼 */}
           {selectedLargeCategory && selectedMediumCategory && selectedSmallCategory && (
-            <div className="flex flex-wrap gap-2 mt-2">
+            <div className="flex flex-wrap gap-2 mt-2 max-h-[300px] overflow-y-auto">
               <Button size="sm" variant="outline" onClick={handleBackToSmall}>상위로</Button>
               <Button size="sm" variant="outline" onClick={() => setShowAllSmallest(v => !v)}>{showAllSmallest ? '세분류 접기' : '전체 세분류 보기'}</Button>
-              {(showAllSmallest
-                ? Array.from(new Set(all.filter(c => matchLargeCategory(c.large_category, selectedLargeCategory) && c.medium_category === selectedMediumCategory && c.small_category === selectedSmallCategory && c.smallest_category).map(c => c.smallest_category)))
-                : Array.from(new Set(all.filter(c => matchLargeCategory(c.large_category, selectedLargeCategory) && c.medium_category === selectedMediumCategory && c.small_category === selectedSmallCategory && c.smallest_category).map(c => c.smallest_category))).slice(0, 20)
-              ).map(smallest => (
-                <Button
-                  key={smallest}
-                  size="sm"
-                  variant="outline"
-                  // 세분류는 클릭 시 별도 동작 없음
-                >
-                  {smallest}
-                </Button>
-              ))}
+              {Array.from(new Set(
+                all
+                  .filter(c =>
+                    matchCategory(parseCategoryPathParts(c.category_path).large, selectedLargeCategory) &&
+                    matchCategory(parseCategoryPathParts(c.category_path).medium, selectedMediumCategory) &&
+                    matchCategory(parseCategoryPathParts(c.category_path).small, selectedSmallCategory) &&
+                    parseCategoryPathParts(c.category_path).smallest
+                  )
+                  .map(c => parseCategoryPathParts(c.category_path).smallest)
+              ))
+                .filter(Boolean)
+                .map(smallest => (
+                  <Button
+                    key={smallest}
+                    size="sm"
+                    variant={selectedSmallestCategory === smallest ? 'default' : 'outline'}
+                    onClick={() => handleSmallestCategoryClick(smallest)}
+                  >
+                    {smallest}
+                  </Button>
+                ))}
             </div>
           )}
           {categoriesLoading ? (
