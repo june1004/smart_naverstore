@@ -228,34 +228,9 @@ const CategoryList = ({ selectedLevel, onLevelFilter, refetchRef }: CategoryList
     setSelectedLargeCategory(largeCategory === selectedLargeCategory ? null : largeCategory);
   };
 
-  // 대분류만 추출 (category_level === 1, 대분류명 기준 unique)
+  // 대분류만 추출 (category_level === 1 && parent_category_id === null)
   const all = categoriesData?.parsedCategoriesAll || [];
-  const largeCategories = Array.from(
-    new Map(
-      all.filter(c => c.category_level === 1)
-        .map(c => [c.large_category, c])
-    ).values()
-  );
-
-  // 네이버 기준 11개 대분류명, 지정 순서
-  const NAVER_LARGE_CATEGORIES = [
-    '가구/인테리어',
-    '도서',
-    '디지털/가전',
-    '생활/건강',
-    '스포츠/레저',
-    '식품',
-    '여가/생활편의',
-    '출산/육아',
-    '패션의류',
-    '패션잡화',
-    '화장품/미용',
-  ];
-
-  // 대분류명 매칭 함수 (트림, 대소문자 무시)
-  function matchLargeCategory(a: string, b: string) {
-    return a.replace(/\s/g, '').toLowerCase() === b.replace(/\s/g, '').toLowerCase();
-  }
+  const largeCategories = all.filter(c => c.category_level === 1 && (!c.parent_category_id || c.parent_category_id === ''));
 
   // 하위 분류 전체 필터링 및 갯수 집계
   let displayCategories = categoriesData?.categories || [];
@@ -263,7 +238,7 @@ const CategoryList = ({ selectedLevel, onLevelFilter, refetchRef }: CategoryList
   let subCounts = { medium: 0, small: 0, smallest: 0 };
   if (selectedLevel === 1 && selectedLargeCategory) {
     // 대분류의 category_id 찾기
-    const largeCat = largeCategories.find(c => matchLargeCategory(c.large_category, selectedLargeCategory));
+    const largeCat = largeCategories.find(c => c.large_category === selectedLargeCategory);
     if (largeCat) {
       // 중분류: parent_category_id === 대분류 category_id, level 2
       const medium = all.filter(c => c.parent_category_id === largeCat.category_id && c.category_level === 2);
@@ -275,7 +250,7 @@ const CategoryList = ({ selectedLevel, onLevelFilter, refetchRef }: CategoryList
       const smallest = all.filter(c => smallIds.includes(c.parent_category_id) && c.category_level === 4);
       subCounts = { medium: medium.length, small: small.length, smallest: smallest.length };
       // 대분류 클릭 시 하위 전체 표출
-      displayCategories = all.filter(c => matchLargeCategory(c.large_category, selectedLargeCategory));
+      displayCategories = all.filter(c => c.large_category === selectedLargeCategory);
       filterInfo = `"${selectedLargeCategory}" : 중분류(${subCounts.medium}), 소분류(${subCounts.small}), 세분류(${subCounts.smallest})`;
     }
   } else if (selectedLevel) {
@@ -333,20 +308,16 @@ const CategoryList = ({ selectedLevel, onLevelFilter, refetchRef }: CategoryList
           {/* 대분류일 때만 대분류 클릭 활성화 */}
           {selectedLevel === 1 && (
             <div className="flex flex-wrap gap-2 mt-2">
-              {NAVER_LARGE_CATEGORIES.map((name) => {
-                const cat = largeCategories.find(c => matchLargeCategory(c.large_category, name));
-                return (
-                  <Button
-                    key={name}
-                    size="sm"
-                    variant={selectedLargeCategory === name ? 'default' : 'outline'}
-                    onClick={cat ? () => handleLargeCategoryClick(name) : undefined}
-                    disabled={!cat}
-                  >
-                    {name}
-                  </Button>
-                );
-              })}
+              {largeCategories.map((cat) => (
+                <Button
+                  key={cat.category_id}
+                  size="sm"
+                  variant={selectedLargeCategory === cat.large_category ? 'default' : 'outline'}
+                  onClick={() => handleLargeCategoryClick(cat.large_category)}
+                >
+                  {cat.large_category}
+                </Button>
+              ))}
             </div>
           )}
           {categoriesLoading ? (
