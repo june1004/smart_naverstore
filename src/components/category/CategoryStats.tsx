@@ -49,13 +49,13 @@ const CategoryStats = ({ onLevelFilter, refetchRef }: CategoryStatsProps) => {
     "화장품/미용",
   ];
   function normalize(str: string) {
-    return (str || "").replace(/\s/g, "").toLowerCase();
+    return (str || "").replace(/\s/g, "").replace(/\//g, "/").toLowerCase().trim();
   }
   function matchLargeCategory(a: string, b: string) {
     return normalize(a) === normalize(b);
   }
 
-  // 계층별 파싱
+  // 계층별 파싱 (빈값/공백/특수문자 robust)
   function parseCategoryPathParts(category_path: string = "") {
     const parts = category_path.split(" > ").map((s) => s.trim());
     return {
@@ -66,50 +66,84 @@ const CategoryStats = ({ onLevelFilter, refetchRef }: CategoryStatsProps) => {
     };
   }
 
-  // 대분류 리스트
+  // 대분류 리스트 (11개 고정)
   const largeList = NAVER_LARGE_CATEGORIES;
-  // 중분류 리스트
+  // 중분류 리스트 (normalize, 빈값/중복 제거)
   const mediumList = selectedLarge
     ? Array.from(
         new Set(
           (allCategories || [])
-            .filter((row) => matchLargeCategory(parseCategoryPathParts(row.category_path).large, selectedLarge))
-            .map((row) => parseCategoryPathParts(row.category_path).medium)
+            .map((row) => parseCategoryPathParts(row.category_path))
+            .filter((parts) => matchLargeCategory(parts.large, selectedLarge) && parts.medium && parts.medium !== "")
+            .map((parts) => normalize(parts.medium))
             .filter(Boolean)
         )
       )
+      .map((norm) => {
+        // 원본 중분류명 반환
+        const found = (allCategories || [])
+          .map((row) => parseCategoryPathParts(row.category_path))
+          .find((parts) => matchLargeCategory(parts.large, selectedLarge) && normalize(parts.medium) === norm);
+        return found ? found.medium : norm;
+      })
     : [];
   // 소분류 리스트
   const smallList = selectedLarge && selectedMedium
     ? Array.from(
         new Set(
           (allCategories || [])
-            .filter((row) => {
-              const parts = parseCategoryPathParts(row.category_path);
-              return matchLargeCategory(parts.large, selectedLarge) && parts.medium === selectedMedium;
-            })
-            .map((row) => parseCategoryPathParts(row.category_path).small)
+            .map((row) => parseCategoryPathParts(row.category_path))
+            .filter(
+              (parts) =>
+                matchLargeCategory(parts.large, selectedLarge) &&
+                normalize(parts.medium) === normalize(selectedMedium) &&
+                parts.small && parts.small !== ""
+            )
+            .map((parts) => normalize(parts.small))
             .filter(Boolean)
         )
       )
+      .map((norm) => {
+        const found = (allCategories || [])
+          .map((row) => parseCategoryPathParts(row.category_path))
+          .find(
+            (parts) =>
+              matchLargeCategory(parts.large, selectedLarge) &&
+              normalize(parts.medium) === normalize(selectedMedium) &&
+              normalize(parts.small) === norm
+          );
+        return found ? found.small : norm;
+      })
     : [];
   // 세분류 리스트
   const smallestList = selectedLarge && selectedMedium && selectedSmall
     ? Array.from(
         new Set(
           (allCategories || [])
-            .filter((row) => {
-              const parts = parseCategoryPathParts(row.category_path);
-              return (
+            .map((row) => parseCategoryPathParts(row.category_path))
+            .filter(
+              (parts) =>
                 matchLargeCategory(parts.large, selectedLarge) &&
-                parts.medium === selectedMedium &&
-                parts.small === selectedSmall
-              );
-            })
-            .map((row) => parseCategoryPathParts(row.category_path).smallest)
+                normalize(parts.medium) === normalize(selectedMedium) &&
+                normalize(parts.small) === normalize(selectedSmall) &&
+                parts.smallest && parts.smallest !== ""
+            )
+            .map((parts) => normalize(parts.smallest))
             .filter(Boolean)
         )
       )
+      .map((norm) => {
+        const found = (allCategories || [])
+          .map((row) => parseCategoryPathParts(row.category_path))
+          .find(
+            (parts) =>
+              matchLargeCategory(parts.large, selectedLarge) &&
+              normalize(parts.medium) === normalize(selectedMedium) &&
+              normalize(parts.small) === normalize(selectedSmall) &&
+              normalize(parts.smallest) === norm
+          );
+        return found ? found.smallest : norm;
+      })
     : [];
 
   // 핸들러
@@ -182,7 +216,7 @@ const CategoryStats = ({ onLevelFilter, refetchRef }: CategoryStatsProps) => {
           {/* 대분류 */}
           <div className="flex-1 min-w-[120px]">
             <div className="font-semibold mb-1">대분류</div>
-            <div className="flex flex-col gap-1">
+            <div className="flex flex-col gap-1" style={{ maxHeight: '352px', minHeight: '352px' }}>
               {largeList.map((name) => (
                 <button
                   key={name}
@@ -197,7 +231,7 @@ const CategoryStats = ({ onLevelFilter, refetchRef }: CategoryStatsProps) => {
           {/* 중분류 */}
           <div className="flex-1 min-w-[120px]">
             <div className="font-semibold mb-1">중분류</div>
-            <div className="flex flex-col gap-1">
+            <div className="flex flex-col gap-1 overflow-y-auto" style={{ maxHeight: '352px', minHeight: '352px' }}>
               {mediumList.length === 0 && <div className="text-xs text-gray-400">대분류 선택</div>}
               {mediumList.map((name) => (
                 <button
@@ -214,7 +248,7 @@ const CategoryStats = ({ onLevelFilter, refetchRef }: CategoryStatsProps) => {
           {/* 소분류 */}
           <div className="flex-1 min-w-[120px]">
             <div className="font-semibold mb-1">소분류</div>
-            <div className="flex flex-col gap-1">
+            <div className="flex flex-col gap-1 overflow-y-auto" style={{ maxHeight: '352px', minHeight: '352px' }}>
               {smallList.length === 0 && <div className="text-xs text-gray-400">중분류 선택</div>}
               {smallList.map((name) => (
                 <button
@@ -231,7 +265,7 @@ const CategoryStats = ({ onLevelFilter, refetchRef }: CategoryStatsProps) => {
           {/* 세분류 */}
           <div className="flex-1 min-w-[120px]">
             <div className="font-semibold mb-1">세분류</div>
-            <div className="flex flex-col gap-1">
+            <div className="flex flex-col gap-1 overflow-y-auto" style={{ maxHeight: '352px', minHeight: '352px' }}>
               {smallestList.length === 0 && <div className="text-xs text-gray-400">소분류 선택</div>}
               {smallestList.map((name) => (
                 <div
