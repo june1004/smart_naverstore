@@ -387,22 +387,6 @@ const CategoryList = ({ selectedLevel, onLevelFilter, refetchRef }: CategoryList
                 필터 해제
               </Button>
             )}
-            {/* 초기화 버튼 */}
-            <Button
-              variant="outline"
-              onClick={() => {
-                setSearchTerm('');
-                setSortField('category_hierarchy');
-                setSortDirection('asc');
-                setCurrentPage(1);
-                setSelectedLargeCategory(null);
-                setSelectedMediumCategory(null);
-                setSelectedSmallCategory(null);
-                if (refetch) refetch();
-              }}
-            >
-              초기화
-            </Button>
           </div>
           {/* 대분류 버튼 */}
           {!selectedLargeCategory && (
@@ -411,7 +395,7 @@ const CategoryList = ({ selectedLevel, onLevelFilter, refetchRef }: CategoryList
                 <Button
                   key={name}
                   size="sm"
-                  variant={normalize(selectedLargeCategory) === normalize(name) ? 'default' : 'outline'}
+                  variant={selectedLargeCategory === name ? 'default' : 'outline'}
                   onClick={() => handleLargeCategoryClick(name)}
                 >
                   {name}
