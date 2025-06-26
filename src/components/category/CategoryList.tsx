@@ -53,6 +53,8 @@ const CategoryList = ({ selectedLevel, onLevelFilter, refetchRef }: CategoryList
   const [sortField, setSortField] = useState<SortField>('category_hierarchy');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
   const [selectedLargeCategory, setSelectedLargeCategory] = useState<string | null>(null);
+  const [selectedMediumCategory, setSelectedMediumCategory] = useState<string | null>(null);
+  const [selectedSmallCategory, setSelectedSmallCategory] = useState<string | null>(null);
 
   // 초기화면에서 대분류만 표시하도록 설정
   useEffect(() => {
@@ -223,9 +225,30 @@ const CategoryList = ({ selectedLevel, onLevelFilter, refetchRef }: CategoryList
     }
   };
 
-  // 대분류 드릴다운: 대분류 클릭 시 하위 분류 전체 표출
+  // 드릴다운 핸들러
   const handleLargeCategoryClick = (largeCategory: string) => {
     setSelectedLargeCategory(largeCategory === selectedLargeCategory ? null : largeCategory);
+    setSelectedMediumCategory(null);
+    setSelectedSmallCategory(null);
+  };
+  const handleMediumCategoryClick = (mediumCategory: string) => {
+    setSelectedMediumCategory(mediumCategory === selectedMediumCategory ? null : mediumCategory);
+    setSelectedSmallCategory(null);
+  };
+  const handleSmallCategoryClick = (smallCategory: string) => {
+    setSelectedSmallCategory(smallCategory === selectedSmallCategory ? null : smallCategory);
+  };
+  const handleBackToLarge = () => {
+    setSelectedLargeCategory(null);
+    setSelectedMediumCategory(null);
+    setSelectedSmallCategory(null);
+  };
+  const handleBackToMedium = () => {
+    setSelectedMediumCategory(null);
+    setSelectedSmallCategory(null);
+  };
+  const handleBackToSmall = () => {
+    setSelectedSmallCategory(null);
   };
 
   // 대분류만 추출 (category_level === 1, 대분류명 기준 unique)
@@ -257,27 +280,26 @@ const CategoryList = ({ selectedLevel, onLevelFilter, refetchRef }: CategoryList
     return a.replace(/\s/g, '').toLowerCase() === b.replace(/\s/g, '').toLowerCase();
   }
 
-  // 하위 분류 전체 필터링 및 갯수 집계
+  // 드릴다운 필터링
   let displayCategories = categoriesData?.categories || [];
   let filterInfo = '';
-  let subCounts = { medium: 0, small: 0, smallest: 0 };
-  if (selectedLevel === 1 && selectedLargeCategory) {
-    // 대분류의 category_id 찾기
-    const largeCat = largeCategories.find(c => matchLargeCategory(c.large_category, selectedLargeCategory));
-    if (largeCat) {
-      // 중분류: parent_category_id === 대분류 category_id, level 2
-      const medium = all.filter(c => c.parent_category_id === largeCat.category_id && c.category_level === 2);
-      // 소분류: parent_category_id === 중분류 category_id, level 3
-      const mediumIds = medium.map(m => m.category_id);
-      const small = all.filter(c => mediumIds.includes(c.parent_category_id) && c.category_level === 3);
-      // 세분류: parent_category_id === 소분류 category_id, level 4
-      const smallIds = small.map(s => s.category_id);
-      const smallest = all.filter(c => smallIds.includes(c.parent_category_id) && c.category_level === 4);
-      subCounts = { medium: medium.length, small: small.length, smallest: smallest.length };
-      // 대분류 클릭 시 하위 전체 표출
-      displayCategories = all.filter(c => matchLargeCategory(c.large_category, selectedLargeCategory));
-      filterInfo = `"${selectedLargeCategory}" : 중분류(${subCounts.medium}), 소분류(${subCounts.small}), 세분류(${subCounts.smallest})`;
-    }
+  if (selectedLargeCategory && !selectedMediumCategory && !selectedSmallCategory) {
+    // 중분류만 추출
+    const mediums = Array.from(new Set(all.filter(c => matchLargeCategory(c.large_category, selectedLargeCategory) && c.medium_category).map(c => c.medium_category)));
+    displayCategories = all.filter(c => matchLargeCategory(c.large_category, selectedLargeCategory));
+    filterInfo = `"${selectedLargeCategory}"의 중분류 (${mediums.length}개)`;
+  } else if (selectedLargeCategory && selectedMediumCategory && !selectedSmallCategory) {
+    // 소분류만 추출
+    const smalls = Array.from(new Set(all.filter(c => matchLargeCategory(c.large_category, selectedLargeCategory) && c.medium_category === selectedMediumCategory && c.small_category).map(c => c.small_category)));
+    displayCategories = all.filter(c => matchLargeCategory(c.large_category, selectedLargeCategory) && c.medium_category === selectedMediumCategory);
+    filterInfo = `"${selectedLargeCategory}" > "${selectedMediumCategory}"의 소분류 (${smalls.length}개)`;
+  } else if (selectedLargeCategory && selectedMediumCategory && selectedSmallCategory) {
+    // 세분류만 추출
+    const smallests = Array.from(new Set(all.filter(c => matchLargeCategory(c.large_category, selectedLargeCategory) && c.medium_category === selectedMediumCategory && c.small_category === selectedSmallCategory && c.smallest_category).map(c => c.smallest_category)));
+    displayCategories = all.filter(c => matchLargeCategory(c.large_category, selectedLargeCategory) && c.medium_category === selectedMediumCategory && c.small_category === selectedSmallCategory);
+    filterInfo = `"${selectedLargeCategory}" > "${selectedMediumCategory}" > "${selectedSmallCategory}"의 세분류 (${smallests.length}개)`;
+  } else if (selectedLevel === 1) {
+    filterInfo = `대분류 (${NAVER_LARGE_CATEGORIES.length}개)`;
   } else if (selectedLevel) {
     filterInfo = `${getLevelName(selectedLevel)} (${categoriesData?.totalCount || 0}개)`;
   } else {
@@ -330,8 +352,8 @@ const CategoryList = ({ selectedLevel, onLevelFilter, refetchRef }: CategoryList
               </Button>
             )}
           </div>
-          {/* 대분류일 때만 대분류 클릭 활성화 */}
-          {selectedLevel === 1 && (
+          {/* 대분류 버튼 */}
+          {!selectedLargeCategory && (
             <div className="flex flex-wrap gap-2 mt-2">
               {NAVER_LARGE_CATEGORIES.map((name) => {
                 const cat = largeCategories.find(c => matchLargeCategory(c.large_category, name));
@@ -347,6 +369,54 @@ const CategoryList = ({ selectedLevel, onLevelFilter, refetchRef }: CategoryList
                   </Button>
                 );
               })}
+            </div>
+          )}
+          {/* 중분류 버튼 */}
+          {selectedLargeCategory && !selectedMediumCategory && (
+            <div className="flex flex-wrap gap-2 mt-2">
+              <Button size="sm" variant="outline" onClick={handleBackToLarge}>상위로</Button>
+              {Array.from(new Set(all.filter(c => matchLargeCategory(c.large_category, selectedLargeCategory) && c.medium_category).map(c => c.medium_category))).map(medium => (
+                <Button
+                  key={medium}
+                  size="sm"
+                  variant={selectedMediumCategory === medium ? 'default' : 'outline'}
+                  onClick={() => handleMediumCategoryClick(medium)}
+                >
+                  {medium}
+                </Button>
+              ))}
+            </div>
+          )}
+          {/* 소분류 버튼 */}
+          {selectedLargeCategory && selectedMediumCategory && !selectedSmallCategory && (
+            <div className="flex flex-wrap gap-2 mt-2">
+              <Button size="sm" variant="outline" onClick={handleBackToMedium}>상위로</Button>
+              {Array.from(new Set(all.filter(c => matchLargeCategory(c.large_category, selectedLargeCategory) && c.medium_category === selectedMediumCategory && c.small_category).map(c => c.small_category))).map(small => (
+                <Button
+                  key={small}
+                  size="sm"
+                  variant={selectedSmallCategory === small ? 'default' : 'outline'}
+                  onClick={() => handleSmallCategoryClick(small)}
+                >
+                  {small}
+                </Button>
+              ))}
+            </div>
+          )}
+          {/* 세분류 버튼 */}
+          {selectedLargeCategory && selectedMediumCategory && selectedSmallCategory && (
+            <div className="flex flex-wrap gap-2 mt-2">
+              <Button size="sm" variant="outline" onClick={handleBackToSmall}>상위로</Button>
+              {Array.from(new Set(all.filter(c => matchLargeCategory(c.large_category, selectedLargeCategory) && c.medium_category === selectedMediumCategory && c.small_category === selectedSmallCategory && c.smallest_category).map(c => c.smallest_category))).map(smallest => (
+                <Button
+                  key={smallest}
+                  size="sm"
+                  variant="outline"
+                  // 세분류는 클릭 시 별도 동작 없음
+                >
+                  {smallest}
+                </Button>
+              ))}
             </div>
           )}
           {categoriesLoading ? (
