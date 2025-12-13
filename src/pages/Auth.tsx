@@ -188,7 +188,7 @@ const Auth = () => {
               <Button 
                 onClick={handleSignIn} 
                 disabled={loading}
-                className="w-full bg-blue-600 hover:bg-blue-700"
+                className="w-full bg-[#0F4C5C] hover:bg-[#0a3d4a] text-white"
               >
                 {loading ? "로그인 중..." : "로그인"}
               </Button>
@@ -250,7 +250,7 @@ const Auth = () => {
               <Button 
                 onClick={handleSignUp} 
                 disabled={loading}
-                className="w-full bg-green-600 hover:bg-green-700"
+                className="w-full bg-[#0F4C5C] hover:bg-[#0a3d4a] text-white"
               >
                 {loading ? "가입 중..." : "회원가입"}
               </Button>
@@ -261,7 +261,7 @@ const Auth = () => {
             <Button 
               variant="ghost" 
               onClick={() => navigate("/")}
-              className="text-blue-600 hover:text-blue-800"
+              className="text-[#0F4C5C] hover:text-[#0a3d4a]"
             >
               메인페이지로 돌아가기
             </Button>
