@@ -4,7 +4,6 @@ import { Shield, User } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import ApiKeyManager from "./ApiKeyManager";
 import CategoryUpload from "./category/CategoryUpload";
-import CategoryStats from "./category/CategoryStats";
 import UploadHistory from "./category/UploadHistory";
 import CategoryList from "./category/CategoryList";
 import { Card, CardContent } from "@/components/ui/card";
@@ -35,7 +34,7 @@ const ServiceManager = () => {
           서비스 관리 기능을 사용하려면 회원가입 또는 로그인해주세요.
         </p>
         <p className="text-sm text-orange-500">
-          아래 카테고리 통계는 참고용으로 제공되며, 상세 목록은 로그인 후 확인할 수 있습니다.
+          상세 목록은 로그인 후 확인할 수 있습니다.
         </p>
       </CardContent>
     </Card>
@@ -64,9 +63,6 @@ const ServiceManager = () => {
 
       {/* 업로드 기록 - 로그인 후에만 표시 */}
       {user && <UploadHistory refetchRef={uploadHistoryRef} />}
-
-      {/* 카테고리 통계 - 항상 표시 */}
-      <CategoryStats onLevelFilter={handleLevelFilter} />
 
       {/* 카테고리 목록 - 로그인 후에만 표시 */}
       {user ? (
