@@ -24,8 +24,13 @@ const TrendAnalysis = () => {
   const [keyword, setKeyword] = useState("");
   const [trendData, setTrendData] = useState<TrendData[]>([]);
   const [searchTermData, setSearchTermData] = useState<SearchTermData[]>([]);
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
+  const today = formatDate(new Date());
+  const lastWeek = new Date();
+  lastWeek.setDate(lastWeek.getDate() - 7);
+  const lastWeekFormatted = formatDate(lastWeek);
+  
+  const [startDate, setStartDate] = useState(lastWeekFormatted);
+  const [endDate, setEndDate] = useState(today);
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
   const { sharedKeyword } = useKeyword();
@@ -117,11 +122,6 @@ const TrendAnalysis = () => {
     return `${year}-${month}-${day}`;
   };
 
-  const today = formatDate(new Date());
-  const lastWeek = new Date();
-  lastWeek.setDate(lastWeek.getDate() - 7);
-  const lastWeekFormatted = formatDate(lastWeek);
-
   return (
     <div className="space-y-6">
       {/* 로그인 안내 */}
@@ -168,7 +168,6 @@ const TrendAnalysis = () => {
                 type="date"
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
-                defaultValue={lastWeekFormatted}
                 className="text-sm"
                 disabled={!user}
               />
@@ -179,7 +178,6 @@ const TrendAnalysis = () => {
                 type="date"
                 value={endDate}
                 onChange={(e) => setEndDate(e.target.value)}
-                defaultValue={today}
                 className="text-sm"
                 disabled={!user}
               />

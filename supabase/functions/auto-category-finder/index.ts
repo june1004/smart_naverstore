@@ -6,15 +6,37 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
 };
 
 serve(async (req) => {
+  // CORS preflight 요청 처리
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, { 
+      status: 200,
+      headers: corsHeaders 
+    });
   }
 
   try {
-    const { keyword } = await req.json();
+    // 요청 본문 파싱 (에러 처리 포함)
+    let keyword;
+    try {
+      const body = await req.json();
+      keyword = body.keyword;
+    } catch (parseError) {
+      return new Response(JSON.stringify({ error: 'Invalid request body' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+    
+    if (!keyword) {
+      return new Response(JSON.stringify({ error: '키워드가 필요합니다.' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
     
     const clientId = Deno.env.get('NAVER_CLIENT_ID');
     const clientSecret = Deno.env.get('NAVER_CLIENT_SECRET');
