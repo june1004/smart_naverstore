@@ -31,10 +31,16 @@ Edge Function returned a non-2xx status code
    # Value: your-api-key-here
    ```
 
-3. **Edge Function 재배포:**
+3. **Edge Function 배포:**
    ```bash
+   # 배포 스크립트 사용 (권장)
+   ./scripts/deploy-gemini-function.sh
+   
+   # 또는 직접 배포
    supabase functions deploy gemini-seo-recommend
    ```
+   
+   **중요:** Edge Function이 배포되지 않으면 404 에러가 발생합니다.
 
 ### 2. 인증 토큰 400 에러
 
