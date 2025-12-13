@@ -17,7 +17,31 @@ serve(async (req) => {
   }
 
   try {
-    const { keyword, display = 20, start = 1, sort = 'sim' } = await req.json();
+    // 요청 본문 파싱 (에러 처리 포함)
+    let keyword, display = 20, start = 1, sort = 'sim';
+    try {
+      const body = await req.json();
+      keyword = body.keyword;
+      if (body.display !== undefined) display = body.display;
+      if (body.start !== undefined) start = body.start;
+      if (body.sort !== undefined) sort = body.sort;
+    } catch (parseError) {
+      console.error('요청 본문 파싱 오류:', parseError);
+      return new Response(JSON.stringify({ 
+        error: 'Invalid request body',
+        details: parseError instanceof Error ? parseError.message : 'Unknown error'
+      }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+    
+    if (!keyword) {
+      return new Response(JSON.stringify({ error: '키워드가 필요합니다.' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
     
     // 환경 변수에서 네이버 API 키 가져오기
     // @ts-ignore
