@@ -4,11 +4,16 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
 };
 
 serve(async (req) => {
+  // CORS preflight 요청 처리
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, { 
+      status: 200,
+      headers: corsHeaders 
+    });
   }
 
   try {
@@ -21,8 +26,9 @@ serve(async (req) => {
     const clientSecret = Deno.env.get('NAVER_CLIENT_SECRET');
 
     if (!clientId || !clientSecret) {
+      console.error('API 키가 설정되지 않았습니다');
       return new Response(JSON.stringify({ 
-        error: '네이버 API 키가 환경 변수에 설정되지 않았습니다. NAVER_CLIENT_ID와 NAVER_CLIENT_SECRET을 설정해주세요.' 
+        error: 'API 키가 설정되지 않았습니다. Supabase Secrets에 NAVER_CLIENT_ID와 NAVER_CLIENT_SECRET을 설정해주세요.' 
       }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
