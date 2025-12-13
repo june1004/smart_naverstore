@@ -34,6 +34,8 @@ FUNCTIONS=(
   "searchterm-data"
   "naver-commerce-auth"
   "naver-product-list"
+  "naver-product-update"
+  "gemini-seo-recommend"
   "upload-categories"
 )
 
@@ -71,6 +73,7 @@ echo "   - NAVER_CLIENT_ID"
 echo "   - NAVER_CLIENT_SECRET"
 echo "   - NAVER_APPLICATION_ID (커머스 API용)"
 echo "   - NAVER_APPLICATION_SECRET (커머스 API용)"
+echo "   - GEMINI_API_KEY (SEO 최적화 기능용)"
 echo "   - SUPABASE_URL"
 echo "   - SUPABASE_SERVICE_ROLE_KEY"
 
