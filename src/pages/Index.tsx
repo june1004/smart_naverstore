@@ -8,7 +8,8 @@ import ShoppingInsight from "@/components/ShoppingInsight";
 import AutoKeywordAnalyzer from "@/components/AutoKeywordAnalyzer";
 import ServiceManager from "@/components/ServiceManager";
 import UserProfile from "@/components/UserProfile";
-import { ShoppingCart, TrendingUp, BarChart3, Sparkles, Settings, Search } from "lucide-react";
+import { TrendingUp, BarChart3, Sparkles, Settings, Search } from "lucide-react";
+import Logo from "@/components/Logo";
 
 const Index = () => {
   return (
@@ -18,10 +19,7 @@ const Index = () => {
         <div className="text-center mb-8">
           <div className="flex justify-between items-center mb-4">
             <div></div>
-            <h1 className="text-4xl font-bold text-gray-900 flex items-center justify-center gap-3">
-              <ShoppingCart className="h-10 w-10 text-blue-600" />
-              네이버 쇼핑몰 분석 도구
-            </h1>
+            <Logo size="md" />
             <UserProfile />
           </div>
           <p className="text-xl text-gray-600 max-w-2xl mx-auto">키워드 분석, 검색 트렌드, 쇼핑 인사이트를 통해 데이터 기반의 쇼핑몰 운영 전략을 수립하세요</p>
