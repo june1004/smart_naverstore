@@ -27,18 +27,54 @@ const PopularKeywords = () => {
   const { toast } = useToast();
   const { user } = useAuth();
 
-  // 실제 카테고리 데이터 조회 
-  const { data: categoryData } = useQuery({
-    queryKey: ['naver-categories-active'],
+  // 실제 카테고리 데이터 조회 (모든 데이터를 가져오기 위해 배치 페칭)
+  const { data: categoryData, isLoading: categoriesLoading, error: categoriesError } = useQuery({
+    queryKey: ['naver-categories-active-popular'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('naver_categories')
-        .select('*')
-        .eq('is_active', true)
-        .order('category_path', { ascending: true });
-      if (error) throw error;
+      // 모든 row를 1000개씩 반복적으로 fetch해서 합치는 함수
+      async function fetchAllCategories() {
+        const allRows = [];
+        let from = 0;
+        const batchSize = 1000;
+        let keepGoing = true;
+        
+        while (keepGoing) {
+          let query = supabase
+            .from('naver_categories')
+            .select('*', { count: 'exact' })
+            .eq('is_active', true)
+            .order('category_path', { ascending: true })
+            .range(from, from + batchSize - 1);
+
+          const { data, error } = await query;
+          
+          if (error) {
+            console.error('카테고리 데이터 조회 오류:', error);
+            throw error;
+          }
+          
+          if (!data || data.length === 0) {
+            keepGoing = false;
+          } else {
+            allRows.push(...data);
+            
+            // 마지막 배치인 경우 종료
+            if (data.length < batchSize) {
+              keepGoing = false;
+            } else {
+              from += batchSize;
+            }
+          }
+        }
+        
+        return allRows;
+      }
+      
+      const data = await fetchAllCategories();
+      console.log('로드된 카테고리 수:', data.length);
       return data;
     },
+    enabled: !!user, // 사용자가 로그인한 경우에만 실행
   });
 
   // 선택된 카테고리 정보 로드
@@ -184,12 +220,23 @@ const PopularKeywords = () => {
                 <SelectValue placeholder="카테고리 선택" />
               </SelectTrigger>
               <SelectContent>
-                {/* 대분류 카테고리만 표시 */}
-                {categoryData?.filter(cat => cat.category_level === 1).map((category) => (
-                  <SelectItem key={category.category_id} value={category.category_id}>
-                    {category.category_name}
-                  </SelectItem>
-                ))}
+                {categoriesLoading ? (
+                  <div className="p-2 text-sm text-gray-500">카테고리 로딩 중...</div>
+                ) : categoriesError ? (
+                  <div className="p-2 text-sm text-red-500">카테고리 로드 실패</div>
+                ) : categoryData && categoryData.length > 0 ? (
+                  // 대분류 카테고리만 표시 (가나다 순 정렬)
+                  categoryData
+                    .filter(cat => cat.category_level === 1)
+                    .sort((a, b) => a.category_name.localeCompare(b.category_name, 'ko'))
+                    .map((category) => (
+                      <SelectItem key={category.category_id} value={category.category_id}>
+                        {category.category_name}
+                      </SelectItem>
+                    ))
+                ) : (
+                  <div className="p-2 text-sm text-gray-500">카테고리가 없습니다</div>
+                )}
               </SelectContent>
             </Select>
             <Input
