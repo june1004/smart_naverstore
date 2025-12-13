@@ -31,11 +31,36 @@ serve(async (req) => {
   }
 
   try {
-    const body: SEORecommendationRequest = await req.json();
+    // 요청 본문 파싱 (에러 처리 포함)
+    let body: SEORecommendationRequest;
+    try {
+      body = await req.json();
+    } catch (parseError) {
+      console.error('요청 본문 파싱 오류:', parseError);
+      return new Response(JSON.stringify({ 
+        error: 'Invalid request body',
+        details: parseError instanceof Error ? parseError.message : 'Unknown error'
+      }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     const { keyword, currentProductName, currentDetailContent, currentTags, category, competitorAnalysis } = body;
 
-    if (!keyword) {
-      return new Response(JSON.stringify({ error: '키워드가 필요합니다.' }), {
+    console.log('SEO 추천 요청 받음:', { 
+      keyword, 
+      hasProductName: !!currentProductName,
+      hasDetailContent: !!currentDetailContent,
+      tagsCount: currentTags?.length || 0,
+      category 
+    });
+
+    if (!keyword || keyword.trim() === '') {
+      return new Response(JSON.stringify({ 
+        error: '키워드가 필요합니다.',
+        details: 'keyword 필드는 필수이며 비어있을 수 없습니다.'
+      }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });

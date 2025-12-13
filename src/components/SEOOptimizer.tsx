@@ -72,23 +72,43 @@ const SEOOptimizer = ({
     setRecommendation(null);
 
     try {
+      const requestBody = {
+        keyword: keyword || currentProductName,
+        currentProductName: currentProductName || undefined,
+        currentDetailContent: currentDetailContent || undefined,
+        currentTags: currentTags && currentTags.length > 0 ? currentTags : undefined,
+        category: category || undefined,
+      };
+
+      console.log('SEO 추천 요청:', { ...requestBody, currentDetailContentLength: currentDetailContent?.length });
+
       const { data, error } = await supabase.functions.invoke('gemini-seo-recommend', {
-        body: {
-          keyword: keyword || currentProductName,
-          currentProductName,
-          currentDetailContent,
-          currentTags,
-          category,
-        },
+        body: requestBody,
       });
 
       if (error) {
-        console.error('Gemini API 오류:', error);
-        throw new Error(error.message || 'SEO 추천 생성에 실패했습니다.');
+        console.error('Gemini API 오류 상세:', error);
+        let errorMessage = error.message || 'SEO 추천 생성에 실패했습니다.';
+        
+        // 에러 응답에서 상세 정보 추출
+        if (error.status === 400) {
+          errorMessage = `요청 오류: ${error.details || error.message}. 키워드와 필수 정보를 확인해주세요.`;
+        } else if (error.status === 401) {
+          errorMessage = '인증 오류: 로그인 상태를 확인해주세요.';
+        } else if (error.status === 500) {
+          errorMessage = `서버 오류: ${error.details || error.message}. Gemini API 키가 설정되어 있는지 확인해주세요.`;
+        }
+        
+        throw new Error(errorMessage);
       }
 
-      if (!data || !data.recommended_name || !data.recommended_tags || !data.modified_html) {
-        throw new Error('Gemini API 응답 형식이 올바르지 않습니다.');
+      if (!data) {
+        throw new Error('응답 데이터가 없습니다.');
+      }
+
+      if (!data.recommended_name || !Array.isArray(data.recommended_tags) || !data.modified_html) {
+        console.error('응답 데이터 구조:', data);
+        throw new Error('Gemini API 응답 형식이 올바르지 않습니다. 필수 필드가 누락되었습니다.');
       }
 
       setRecommendation(data);
