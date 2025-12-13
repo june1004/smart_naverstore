@@ -104,12 +104,61 @@ serve(async (req) => {
       });
     }
 
-    // 2. 상품 정보 조회 API 호출
-    // 네이버 커머스 API 상품 조회 엔드포인트
-    // 참고: 실제 API 문서에 따라 엔드포인트가 다를 수 있음
-    const productUrl = `https://api.commerce.naver.com/external/v1/products/origin-products/${originProductId}`;
+    // 2. 상품 ID 식별 및 조회 전략
+    // 사용자가 입력한 ID가 originProductId인지 channelProductId인지 알 수 없으므로,
+    // 먼저 channelProductId로 검색하여 originProductId를 찾습니다.
+    let targetOriginProductId = originProductId;
+    let searchError = null;
+
+    try {
+      console.log('상품 ID 검색 시도 (ChannelProductId로 가정):', originProductId);
+      
+      const searchUrl = "https://api.commerce.naver.com/external/v1/products/search";
+      const searchBody = {
+        searchKeywordType: "CHANNEL_PRODUCT_ID",
+        searchKeyword: originProductId,
+        page: 1,
+        size: 1
+      };
+
+      const searchResponse = await fetch(searchUrl, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(searchBody)
+      });
+
+      if (searchResponse.ok) {
+        const searchResult = await searchResponse.json();
+        if (searchResult.contents && searchResult.contents.length > 0) {
+          const foundProduct = searchResult.contents[0];
+          console.log('상품 검색 성공:', {
+            channelProductId: foundProduct.channelProducts?.[0]?.channelProductId,
+            originProductId: foundProduct.originProduct?.id
+          });
+          
+          if (foundProduct.originProduct?.id) {
+            targetOriginProductId = foundProduct.originProduct.id;
+          }
+        } else {
+          console.log('검색 결과 없음. 입력된 ID를 originProductId로 간주합니다.');
+        }
+      } else {
+        const errorText = await searchResponse.text();
+        console.warn('상품 검색 실패 (무시하고 진행):', searchResponse.status, errorText);
+        searchError = errorText;
+      }
+    } catch (e) {
+      console.warn('상품 검색 중 예외 발생 (무시하고 진행):', e);
+    }
+
+    // 3. 상품 상세 정보 조회 API 호출
+    // GET /external/v1/products/origin-products/{originProductId}
+    const productUrl = `https://api.commerce.naver.com/external/v1/products/origin-products/${targetOriginProductId}`;
     
-    console.log('상품 정보 조회 요청:', { originProductId, url: productUrl });
+    console.log('상품 상세 정보 조회 요청:', { targetOriginProductId });
 
     const productResponse = await fetch(productUrl, {
       method: 'GET',

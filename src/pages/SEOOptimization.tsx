@@ -106,36 +106,52 @@ const SEOOptimization = () => {
 
       if (error) {
         console.error('상품 정보 조회 오류 상세:', error);
-        console.error('에러 상태:', error.status);
-        console.error('에러 메시지:', error.message);
-        console.error('에러 컨텍스트:', error.context);
         
-        // 에러 응답 본문에서 상세 정보 추출 시도
+        // 에러 상세 정보 추출
         let errorDetails = error.message || '상품 정보를 불러오는데 실패했습니다.';
-        if (error.context?.body) {
+        let errorSuggestion = '';
+
+        // FunctionsHttpError인 경우 Response 객체에서 본문 추출 시도
+        if (error.context && typeof error.context.json === 'function') {
           try {
-            const parsedError = typeof error.context.body === 'string' 
-              ? JSON.parse(error.context.body) 
-              : error.context.body;
-            if (parsedError.error) {
-              errorDetails = parsedError.error;
-            } else if (parsedError.details) {
-              errorDetails = parsedError.details;
-            }
+            // 이미 본문이 읽혔는지 확인하기 어려우므로 clone() 시도 후 읽기
+            const clone = error.context.clone();
+            const body = await clone.json();
+            
+            if (body.error) errorDetails = body.error;
+            if (body.details) errorDetails += ` (${body.details})`;
+            if (body.suggestion) errorSuggestion = body.suggestion;
+            
+            console.log('에러 응답 본문:', body);
           } catch (e) {
-            console.error('에러 본문 파싱 실패:', e);
+            console.warn('에러 본문 파싱 실패 (JSON):', e);
+            try {
+              const clone = error.context.clone();
+              const text = await clone.text();
+              if (text) errorDetails = text;
+            } catch (e2) {
+               console.warn('에러 본문 파싱 실패 (Text):', e2);
+            }
           }
         }
-        
+
         let errorMessage = errorDetails;
-        if (error.status === 400) {
-          errorMessage = `요청 오류: ${errorDetails}. 상품ID가 올바른지 확인해주세요.`;
-        } else if (error.status === 401) {
-          errorMessage = '인증 오류: 네이버 커머스 API 키를 확인해주세요.';
-        } else if (error.status === 404) {
+        if (error.status === 400 || (error.context && error.context.status === 400)) {
+          errorMessage = `요청 오류: ${errorDetails}`;
+          if (!errorSuggestion) {
+            errorSuggestion = '상품ID가 올바른지 확인하거나, Supabase Secrets에 NAVER_APPLICATION_ID와 NAVER_APPLICATION_SECRET이 설정되어 있는지 확인해주세요.';
+          }
+        } else if (error.status === 401 || (error.context && error.context.status === 401)) {
+          errorMessage = '인증 오류: 네이버 커머스 API 키 권한이 없거나 만료되었습니다.';
+        } else if (error.status === 404 || (error.context && error.context.status === 404)) {
           errorMessage = '상품을 찾을 수 없습니다. 상품ID가 올바른지 확인해주세요.';
-        } else if (error.status === 500) {
-          errorMessage = `서버 오류: ${errorDetails}. 네이버 커머스 API 설정을 확인해주세요.`;
+        } else if (error.status === 500 || (error.context && error.context.status === 500)) {
+          errorMessage = `서버 오류: ${errorDetails}`;
+        }
+
+        // 제안 사항이 있으면 추가
+        if (errorSuggestion) {
+          errorMessage += `\n💡 ${errorSuggestion}`;
         }
         
         throw new Error(errorMessage);
