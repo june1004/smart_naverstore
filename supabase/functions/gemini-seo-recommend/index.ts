@@ -67,11 +67,20 @@ serve(async (req) => {
     }
 
     const geminiApiKey = Deno.env.get('GEMINI_API_KEY');
+    console.log('GEMINI_API_KEY 확인:', { 
+      hasKey: !!geminiApiKey, 
+      keyLength: geminiApiKey?.length || 0,
+      keyPrefix: geminiApiKey?.substring(0, 10) || 'N/A'
+    });
+    
     if (!geminiApiKey) {
+      console.error('GEMINI_API_KEY가 설정되지 않았습니다.');
       return new Response(JSON.stringify({ 
-        error: 'Gemini API 키가 설정되지 않았습니다. Supabase Secrets에 GEMINI_API_KEY를 설정해주세요.' 
+        error: 'Gemini API 키가 설정되지 않았습니다.',
+        details: 'Supabase Secrets에 GEMINI_API_KEY를 설정해주세요.',
+        help: 'supabase secrets set GEMINI_API_KEY="your-api-key"'
       }), {
-        status: 400,
+        status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
