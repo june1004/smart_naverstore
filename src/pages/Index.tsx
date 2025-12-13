@@ -14,7 +14,7 @@ import Logo from "@/components/Logo";
 
 const Index = () => {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50">
+    <div className="min-h-screen bg-gradient-to-br from-[#F0F9F8] via-white to-[#E6F4F1]">
       <div className="container mx-auto px-4 py-8">
         {/* Header */}
         <div className="text-center mb-8">
@@ -23,46 +23,46 @@ const Index = () => {
             <Logo size="md" />
             <UserProfile />
           </div>
-          <p className="text-xl text-gray-600 max-w-2xl mx-auto">키워드 분석, 검색 트렌드, 쇼핑 인사이트를 통해 데이터 기반의 쇼핑몰 운영 전략을 수립하세요</p>
+          <p className="text-xl text-slate-600 max-w-2xl mx-auto">키워드 분석, 검색 트렌드, 쇼핑 인사이트를 통해 데이터 기반의 쇼핑몰 운영 전략을 수립하세요</p>
         </div>
 
         {/* Main Tabs */}
         <Tabs defaultValue="auto-analyzer" className="w-full">
-          <TabsList className="grid w-full grid-cols-6 mb-8 bg-white shadow-lg rounded-lg p-1">
-            <TabsTrigger value="auto-analyzer" className="flex items-center gap-2 py-3 px-6 data-[state=active]:bg-purple-600 data-[state=active]:text-white">
+          <TabsList className="grid w-full grid-cols-6 mb-8 bg-white border border-[#E2D9C8] shadow-sm rounded-xl p-1">
+            <TabsTrigger value="auto-analyzer" className="flex items-center gap-2 py-3 px-6 data-[state=active]:bg-[#0F4C5C] data-[state=active]:text-white rounded-lg transition-all">
               <Sparkles className="h-4 w-4" />
               AI 자동분석
             </TabsTrigger>
-            <TabsTrigger value="keyword" className="flex items-center gap-2 py-3 px-6 data-[state=active]:bg-blue-600 data-[state=active]:text-white">
+            <TabsTrigger value="keyword" className="flex items-center gap-2 py-3 px-6 data-[state=active]:bg-[#0F4C5C] data-[state=active]:text-white rounded-lg transition-all">
               <Search className="h-4 w-4" />
               키워드 분석
             </TabsTrigger>
-            <TabsTrigger value="trend" className="flex items-center gap-2 py-3 px-6 data-[state=active]:bg-green-600 data-[state=active]:text-white">
+            <TabsTrigger value="trend" className="flex items-center gap-2 py-3 px-6 data-[state=active]:bg-[#0F4C5C] data-[state=active]:text-white rounded-lg transition-all">
               <TrendingUp className="h-4 w-4" />
               통합검색어 트렌드
             </TabsTrigger>
-            <TabsTrigger value="insight" className="flex items-center gap-2 py-3 px-6 data-[state=active]:bg-purple-600 data-[state=active]:text-white">
+            <TabsTrigger value="insight" className="flex items-center gap-2 py-3 px-6 data-[state=active]:bg-[#0F4C5C] data-[state=active]:text-white rounded-lg transition-all">
               <BarChart3 className="h-4 w-4" />
               쇼핑인사이트
             </TabsTrigger>
-            <TabsTrigger value="seo" className="flex items-center gap-2 py-3 px-6 data-[state=active]:bg-[#0F4C5C] data-[state=active]:text-white">
+            <TabsTrigger value="seo" className="flex items-center gap-2 py-3 px-6 data-[state=active]:bg-[#0F4C5C] data-[state=active]:text-white rounded-lg transition-all">
               <Zap className="h-4 w-4" />
               SEO 최적화
             </TabsTrigger>
-            <TabsTrigger value="service" className="flex items-center gap-2 py-3 px-6 data-[state=active]:bg-gray-600 data-[state=active]:text-white">
+            <TabsTrigger value="service" className="flex items-center gap-2 py-3 px-6 data-[state=active]:bg-[#0F4C5C] data-[state=active]:text-white rounded-lg transition-all">
               <Settings className="h-4 w-4" />
               서비스 관리
             </TabsTrigger>
           </TabsList>
 
           <TabsContent value="auto-analyzer" className="space-y-6">
-            <Card className="shadow-lg border-0 bg-white/80 backdrop-blur-sm">
-              <CardHeader className="bg-gradient-to-r from-purple-600 to-purple-700 text-white rounded-t-lg">
+            <Card className="shadow-sm border border-[#E2D9C8] bg-white rounded-xl">
+              <CardHeader className="bg-gradient-to-r from-[#0F4C5C] to-[#1a6b7a] text-white rounded-t-xl">
                 <CardTitle className="flex items-center gap-2">
                   <Sparkles className="h-5 w-5" />
                   AI 키워드 자동 분석
                 </CardTitle>
-                <CardDescription className="text-purple-100">
+                <CardDescription className="text-slate-100">
                   키워드만 입력하면 AI가 자동으로 카테고리를 찾아 트렌드와 인사이트를 분석해드립니다 (회원가입 불필요)
                 </CardDescription>
               </CardHeader>
@@ -77,13 +77,13 @@ const Index = () => {
           </TabsContent>
 
           <TabsContent value="trend" className="space-y-6">
-            <Card className="shadow-lg border-0 bg-white/80 backdrop-blur-sm">
-              <CardHeader className="bg-gradient-to-r from-green-600 to-green-700 text-white rounded-t-lg">
+            <Card className="shadow-sm border border-[#E2D9C8] bg-white rounded-xl">
+              <CardHeader className="bg-gradient-to-r from-[#0F4C5C] to-[#1a6b7a] text-white rounded-t-xl">
                 <CardTitle className="flex items-center gap-2">
                   <TrendingUp className="h-5 w-5" />
                   통합검색어 트렌드
                 </CardTitle>
-                <CardDescription className="text-green-100">
+                <CardDescription className="text-slate-100">
                   검색어별 트렌드 변화를 분석하여 시장 동향을 파악하세요 (로그인 필요)
                 </CardDescription>
               </CardHeader>
@@ -94,13 +94,13 @@ const Index = () => {
           </TabsContent>
 
           <TabsContent value="insight" className="space-y-6">
-            <Card className="shadow-lg border-0 bg-white/80 backdrop-blur-sm">
-              <CardHeader className="bg-gradient-to-r from-purple-600 to-purple-700 text-white rounded-t-lg">
+            <Card className="shadow-sm border border-[#E2D9C8] bg-white rounded-xl">
+              <CardHeader className="bg-gradient-to-r from-[#0F4C5C] to-[#1a6b7a] text-white rounded-t-xl">
                 <CardTitle className="flex items-center gap-2">
                   <BarChart3 className="h-5 w-5" />
                   쇼핑인사이트
                 </CardTitle>
-                <CardDescription className="text-purple-100">
+                <CardDescription className="text-slate-100">
                   카테고리별 쇼핑 데이터와 인사이트를 통해 전략적 결정을 내리세요 (로그인 필요)
                 </CardDescription>
               </CardHeader>
@@ -111,8 +111,8 @@ const Index = () => {
           </TabsContent>
 
           <TabsContent value="seo" className="space-y-6">
-            <Card className="shadow-lg border-0 bg-white/80 backdrop-blur-sm">
-              <CardHeader className="bg-gradient-to-r from-[#0F4C5C] to-[#1a6b7a] text-white rounded-t-lg">
+            <Card className="shadow-sm border border-[#E2D9C8] bg-white rounded-xl">
+              <CardHeader className="bg-gradient-to-r from-[#0F4C5C] to-[#1a6b7a] text-white rounded-t-xl">
                 <CardTitle className="flex items-center gap-2">
                   <Zap className="h-5 w-5" />
                   SEO 자동 최적화
@@ -128,13 +128,13 @@ const Index = () => {
           </TabsContent>
 
           <TabsContent value="service" className="space-y-6">
-            <Card className="shadow-lg border-0 bg-white/80 backdrop-blur-sm">
-              <CardHeader className="bg-gradient-to-r from-gray-600 to-gray-700 text-white rounded-t-lg">
+            <Card className="shadow-sm border border-[#E2D9C8] bg-white rounded-xl">
+              <CardHeader className="bg-gradient-to-r from-[#0F4C5C] to-[#1a6b7a] text-white rounded-t-xl">
                 <CardTitle className="flex items-center gap-2">
                   <Settings className="h-5 w-5" />
                   서비스 관리
                 </CardTitle>
-                <CardDescription className="text-gray-100">
+                <CardDescription className="text-slate-100">
                   네이버 API 설정과 카테고리 정보를 관리하세요 (로그인 필요)
                 </CardDescription>
               </CardHeader>

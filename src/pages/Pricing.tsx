@@ -1,0 +1,268 @@
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { motion } from "framer-motion";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { CheckCircle2, ArrowRight, Sparkles, Zap, Shield, Loader2 } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
+import Logo from "@/components/Logo";
+import UserProfile from "@/components/UserProfile";
+
+const Pricing = () => {
+  const navigate = useNavigate();
+  const { toast } = useToast();
+  const { user } = useAuth();
+  const [isProcessing, setIsProcessing] = useState(false);
+
+  const handlePayment = async () => {
+    if (!user) {
+      toast({
+        title: "로그인이 필요합니다",
+        description: "구독을 시작하려면 먼저 로그인해주세요.",
+        variant: "destructive",
+      });
+      navigate("/auth");
+      return;
+    }
+
+    setIsProcessing(true);
+
+    try {
+      // TODO: 토스페이먼츠 또는 포트원 결제 연동
+      // 예시: 토스페이먼츠 결제창 호출
+      // const payment = await window.TossPayments.requestPayment('카드', {
+      //   amount: 10000,
+      //   orderId: generateOrderId(),
+      //   orderName: 'Pro Seller Plan - 월간 구독',
+      //   customerName: user.email,
+      //   successUrl: `${window.location.origin}/pricing/success`,
+      //   failUrl: `${window.location.origin}/pricing/fail`,
+      // });
+
+      // 임시: 결제 시뮬레이션
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+
+      toast({
+        title: "결제 준비 중",
+        description: "결제 모듈 연동 후 실제 결제가 진행됩니다.",
+      });
+
+      // 실제 구현 시:
+      // 1. Supabase에 구독 정보 저장
+      // 2. 결제 성공 후 리다이렉트
+      // 3. 사용자 프로필에 구독 상태 업데이트
+
+    } catch (error) {
+      console.error("결제 오류:", error);
+      toast({
+        title: "결제 실패",
+        description: "결제 처리 중 오류가 발생했습니다. 다시 시도해주세요.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const features = [
+    {
+      icon: Sparkles,
+      text: "무제한 SEO 분석",
+      description: "Gemini AI 기반 키워드 및 상품 분석 무제한 사용"
+    },
+    {
+      icon: Zap,
+      text: "네이버 원클릭 연동",
+      description: "네이버 커머스 API를 통한 실시간 상품 정보 수정"
+    },
+    {
+      icon: Shield,
+      text: "AI 상세페이지 최적화",
+      description: "네이버 정책 준수 자동 HTML 변환 및 최적화"
+    },
+    {
+      text: "우선 고객 지원",
+      description: "전담 지원팀의 빠른 응답"
+    },
+    {
+      text: "고급 분석 리포트",
+      description: "상세한 트렌드 분석 및 경쟁사 비교 리포트"
+    },
+    {
+      text: "API 웹훅 연동",
+      description: "자동화를 위한 API 및 웹훅 기능"
+    }
+  ];
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-[#F0F9F8] via-white to-[#E6F4F1]">
+      {/* Navigation */}
+      <nav className="fixed top-0 left-0 right-0 z-50 backdrop-blur-md bg-white/80 border-b border-[#E2D9C8]">
+        <div className="container mx-auto px-6 py-4">
+          <div className="flex items-center justify-between">
+            <Logo size="sm" showText={true} />
+            <div className="flex items-center gap-4">
+              <Button
+                variant="ghost"
+                onClick={() => navigate("/")}
+                className="text-slate-700 hover:text-[#0F4C5C]"
+              >
+                홈
+              </Button>
+              <Button
+                variant="ghost"
+                onClick={() => navigate("/dashboard")}
+                className="text-slate-700 hover:text-[#0F4C5C]"
+              >
+                대시보드
+              </Button>
+              <UserProfile />
+            </div>
+          </div>
+        </div>
+      </nav>
+
+      {/* Main Content */}
+      <div className="container mx-auto px-6 py-24 pt-32">
+        <motion.div
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6 }}
+          className="text-center max-w-3xl mx-auto mb-16"
+        >
+          <Badge variant="outline" className="border-[#0F4C5C]/30 text-[#0F4C5C] mb-4">
+            간단한 가격
+          </Badge>
+          <h1 className="text-4xl md:text-5xl font-bold text-slate-700 mb-4 tracking-tight">
+            모든 기능을 <span className="text-[#0F4C5C]">한 곳에서</span>
+          </h1>
+          <p className="text-xl text-slate-600 leading-relaxed">
+            월간 구독으로 모든 프리미엄 기능을 무제한으로 사용하세요
+          </p>
+        </motion.div>
+
+        {/* Pricing Card */}
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.6, delay: 0.2 }}
+          className="max-w-2xl mx-auto"
+        >
+          <Card className="bg-white border-2 border-[#E2D9C8] shadow-lg hover:shadow-xl transition-all duration-300 rounded-2xl overflow-hidden relative">
+            {/* Premium Badge */}
+            <div className="absolute top-6 right-6">
+              <Badge className="bg-gradient-to-r from-[#D4AF37] to-[#F4D03F] text-[#0F4C5C] border-0 px-3 py-1">
+                추천
+              </Badge>
+            </div>
+
+            <CardHeader className="p-8 pb-6 text-center border-b border-[#E2D9C8]/50">
+              <CardTitle className="text-3xl font-bold text-slate-700 mb-2">
+                Pro Seller Plan
+              </CardTitle>
+              <CardDescription className="text-slate-600 text-base">
+                전문 셀러를 위한 올인원 솔루션
+              </CardDescription>
+            </CardHeader>
+
+            <CardContent className="p-8">
+              {/* Price */}
+              <div className="text-center mb-8">
+                <div className="flex items-baseline justify-center gap-2">
+                  <span className="text-5xl font-bold text-[#0F4C5C]">₩10,000</span>
+                  <span className="text-xl text-slate-600">/ 월</span>
+                </div>
+                <p className="text-sm text-slate-500 mt-2">연간 결제 시 20% 할인</p>
+              </div>
+
+              {/* Features List */}
+              <div className="space-y-4 mb-8">
+                {features.map((feature, index) => (
+                  <motion.div
+                    key={index}
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.4, delay: 0.3 + index * 0.05 }}
+                    className="flex items-start gap-3 p-3 rounded-lg hover:bg-[#FDF6E3]/50 transition-colors"
+                  >
+                    <CheckCircle2 className="h-5 w-5 text-[#D4AF37] flex-shrink-0 mt-0.5" />
+                    <div className="flex-1">
+                      <div className="font-medium text-slate-700 flex items-center gap-2">
+                        {feature.icon && <feature.icon className="h-4 w-4 text-[#0F4C5C]" />}
+                        {feature.text}
+                      </div>
+                      <p className="text-sm text-slate-500 mt-1">{feature.description}</p>
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+
+              {/* CTA Button */}
+              <Button
+                onClick={handlePayment}
+                disabled={isProcessing}
+                size="lg"
+                className="w-full bg-[#0F4C5C] hover:bg-[#0a3d4a] text-white text-lg font-semibold py-6 rounded-xl shadow-md hover:shadow-lg transition-all duration-300 group"
+              >
+                {isProcessing ? (
+                  <>
+                    <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                    처리 중...
+                  </>
+                ) : (
+                  <>
+                    구독하고 시작하기
+                    <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
+                  </>
+                )}
+              </Button>
+
+              {/* Additional Info */}
+              <p className="text-center text-sm text-slate-500 mt-6">
+                언제든지 취소 가능 · 첫 달 무료 체험
+              </p>
+            </CardContent>
+          </Card>
+        </motion.div>
+
+        {/* FAQ Section */}
+        <motion.div
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.4 }}
+          className="max-w-3xl mx-auto mt-16"
+        >
+          <h2 className="text-2xl font-bold text-slate-700 mb-8 text-center">자주 묻는 질문</h2>
+          <div className="space-y-4">
+            {[
+              {
+                q: "결제는 어떻게 진행되나요?",
+                a: "토스페이먼츠를 통한 안전한 카드 결제를 지원합니다. 매월 자동으로 결제됩니다."
+              },
+              {
+                q: "언제든지 취소할 수 있나요?",
+                a: "네, 언제든지 구독을 취소할 수 있으며, 취소 후에도 결제일까지는 서비스를 이용할 수 있습니다."
+              },
+              {
+                q: "첫 달 무료 체험이 있나요?",
+                a: "네, 첫 달은 무료로 모든 기능을 체험해보실 수 있습니다."
+              }
+            ].map((faq, index) => (
+              <Card key={index} className="bg-white border border-[#E2D9C8] shadow-sm">
+                <CardContent className="p-6">
+                  <h3 className="font-semibold text-slate-700 mb-2">{faq.q}</h3>
+                  <p className="text-slate-600 text-sm">{faq.a}</p>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </motion.div>
+      </div>
+    </div>
+  );
+};
+
+export default Pricing;
+

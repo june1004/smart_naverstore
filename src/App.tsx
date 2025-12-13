@@ -10,7 +10,9 @@ import { AnalysisProvider } from "@/contexts/AnalysisContext";
 import Landing from "./pages/Landing";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
+import Pricing from "./pages/Pricing";
 import NotFound from "./pages/NotFound";
+import ProtectedRoute from "./components/ProtectedRoute";
 
 const queryClient = new QueryClient();
 
@@ -24,9 +26,21 @@ const App = () => (
             <Sonner />
             <BrowserRouter>
               <Routes>
+                {/* Public Routes */}
                 <Route path="/" element={<Landing />} />
-                <Route path="/dashboard" element={<Index />} />
                 <Route path="/auth" element={<Auth />} />
+                <Route path="/pricing" element={<Pricing />} />
+                
+                {/* Protected Routes */}
+                <Route 
+                  path="/dashboard" 
+                  element={
+                    <ProtectedRoute>
+                      <Index />
+                    </ProtectedRoute>
+                  } 
+                />
+                
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                 <Route path="*" element={<NotFound />} />
               </Routes>
