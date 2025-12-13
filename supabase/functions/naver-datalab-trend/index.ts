@@ -32,21 +32,53 @@ serve(async (req) => {
 
     console.log('요청 파라미터:', { keywords, startDate, endDate, timeUnit });
 
-    // 날짜 형식 검증 및 수정
+    // 날짜 형식 검증 및 수정 (YYYY-MM-DD 형식으로 정규화)
     const formatDate = (dateStr: string) => {
-      // YYYYMMDD 형식으로 변환
-      if (dateStr.length === 8) {
+      if (!dateStr) {
+        throw new Error('날짜가 제공되지 않았습니다.');
+      }
+      
+      // 이미 YYYY-MM-DD 형식인 경우
+      if (dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
         return dateStr;
       }
+      
+      // YYYYMMDD 형식인 경우 YYYY-MM-DD로 변환
+      if (dateStr.length === 8 && /^\d{8}$/.test(dateStr)) {
+        return `${dateStr.substring(0, 4)}-${dateStr.substring(4, 6)}-${dateStr.substring(6, 8)}`;
+      }
+      
+      // Date 객체로 파싱 시도
       const date = new Date(dateStr);
       if (isNaN(date.getTime())) {
-        throw new Error('잘못된 날짜 형식입니다.');
+        throw new Error(`잘못된 날짜 형식입니다: ${dateStr}`);
       }
-      return date.toISOString().split('T')[0].replace(/-/g, '');
+      
+      // YYYY-MM-DD 형식으로 반환
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
     };
 
-    const formattedStartDate = formatDate(startDate);
-    const formattedEndDate = formatDate(endDate);
+    let formattedStartDate, formattedEndDate;
+    try {
+      formattedStartDate = formatDate(startDate);
+      formattedEndDate = formatDate(endDate);
+      console.log('날짜 형식 변환:', { 
+        original: { startDate, endDate },
+        formatted: { formattedStartDate, formattedEndDate }
+      });
+    } catch (dateError) {
+      console.error('날짜 형식 변환 오류:', dateError);
+      return new Response(JSON.stringify({ 
+        error: '날짜 형식 오류',
+        details: dateError instanceof Error ? dateError.message : 'Unknown error'
+      }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
 
     // 키워드 그룹 생성 - 각 키워드를 개별 그룹으로 처리
     const keywordGroups = keywords.map((keyword: string, index: number) => ({
