@@ -26,6 +26,7 @@ FUNCTIONS=(
   "auto-category-finder"
   "naver-shopping-search"
   "naver-keyword-extraction"
+  "naver-searchad-keywords"
   "naver-shopping-insight"
   "naver-popular-keywords"
   "naver-datalab-trend"
