@@ -52,6 +52,15 @@ serve(async (req) => {
     const clientId = Deno.env.get('NAVER_CLIENT_ID');
     const clientSecret = Deno.env.get('NAVER_CLIENT_SECRET');
 
+    // 디버깅: API 키 존재 여부 확인 (보안을 위해 일부만 로깅)
+    console.log('API 키 확인:', {
+      hasClientId: !!clientId,
+      clientIdLength: clientId?.length || 0,
+      hasClientSecret: !!clientSecret,
+      clientSecretLength: clientSecret?.length || 0,
+      clientIdPrefix: clientId ? clientId.substring(0, 4) + '...' : 'N/A',
+    });
+
     if (!clientId || !clientSecret) {
       console.error('API 키가 설정되지 않았습니다');
       return new Response(JSON.stringify({ 
@@ -117,22 +126,39 @@ serve(async (req) => {
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('네이버 API 오류 응답:', errorText);
+      console.error('네이버 API 오류 응답:', {
+        status: response.status,
+        statusText: response.statusText,
+        headers: Object.fromEntries(response.headers.entries()),
+        body: errorText
+      });
       
       let errorMessage = `네이버 데이터랩 API 오류: ${response.status}`;
       if (response.status === 400) {
         errorMessage += ' - 요청 파라미터를 확인해주세요. 키워드는 2글자 이상이어야 하며, 날짜 범위는 최대 5년입니다.';
       } else if (response.status === 401) {
-        errorMessage += ' - API 키가 올바르지 않습니다.';
+        errorMessage += ' - API 키가 올바르지 않거나 데이터랩 API 서비스가 활성화되지 않았습니다. 네이버 개발자 센터에서 API 키와 서비스 상태를 확인해주세요.';
       } else if (response.status === 403) {
-        errorMessage += ' - API 사용 권한이 없습니다.';
+        errorMessage += ' - API 사용 권한이 없습니다. 데이터랩 API 사용 권한이 활성화되어 있는지 확인해주세요.';
       } else if (response.status === 429) {
         errorMessage += ' - API 호출 한도를 초과했습니다.';
       }
       
+      // 401 오류의 경우 더 자세한 정보 제공
+      let errorDetails = errorText;
+      if (response.status === 401) {
+        try {
+          const errorJson = JSON.parse(errorText);
+          errorDetails = JSON.stringify(errorJson, null, 2);
+        } catch {
+          // JSON 파싱 실패시 원본 텍스트 사용
+        }
+      }
+      
       return new Response(JSON.stringify({ 
         error: errorMessage,
-        details: errorText
+        details: errorDetails,
+        statusCode: response.status
       }), {
         status: response.status,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
