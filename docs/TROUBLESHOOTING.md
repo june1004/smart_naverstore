@@ -84,11 +84,11 @@ supabase functions deploy gemini-seo-recommend
 ### Edge Function 로그 확인
 
 ```bash
-# 실시간 로그 확인
-supabase functions logs gemini-seo-recommend --follow
-
-# 최근 로그 확인
+# 최근 로그 확인 (CLI 버전에 따라 --follow 플래그가 지원되지 않을 수 있음)
 supabase functions logs gemini-seo-recommend
+
+# 또는 Supabase 대시보드에서 확인:
+# https://supabase.com/dashboard/project/oypfuvxiiznlasmadnzr/functions/gemini-seo-recommend/logs
 ```
 
 ### Supabase 프로젝트 링크 확인
