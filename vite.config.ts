@@ -21,8 +21,16 @@ export default defineConfig(({ mode }) => {
   // server 설정은 개발 환경에서만 적용 (배포 환경과 충돌 방지)
   if (mode === 'development') {
     config.server = {
-      host: "::",
+      host: "localhost",
       port: 9000,
+      strictPort: true,
+      hmr: {
+        port: 9000,
+        clientPort: 9000,
+      },
+      watch: {
+        usePolling: false,
+      },
     };
   }
 
