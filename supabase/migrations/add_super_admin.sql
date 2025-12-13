@@ -18,14 +18,12 @@ WHERE id IN (
 );
 
 -- 4. RLS 정책 업데이트: 수퍼관리자는 모든 프로필 조회 가능
+-- SECURITY DEFINER 함수를 사용하여 무한 재귀 방지
 DROP POLICY IF EXISTS "Super admins can view all profiles" ON public.profiles;
 CREATE POLICY "Super admins can view all profiles" ON public.profiles
   FOR SELECT USING (
     auth.uid() = id OR 
-    EXISTS (
-      SELECT 1 FROM public.profiles 
-      WHERE id = auth.uid() AND is_super_admin = true
-    )
+    public.is_super_admin(auth.uid())
   );
 
 -- 5. 수퍼관리자는 자신의 프로필 업데이트 가능
@@ -33,22 +31,27 @@ DROP POLICY IF EXISTS "Super admins can update profiles" ON public.profiles;
 CREATE POLICY "Super admins can update profiles" ON public.profiles
   FOR UPDATE USING (
     auth.uid() = id OR 
-    EXISTS (
-      SELECT 1 FROM public.profiles 
-      WHERE id = auth.uid() AND is_super_admin = true
-    )
+    public.is_super_admin(auth.uid())
   );
 
--- 6. 수퍼관리자 확인 함수 (선택사항)
+-- 6. 수퍼관리자 확인 함수 (RLS 우회를 위해 SECURITY DEFINER 사용)
+-- 이 함수는 RLS 정책에서 사용되므로 무한 재귀를 방지하기 위해 SECURITY DEFINER로 설정
 CREATE OR REPLACE FUNCTION public.is_super_admin(user_id UUID DEFAULT auth.uid())
 RETURNS BOOLEAN
-LANGUAGE sql
+LANGUAGE plpgsql
 SECURITY DEFINER
+SET search_path = public
 STABLE
 AS $$
-  SELECT COALESCE(
-    (SELECT is_super_admin FROM public.profiles WHERE id = user_id),
-    false
-  );
+DECLARE
+  result BOOLEAN;
+BEGIN
+  -- RLS를 우회하여 직접 조회 (SECURITY DEFINER이므로 가능)
+  SELECT COALESCE(is_super_admin, false) INTO result
+  FROM public.profiles
+  WHERE id = user_id;
+  
+  RETURN COALESCE(result, false);
+END;
 $$;
 
