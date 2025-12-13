@@ -204,9 +204,10 @@ const PopularKeywords = () => {
       return;
     }
 
-    // 날짜가 비어있으면 기본값 설정 (일주일 전 ~ 오늘)
-    const finalStartDate = startDate || lastWeekFormatted;
-    const finalEndDate = endDate || today;
+    // 날짜가 비어있으면 현재 선택된 기간으로 계산
+    const periodDates = calculatePeriodDates(period);
+    const finalStartDate = startDate || periodDates.start;
+    const finalEndDate = endDate || periodDates.end;
 
     if (!finalStartDate || !finalEndDate) {
       toast({
