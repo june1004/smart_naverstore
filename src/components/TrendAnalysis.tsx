@@ -90,10 +90,25 @@ const TrendAnalysis = () => {
       });
 
       if (trendError) {
-        throw new Error(trendError.message);
+        console.error('트렌드 데이터 오류:', trendError);
+        // 에러 응답에서 상세 정보 추출
+        let errorMessage = trendError.message || '트렌드 데이터를 가져오는 중 오류가 발생했습니다.';
+        if (trendError.message?.includes('401') || trendError.message?.includes('Unauthorized')) {
+          errorMessage = '네이버 API 인증에 실패했습니다. Supabase Secrets에 NAVER_CLIENT_ID와 NAVER_CLIENT_SECRET이 올바르게 설정되어 있는지 확인해주세요.';
+        }
+        throw new Error(errorMessage);
       }
 
-      setTrendData(trendResponse);
+      // 응답이 에러 객체인지 확인
+      if (trendResponse && typeof trendResponse === 'object' && 'error' in trendResponse) {
+        let errorMessage = trendResponse.error || '트렌드 데이터를 가져오는 중 오류가 발생했습니다.';
+        if (errorMessage.includes('401') || errorMessage.includes('Unauthorized')) {
+          errorMessage = '네이버 API 인증에 실패했습니다. Supabase Secrets에 NAVER_CLIENT_ID와 NAVER_CLIENT_SECRET이 올바르게 설정되어 있는지 확인해주세요.';
+        }
+        throw new Error(errorMessage);
+      }
+
+      setTrendData(trendResponse || []);
 
       // 검색어별 데이터 가져오기
       const { data: searchTermResponse, error: searchTermError } = await supabase.functions.invoke('searchterm-data', {
@@ -101,10 +116,22 @@ const TrendAnalysis = () => {
       });
 
       if (searchTermError) {
-        throw new Error(searchTermError.message);
+        console.error('검색어 데이터 오류:', searchTermError);
+        // 트렌드 데이터는 성공했으므로 경고만 표시
+        toast({
+          title: "검색어 데이터 오류",
+          description: "검색어별 데이터를 가져오는 중 오류가 발생했습니다. 트렌드 데이터만 표시됩니다.",
+          variant: "destructive",
+        });
+      } else if (searchTermResponse && typeof searchTermResponse === 'object' && 'error' in searchTermResponse) {
+        toast({
+          title: "검색어 데이터 오류",
+          description: searchTermResponse.error || "검색어별 데이터를 가져오는 중 오류가 발생했습니다.",
+          variant: "destructive",
+        });
+      } else {
+        setSearchTermData(searchTermResponse || []);
       }
-
-      setSearchTermData(searchTermResponse);
 
       toast({
         title: "분석 완료",
@@ -113,9 +140,10 @@ const TrendAnalysis = () => {
 
     } catch (error) {
       console.error('트렌드 분석 오류:', error);
+      const errorMessage = error instanceof Error ? error.message : '트렌드 분석 중 오류가 발생했습니다.';
       toast({
         title: "분석 실패",
-        description: "트렌드 분석 중 오류가 발생했습니다.",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
