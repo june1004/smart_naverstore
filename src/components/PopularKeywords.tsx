@@ -28,9 +28,9 @@ const PopularKeywords = () => {
   const { user } = useAuth();
 
   // 실제 카테고리 데이터 조회 (모든 데이터를 가져오기 위해 배치 페칭)
-  // CategoryList와 동일한 방식으로 구현
+  // CategoryList와 동일한 쿼리 키를 사용하여 캐시 공유
   const { data: categoryData, isLoading: categoriesLoading, error: categoriesError } = useQuery({
-    queryKey: ['naver-categories-active-popular'],
+    queryKey: ['naver-categories-paginated', '', null, 1, 20, 'category_id', 'asc'],
     queryFn: async () => {
       console.log('[PopularKeywords] 카테고리 데이터 조회 시작...', { user: !!user });
       
@@ -88,19 +88,34 @@ const PopularKeywords = () => {
           const { data: allData, error: allError } = await supabase
             .from('naver_categories')
             .select('*')
-            .limit(10);
+            .limit(100);
           
           if (allError) {
             console.error('[PopularKeywords] 전체 데이터 조회 오류:', allError);
           } else {
-            console.log('[PopularKeywords] 전체 데이터 샘플 (10개):', allData?.length || 0);
+            console.log('[PopularKeywords] 전체 데이터 샘플 (100개):', allData?.length || 0);
             if (allData && allData.length > 0) {
-              console.log('[PopularKeywords] 샘플 데이터:', allData[0]);
+              console.log('[PopularKeywords] 샘플 데이터 (첫 번째):', allData[0]);
               console.log('[PopularKeywords] is_active 값 분포:', {
                 true: allData.filter(d => d.is_active === true).length,
                 false: allData.filter(d => d.is_active === false).length,
                 null: allData.filter(d => d.is_active === null || d.is_active === undefined).length
               });
+              console.log('[PopularKeywords] category_level 분포:', {
+                level1: allData.filter(d => d.category_level === 1).length,
+                level2: allData.filter(d => d.category_level === 2).length,
+                level3: allData.filter(d => d.category_level === 3).length,
+                level4: allData.filter(d => d.category_level === 4).length,
+              });
+              
+              // is_active가 false이거나 null인 경우, 그것들을 반환
+              const inactiveData = allData.filter(d => d.is_active !== true);
+              if (inactiveData.length > 0) {
+                console.warn('[PopularKeywords] is_active가 true가 아닌 데이터가 있습니다. 이 데이터를 사용합니다.');
+                return inactiveData; // 임시로 비활성 데이터라도 반환
+              }
+            } else {
+              console.error('[PopularKeywords] 데이터베이스에 카테고리 데이터가 전혀 없습니다!');
             }
           }
         }
