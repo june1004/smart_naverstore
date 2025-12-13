@@ -30,6 +30,8 @@ FUNCTIONS=(
   "naver-shopping-insight"
   "naver-popular-keywords"
   "naver-datalab-trend"
+  "trend-data"
+  "searchterm-data"
   "naver-commerce-auth"
   "naver-product-list"
   "upload-categories"
