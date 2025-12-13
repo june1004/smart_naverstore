@@ -3,7 +3,9 @@
 @tailwind components;
 @tailwind utilities;
 
-/* 페이퍼로지 폰트 정의 */
+/* 페이퍼로지 폰트 정의 - CDN 링크가 작동하지 않아 주석 처리 */
+/* 필요시 로컬 폰트 파일로 교체하거나 다른 CDN 사용 */
+/*
 @font-face {
   font-family: 'Paperlogy';
   src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_2001@1.1/PaperlogyRegular.woff') format('woff');
@@ -17,6 +19,7 @@
   font-weight: bold;
   font-style: normal;
 }
+*/
 
 @layer base {
   :root {
@@ -105,6 +108,7 @@
   }
 
   body {
-    @apply bg-background text-foreground font-paperlogy;
+    @apply bg-background text-foreground;
+    /* font-paperlogy 제거 - 폰트가 로드되지 않아 기본 폰트 사용 */
   }
 }
