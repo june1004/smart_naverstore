@@ -32,7 +32,7 @@ const CategoryUpload = ({ isAdmin, onUploadSuccess }: CategoryUploadProps) => {
       }
 
       if (!isAdmin) {
-        throw new Error('관리자 권한이 필요합니다. (june@nanumlab.com 계정만 가능)');
+        throw new Error('수퍼관리자 권한이 필요합니다.');
       }
 
       const response = await fetch(`https://votlredkpkiafedzkham.supabase.co/functions/v1/upload-categories`, {
@@ -92,7 +92,7 @@ const CategoryUpload = ({ isAdmin, onUploadSuccess }: CategoryUploadProps) => {
     if (!isAdmin) {
       toast({
         title: "권한 없음",
-        description: "관리자만 카테고리를 업로드할 수 있습니다. (june@nanumlab.com 계정 필요)",
+        description: "수퍼관리자만 카테고리를 업로드할 수 있습니다.",
         variant: "destructive",
       });
       return;
@@ -278,7 +278,7 @@ const CategoryUpload = ({ isAdmin, onUploadSuccess }: CategoryUploadProps) => {
         </CardTitle>
         <CardDescription>
           네이버 카테고리 정보를 CSV 또는 JSON 파일로 일괄 업로드합니다. (최대 10MB, 기존 데이터 교체됨)
-          {!isAdmin && " - june@nanumlab.com 계정만 업로드 가능"}
+          {!isAdmin && " - 수퍼관리자만 업로드 가능"}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
