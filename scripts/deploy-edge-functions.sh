@@ -34,8 +34,10 @@ FUNCTIONS=(
   "searchterm-data"
   "naver-commerce-auth"
   "naver-product-list"
+  "naver-product-get"
   "naver-product-update"
   "gemini-seo-recommend"
+  "keyword-recommend"
   "upload-categories"
 )
 
