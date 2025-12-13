@@ -5,10 +5,13 @@ import { componentTagger } from "lovable-tagger";
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
-  server: {
-    host: "::",
-    port: 9000,
-  },
+  // server 설정은 개발 환경에서만 적용 (배포 환경과 충돌 방지)
+  ...(mode === 'development' && {
+    server: {
+      host: "::",
+      port: 9000,
+    },
+  }),
   plugins: [
     react(),
     mode === 'development' &&
