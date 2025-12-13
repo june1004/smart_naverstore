@@ -20,15 +20,23 @@ interface SearchTermData {
   ratio: number;
 }
 
+// formatDate 함수를 컴포넌트 외부로 이동
+const formatDate = (date: Date): string => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 const TrendAnalysis = () => {
-  const [keyword, setKeyword] = useState("");
-  const [trendData, setTrendData] = useState<TrendData[]>([]);
-  const [searchTermData, setSearchTermData] = useState<SearchTermData[]>([]);
   const today = formatDate(new Date());
   const lastWeek = new Date();
   lastWeek.setDate(lastWeek.getDate() - 7);
   const lastWeekFormatted = formatDate(lastWeek);
   
+  const [keyword, setKeyword] = useState("");
+  const [trendData, setTrendData] = useState<TrendData[]>([]);
+  const [searchTermData, setSearchTermData] = useState<SearchTermData[]>([]);
   const [startDate, setStartDate] = useState(lastWeekFormatted);
   const [endDate, setEndDate] = useState(today);
   const [loading, setLoading] = useState(false);
@@ -113,13 +121,6 @@ const TrendAnalysis = () => {
     } finally {
       setLoading(false);
     }
-  };
-
-  const formatDate = (date: Date): string => {
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
   };
 
   return (
