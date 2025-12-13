@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -91,19 +91,57 @@ const PopularKeywords = () => {
     staleTime: 5 * 60 * 1000,
   });
   
-  // CategoryList와 동일하게 파싱 (필요시)
-  const categoryData = categoryDataRaw;
+  // CategoryList와 동일하게 category_path 파싱하여 대분류 추출
+  const categoryData = useMemo(() => {
+    if (!categoryDataRaw || categoryDataRaw.length === 0) {
+      return [];
+    }
+
+    // CategoryList의 parseCategoryPath와 동일한 로직
+    const parseCategoryPath = (category: any) => {
+      const pathParts = category.category_path ? category.category_path.split(' > ').filter((part: string) => part.trim() !== '') : [];
+      return {
+        ...category,
+        large_category: pathParts[0] || '',
+        medium_category: pathParts[1] || '',
+        small_category: pathParts[2] || '',
+        smallest_category: pathParts[3] || '',
+      };
+    };
+
+    const parsedCategories = categoryDataRaw.map(parseCategoryPath);
+    
+    // 대분류만 추출 (CategoryList와 동일한 방식)
+    const uniqueLargeCategories = Array.from(
+      new Set(parsedCategories.map(c => c.large_category))
+    ).filter(Boolean);
+    
+    // 각 대분류의 첫 번째 카테고리만 선택
+    const level1Categories = uniqueLargeCategories.map(lc => 
+      parsedCategories.find(c => c.large_category === lc)
+    ).filter(Boolean);
+    
+    console.log('[PopularKeywords] 파싱된 대분류 카테고리:', {
+      total: categoryDataRaw.length,
+      uniqueLargeCategories: uniqueLargeCategories.length,
+      level1Categories: level1Categories.length,
+      largeCategories: uniqueLargeCategories
+    });
+    
+    return level1Categories;
+  }, [categoryDataRaw]);
   
   // 디버깅: 쿼리 상태 로깅
   useEffect(() => {
     console.log('[PopularKeywords] 쿼리 상태:', {
       isLoading: categoriesLoading,
-      hasData: !!categoryData,
-      dataLength: categoryData?.length || 0,
+      hasData: !!categoryDataRaw,
+      rawDataLength: categoryDataRaw?.length || 0,
+      parsedDataLength: categoryData?.length || 0,
       error: categoriesError,
       user: !!user
     });
-  }, [categoriesLoading, categoryData, categoriesError, user]);
+  }, [categoriesLoading, categoryDataRaw, categoryData, categoriesError, user]);
 
   // 선택된 카테고리 정보 로드
   useEffect(() => {
@@ -268,27 +306,23 @@ const PopularKeywords = () => {
                   </div>
                 ) : categoryData && categoryData.length > 0 ? (
                   (() => {
-                    const level1Categories = categoryData
-                      .filter(cat => cat.category_level === 1)
-                      .sort((a, b) => a.category_name.localeCompare(b.category_name, 'ko'));
+                    // 이미 파싱된 대분류 카테고리를 가나다 순으로 정렬
+                    const sortedCategories = [...categoryData].sort((a, b) => {
+                      const nameA = a.large_category || a.category_name || '';
+                      const nameB = b.large_category || b.category_name || '';
+                      return nameA.localeCompare(nameB, 'ko');
+                    });
                     
-                    console.log('[PopularKeywords] SelectContent 렌더링 - 대분류 카테고리:', level1Categories.length);
+                    console.log('[PopularKeywords] SelectContent 렌더링 - 대분류 카테고리:', sortedCategories.length);
                     
-                    if (level1Categories.length === 0) {
+                    return sortedCategories.map((category) => {
+                      const displayName = category.large_category || category.category_name;
                       return (
-                        <div className="p-2 text-sm text-gray-500">
-                          대분류 카테고리가 없습니다
-                          <br />
-                          <span className="text-xs">전체 카테고리: {categoryData.length}개</span>
-                        </div>
+                        <SelectItem key={category.category_id} value={category.category_id}>
+                          {displayName}
+                        </SelectItem>
                       );
-                    }
-                    
-                    return level1Categories.map((category) => (
-                      <SelectItem key={category.category_id} value={category.category_id}>
-                        {category.category_name}
-                      </SelectItem>
-                    ));
+                    });
                   })()
                 ) : (
                   <div className="p-2 text-sm text-gray-500">
