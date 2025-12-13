@@ -199,23 +199,54 @@ const PopularKeywords = () => {
       return;
     }
 
+    // 날짜가 비어있으면 기본값 설정 (일주일 전 ~ 오늘)
+    const finalStartDate = startDate || lastWeekFormatted;
+    const finalEndDate = endDate || today;
+
+    if (!finalStartDate || !finalEndDate) {
+      toast({
+        title: "날짜를 선택해주세요",
+        description: "시작일과 종료일을 모두 선택해주세요.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setLoading(true);
+    setPopularKeywords([]);
 
     try {
+      console.log('인기검색어 조회 요청:', { 
+        category: selectedCategory, 
+        startDate: finalStartDate, 
+        endDate: finalEndDate 
+      });
+
       const { data, error } = await supabase.functions.invoke('naver-popular-keywords', {
         body: { 
           category: selectedCategory,
-          startDate,
-          endDate,
+          startDate: finalStartDate,
+          endDate: finalEndDate,
           timeUnit: 'date'
         }
       });
 
       if (error) {
-        throw new Error(error.message);
+        console.error('Edge Function 오류 상세:', error);
+        let errorMessage = error.message;
+        if (error.status === 400) {
+          errorMessage = `요청 오류: ${error.details || error.message}. 날짜 형식을 확인해주세요.`;
+        } else if (error.status === 500) {
+          errorMessage = `서버 오류: ${error.details || error.message}`;
+        }
+        throw new Error(errorMessage);
       }
 
-      setPopularKeywords(data.keywords || data);
+      if (!data || !data.keywords) {
+        throw new Error('응답 데이터가 올바르지 않습니다.');
+      }
+
+      setPopularKeywords(data.keywords);
 
       toast({
         title: "검색 완료",

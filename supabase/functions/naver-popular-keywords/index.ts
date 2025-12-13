@@ -17,7 +17,39 @@ serve(async (req) => {
   }
 
   try {
-    const { category, startDate, endDate, timeUnit = 'date', device = '', ages = [], gender = '' } = await req.json();
+    // 요청 본문 파싱 (에러 처리 포함)
+    let category, startDate, endDate, timeUnit, device, ages, gender;
+    try {
+      const requestBody = await req.json();
+      category = requestBody.category;
+      startDate = requestBody.startDate;
+      endDate = requestBody.endDate;
+      timeUnit = requestBody.timeUnit || 'date';
+      device = requestBody.device || '';
+      ages = requestBody.ages || [];
+      gender = requestBody.gender || '';
+    } catch (parseError) {
+      console.error('요청 본문 파싱 오류:', parseError);
+      return new Response(JSON.stringify({ 
+        error: 'Invalid request body',
+        details: parseError instanceof Error ? parseError.message : 'Unknown error'
+      }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+    
+    // 필수 파라미터 검증
+    if (!startDate || !endDate) {
+      console.error('필수 파라미터 누락:', { startDate, endDate });
+      return new Response(JSON.stringify({ 
+        error: '시작일과 종료일이 필요합니다.',
+        details: `startDate: ${startDate}, endDate: ${endDate}`
+      }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
     
     const clientId = Deno.env.get('NAVER_CLIENT_ID');
     const clientSecret = Deno.env.get('NAVER_CLIENT_SECRET');
@@ -36,22 +68,35 @@ serve(async (req) => {
     console.log('인기 검색어 API 요청:', { category, startDate, endDate, timeUnit });
 
     // 날짜 형식 변환 (YYYY-MM-DD -> YYYYMMDD)
-    const formatDate = (dateStr: string) => {
+    const formatDate = (dateStr: string | undefined | null): string => {
       if (!dateStr) {
         throw new Error('날짜가 제공되지 않았습니다.');
       }
+      
+      const str = String(dateStr).trim();
+      
       // 이미 YYYYMMDD 형식이면 그대로 반환
-      if (dateStr.length === 8 && /^\d{8}$/.test(dateStr)) {
-        return dateStr;
+      if (str.length === 8 && /^\d{8}$/.test(str)) {
+        return str;
       }
+      
       // YYYY-MM-DD 형식이면 YYYYMMDD로 변환
-      if (dateStr.includes('-')) {
-        return dateStr.replace(/-/g, '');
+      if (str.includes('-')) {
+        const parts = str.split('-');
+        if (parts.length === 3) {
+          const year = parts[0];
+          const month = parts[1].padStart(2, '0');
+          const day = parts[2].padStart(2, '0');
+          if (year.length === 4 && month.length === 2 && day.length === 2) {
+            return `${year}${month}${day}`;
+          }
+        }
       }
+      
       // Date 객체로 파싱 시도
-      const date = new Date(dateStr);
+      const date = new Date(str);
       if (isNaN(date.getTime())) {
-        throw new Error(`유효하지 않은 날짜 형식: ${dateStr}`);
+        throw new Error(`유효하지 않은 날짜 형식: ${str}`);
       }
       const year = date.getFullYear();
       const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -135,17 +180,15 @@ serve(async (req) => {
 
   } catch (error) {
     console.error('인기 검색어 조회 오류:', error);
-    
-    // 오류 발생 시 샘플 데이터 반환
-    const sampleKeywords = generateSampleKeywords('전체', null);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const errorStack = error instanceof Error ? error.stack : undefined;
     
     return new Response(JSON.stringify({
-      keywords: sampleKeywords,
-      categoryInfo: null,
-      isSampleData: true,
-      error: error.message
+      error: errorMessage,
+      details: '인기검색어 조회 중 오류가 발생했습니다.',
+      stack: errorStack
     }), {
-      status: 200, // 샘플 데이터를 반환하므로 200으로 처리
+      status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
