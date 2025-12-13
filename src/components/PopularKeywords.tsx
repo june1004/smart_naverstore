@@ -5,8 +5,9 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useToast } from "@/hooks/use-toast";
-import { Search, TrendingUp, User, Calendar } from "lucide-react";
+import { Search, TrendingUp, User, Calendar, ChevronDown, ChevronRight } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuery } from "@tanstack/react-query";
@@ -17,12 +18,16 @@ interface PopularKeyword {
   ratio: number;
 }
 
+type PeriodOption = '1week' | '1month' | '3months' | '6months' | '1year' | 'custom';
+
 const PopularKeywords = () => {
   const [popularKeywords, setPopularKeywords] = useState<PopularKeyword[]>([]);
   const [selectedCategory, setSelectedCategory] = useState("");
   const [loading, setLoading] = useState(false);
+  const [period, setPeriod] = useState<PeriodOption>('1week');
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+  const [isCustomDateOpen, setIsCustomDateOpen] = useState(false);
   const [selectedCategoryInfo, setSelectedCategoryInfo] = useState<any>(null);
   const { toast } = useToast();
   const { user } = useAuth();
