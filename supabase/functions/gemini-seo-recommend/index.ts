@@ -112,9 +112,9 @@ JSON만 반환하세요.`;
 
     console.log('Gemini API 요청 시작:', { keyword, hasCurrentContent: !!currentDetailContent });
 
-    // Gemini API 호출 (gemini-1.5-flash 모델 사용 - 최신 안정 버전)
-    // v1 API 사용 (v1beta는 일부 모델을 지원하지 않음)
-    const geminiUrl = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${geminiApiKey}`;
+    // Gemini API 호출 (gemini-1.5-flash 모델 사용)
+    // v1beta API 사용 (v1에서는 일부 모델이 지원되지 않을 수 있음)
+    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiApiKey}`;
     
     console.log('Gemini API URL:', geminiUrl.replace(geminiApiKey, 'HIDDEN'));
     
