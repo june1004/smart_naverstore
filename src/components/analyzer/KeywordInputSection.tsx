@@ -135,7 +135,9 @@ const KeywordInputSection = ({ onAnalysisComplete }: KeywordInputSectionProps) =
       });
 
       if (error) {
-        throw new Error(error.message);
+        // 에러 응답 본문에서 상세 정보 추출
+        const errorMessage = error.message || error.context?.message || '알 수 없는 오류가 발생했습니다.';
+        throw new Error(errorMessage);
       }
 
       // 실제 카테고리 구조와 매핑
@@ -152,11 +154,12 @@ const KeywordInputSection = ({ onAnalysisComplete }: KeywordInputSectionProps) =
         description: `'${keyword}' 키워드 AI 자동 분석이 완료되었습니다.`,
       });
 
-    } catch (error) {
+    } catch (error: any) {
       console.error('키워드 분석 오류:', error);
+      const errorMessage = error?.message || error?.error || '키워드 분석 중 오류가 발생했습니다.';
       toast({
         title: "분석 실패",
-        description: "키워드 분석 중 오류가 발생했습니다.",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {

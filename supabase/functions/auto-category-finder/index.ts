@@ -25,7 +25,11 @@ serve(async (req) => {
       const body = await req.json();
       keyword = body.keyword;
     } catch (parseError) {
-      return new Response(JSON.stringify({ error: 'Invalid request body' }), {
+      console.error('요청 본문 파싱 오류:', parseError);
+      return new Response(JSON.stringify({ 
+        error: 'Invalid request body',
+        details: parseError instanceof Error ? parseError.message : 'Unknown error'
+      }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
@@ -44,7 +48,13 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
     if (!clientId || !clientSecret) {
-      return new Response(JSON.stringify({ error: 'API 키가 설정되지 않았습니다.' }), {
+      console.error('API 키가 설정되지 않았습니다:', { 
+        hasClientId: !!clientId, 
+        hasClientSecret: !!clientSecret 
+      });
+      return new Response(JSON.stringify({ 
+        error: 'API 키가 설정되지 않았습니다. Supabase Secrets에 NAVER_CLIENT_ID와 NAVER_CLIENT_SECRET을 설정해주세요.' 
+      }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
