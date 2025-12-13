@@ -169,21 +169,9 @@ const CategoryUpload = ({ isAdmin, onUploadSuccess }: CategoryUploadProps) => {
       }
       // --- 중복/빈값 체크 끝 ---
 
-      // --- 카테고리번호 매핑 검증 추가 ---
-      // DB에서 모든 category_id 조회
-      const { data: dbCategories, error: dbError } = await supabase
-        .from('naver_categories')
-        .select('category_id');
-      if (dbError) {
-        throw new Error('DB에서 카테고리 정보를 불러오지 못했습니다.');
-      }
-      const dbCategoryIds = dbCategories?.map(cat => cat.category_id) || [];
-      // 매핑 안 되는 카테고리번호 찾기
-      const notMatched = categoryNumbers.filter(num => !dbCategoryIds.includes(num));
-      if (notMatched.length > 0) {
-        throw new Error(`DB에 없는 카테고리번호가 있습니다: ${notMatched.slice(0, 5).join(', ')}${notMatched.length > 5 ? ' 외 ' + (notMatched.length - 5) + '건' : ''}`);
-      }
-      // --- 매핑 검증 끝 ---
+      // 카테고리 업로드는 새로운 카테고리를 추가하는 것이므로
+      // DB에 존재하지 않는 카테고리 번호도 정상적으로 업로드 가능
+      // (업데이트 모드가 필요한 경우 나중에 추가 가능)
 
       console.log(`파일 처리 완료: ${data.length}개 행`);
 
