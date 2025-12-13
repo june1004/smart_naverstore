@@ -31,6 +31,8 @@ const PopularKeywords = () => {
   const { data: categoryData, isLoading: categoriesLoading, error: categoriesError } = useQuery({
     queryKey: ['naver-categories-active-popular'],
     queryFn: async () => {
+      console.log('카테고리 데이터 조회 시작...');
+      
       // 모든 row를 1000개씩 반복적으로 fetch해서 합치는 함수
       async function fetchAllCategories() {
         const allRows = [];
@@ -53,6 +55,8 @@ const PopularKeywords = () => {
             throw error;
           }
           
+          console.log(`배치 ${from}-${from + batchSize - 1}: ${data?.length || 0}개 로드`);
+          
           if (!data || data.length === 0) {
             keepGoing = false;
           } else {
@@ -70,11 +74,24 @@ const PopularKeywords = () => {
         return allRows;
       }
       
-      const data = await fetchAllCategories();
-      console.log('로드된 카테고리 수:', data.length);
-      return data;
+      try {
+        const data = await fetchAllCategories();
+        console.log('로드된 전체 카테고리 수:', data.length);
+        
+        // 대분류만 필터링
+        const level1Categories = data.filter(cat => cat.category_level === 1);
+        console.log('대분류 카테고리 수:', level1Categories.length);
+        console.log('대분류 카테고리 목록:', level1Categories.map(c => c.category_name));
+        
+        return data;
+      } catch (error) {
+        console.error('카테고리 조회 중 오류 발생:', error);
+        throw error;
+      }
     },
     enabled: !!user, // 사용자가 로그인한 경우에만 실행
+    retry: 2, // 실패 시 2번 재시도
+    staleTime: 5 * 60 * 1000, // 5분간 캐시 유지
   });
 
   // 선택된 카테고리 정보 로드
@@ -220,20 +237,32 @@ const PopularKeywords = () => {
                 <SelectValue placeholder="카테고리 선택" />
               </SelectTrigger>
               <SelectContent>
-                {categoriesLoading ? (
+                {!user ? (
+                  <div className="p-2 text-sm text-gray-500">로그인이 필요합니다</div>
+                ) : categoriesLoading ? (
                   <div className="p-2 text-sm text-gray-500">카테고리 로딩 중...</div>
                 ) : categoriesError ? (
-                  <div className="p-2 text-sm text-red-500">카테고리 로드 실패</div>
+                  <div className="p-2 text-sm text-red-500">
+                    카테고리 로드 실패: {categoriesError instanceof Error ? categoriesError.message : '알 수 없는 오류'}
+                  </div>
                 ) : categoryData && categoryData.length > 0 ? (
-                  // 대분류 카테고리만 표시 (가나다 순 정렬)
-                  categoryData
-                    .filter(cat => cat.category_level === 1)
-                    .sort((a, b) => a.category_name.localeCompare(b.category_name, 'ko'))
-                    .map((category) => (
+                  (() => {
+                    const level1Categories = categoryData
+                      .filter(cat => cat.category_level === 1)
+                      .sort((a, b) => a.category_name.localeCompare(b.category_name, 'ko'));
+                    
+                    console.log('SelectContent 렌더링 - 대분류 카테고리:', level1Categories.length);
+                    
+                    if (level1Categories.length === 0) {
+                      return <div className="p-2 text-sm text-gray-500">대분류 카테고리가 없습니다 (전체: {categoryData.length}개)</div>;
+                    }
+                    
+                    return level1Categories.map((category) => (
                       <SelectItem key={category.category_id} value={category.category_id}>
                         {category.category_name}
                       </SelectItem>
-                    ))
+                    ));
+                  })()
                 ) : (
                   <div className="p-2 text-sm text-gray-500">카테고리가 없습니다</div>
                 )}
