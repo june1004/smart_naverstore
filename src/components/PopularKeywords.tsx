@@ -27,15 +27,14 @@ const PopularKeywords = () => {
   const { toast } = useToast();
   const { user } = useAuth();
 
-  // 실제 카테고리 데이터 조회 (모든 데이터를 가져오기 위해 배치 페칭)
   // CategoryList와 동일한 쿼리 키를 사용하여 캐시 공유
-  const { data: categoryData, isLoading: categoriesLoading, error: categoriesError } = useQuery({
-    queryKey: ['naver-categories-all-active'],
+  // CategoryList에서 이미 데이터를 가져오고 있다면 재사용
+  const { data: categoryDataRaw, isLoading: categoriesLoading, error: categoriesError } = useQuery({
+    queryKey: ['naver-categories-paginated', '', null, 1, 20, 'category_id', 'asc'],
     queryFn: async () => {
-      console.log('[PopularKeywords] 카테고리 데이터 조회 시작...', { user: !!user });
+      console.log('[PopularKeywords] CategoryList 쿼리 재사용 시도...');
       
-      // 모든 row를 1000개씩 반복적으로 fetch해서 합치는 함수
-      // CategoryList와 동일한 방식으로 구현
+      // CategoryList와 완전히 동일한 쿼리
       async function fetchAllCategories() {
         const allRows = [];
         let from = 0;
@@ -57,15 +56,11 @@ const PopularKeywords = () => {
             throw error;
           }
           
-          console.log(`[PopularKeywords] 배치 ${from}-${from + batchSize - 1}: ${data?.length || 0}개 로드`);
-          
-          // CategoryList와 동일한 로직
           if (!data || data.length === 0) {
             keepGoing = false;
           } else {
             allRows.push(...data);
             
-            // 마지막 배치인 경우 종료
             if (data.length < batchSize) {
               keepGoing = false;
             } else {
@@ -74,77 +69,19 @@ const PopularKeywords = () => {
           }
         }
         
-        console.log('[PopularKeywords] fetchAllCategories 완료, 총 개수:', allRows.length);
         return allRows;
       }
       
-      try {
-        const data = await fetchAllCategories();
-        console.log('[PopularKeywords] 로드된 전체 카테고리 수:', data.length);
-        
-        if (data.length === 0) {
-          // 데이터가 없을 경우 is_active 필터 없이 다시 시도
-          console.warn('[PopularKeywords] is_active=true인 데이터가 없습니다. 전체 데이터 조회 시도...');
-          const { data: allData, error: allError } = await supabase
-            .from('naver_categories')
-            .select('*')
-            .limit(100);
-          
-          if (allError) {
-            console.error('[PopularKeywords] 전체 데이터 조회 오류:', allError);
-          } else {
-            console.log('[PopularKeywords] 전체 데이터 샘플 (100개):', allData?.length || 0);
-            if (allData && allData.length > 0) {
-              console.log('[PopularKeywords] 샘플 데이터 (첫 번째):', allData[0]);
-              console.log('[PopularKeywords] is_active 값 분포:', {
-                true: allData.filter(d => d.is_active === true).length,
-                false: allData.filter(d => d.is_active === false).length,
-                null: allData.filter(d => d.is_active === null || d.is_active === undefined).length
-              });
-              console.log('[PopularKeywords] category_level 분포:', {
-                level1: allData.filter(d => d.category_level === 1).length,
-                level2: allData.filter(d => d.category_level === 2).length,
-                level3: allData.filter(d => d.category_level === 3).length,
-                level4: allData.filter(d => d.category_level === 4).length,
-              });
-              
-              // is_active가 false이거나 null인 경우, 그것들을 반환
-              const inactiveData = allData.filter(d => d.is_active !== true);
-              if (inactiveData.length > 0) {
-                console.warn('[PopularKeywords] is_active가 true가 아닌 데이터가 있습니다. 이 데이터를 사용합니다.');
-                return inactiveData; // 임시로 비활성 데이터라도 반환
-              }
-            } else {
-              console.error('[PopularKeywords] 데이터베이스에 카테고리 데이터가 전혀 없습니다!');
-            }
-          }
-        }
-        
-        // 대분류만 필터링
-        const level1Categories = data.filter(cat => cat.category_level === 1);
-        console.log('[PopularKeywords] 대분류 카테고리 수:', level1Categories.length);
-        if (level1Categories.length > 0) {
-          console.log('[PopularKeywords] 대분류 카테고리 목록:', level1Categories.map(c => c.category_name));
-        } else if (data.length > 0) {
-          console.log('[PopularKeywords] 전체 카테고리 레벨 분포:', {
-            level1: data.filter(c => c.category_level === 1).length,
-            level2: data.filter(c => c.category_level === 2).length,
-            level3: data.filter(c => c.category_level === 3).length,
-            level4: data.filter(c => c.category_level === 4).length,
-            other: data.filter(c => !c.category_level || c.category_level > 4).length
-          });
-        }
-        
-        return data;
-      } catch (error) {
-        console.error('[PopularKeywords] 카테고리 조회 중 오류 발생:', error);
-        throw error;
-      }
+      const data = await fetchAllCategories();
+      console.log('[PopularKeywords] 로드된 전체 카테고리 수:', data.length);
+      return data;
     },
-    // enabled 조건 제거 - 항상 실행되도록 함
-    retry: 2, // 실패 시 2번 재시도
-    staleTime: 5 * 60 * 1000, // 5분간 캐시 유지
+    retry: 2,
+    staleTime: 5 * 60 * 1000,
   });
+  
+  // CategoryList와 동일하게 파싱 (필요시)
+  const categoryData = categoryDataRaw;
   
   // 디버깅: 쿼리 상태 로깅
   useEffect(() => {
