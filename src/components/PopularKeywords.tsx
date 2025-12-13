@@ -369,29 +369,91 @@ const PopularKeywords = () => {
                 )}
               </SelectContent>
             </Select>
-            <Input
-              type="date"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              placeholder={lastWeekFormatted}
+            <Select 
+              value={period} 
+              onValueChange={(value) => setPeriod(value as PeriodOption)}
               disabled={!user}
-            />
-            <Input
-              type="date"
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-              placeholder={today}
-              disabled={!user}
-            />
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="기간 선택" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="1week">최근 1주일</SelectItem>
+                <SelectItem value="1month">최근 1개월</SelectItem>
+                <SelectItem value="3months">최근 3개월</SelectItem>
+                <SelectItem value="6months">최근 6개월</SelectItem>
+                <SelectItem value="1year">최근 1년</SelectItem>
+                <SelectItem value="custom">사용자 지정</SelectItem>
+              </SelectContent>
+            </Select>
             <Button 
               onClick={searchPopularKeywords} 
-              disabled={loading || !user}
+              disabled={loading || !user || !selectedCategory}
               className="bg-green-600 hover:bg-green-700"
             >
               <Search className="h-4 w-4 mr-2" />
               {loading ? "검색중..." : "검색"}
             </Button>
           </div>
+          
+          {/* 사용자 지정 날짜 입력 (Collapsible) */}
+          <Collapsible open={isCustomDateOpen} onOpenChange={setIsCustomDateOpen}>
+            <CollapsibleTrigger asChild>
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="w-full justify-between text-sm text-gray-600 hover:text-gray-900"
+                disabled={!user || period !== 'custom'}
+              >
+                <span className="flex items-center gap-2">
+                  <Calendar className="h-4 w-4" />
+                  {period === 'custom' ? '날짜 직접 입력' : '날짜 직접 입력 (사용자 지정 선택 시 활성화)'}
+                </span>
+                {isCustomDateOpen ? (
+                  <ChevronDown className="h-4 w-4" />
+                ) : (
+                  <ChevronRight className="h-4 w-4" />
+                )}
+              </Button>
+            </CollapsibleTrigger>
+            <CollapsibleContent className="space-y-2 pt-2">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                <div className="space-y-1">
+                  <label className="text-sm font-medium text-gray-700">시작일</label>
+                  <Input
+                    type="date"
+                    value={startDate}
+                    onChange={(e) => setStartDate(e.target.value)}
+                    disabled={!user || period !== 'custom'}
+                    className="w-full"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-sm font-medium text-gray-700">종료일</label>
+                  <Input
+                    type="date"
+                    value={endDate}
+                    onChange={(e) => setEndDate(e.target.value)}
+                    disabled={!user || period !== 'custom'}
+                    className="w-full"
+                  />
+                </div>
+              </div>
+              {period === 'custom' && (
+                <p className="text-xs text-gray-500">
+                  선택된 기간: {startDate} ~ {endDate}
+                </p>
+              )}
+            </CollapsibleContent>
+          </Collapsible>
+          
+          {/* 현재 선택된 기간 표시 */}
+          {period !== 'custom' && (
+            <div className="text-sm text-gray-600 bg-gray-50 p-2 rounded">
+              <Calendar className="h-4 w-4 inline mr-2" />
+              기간: {startDate} ~ {endDate}
+            </div>
+          )}
         </CardContent>
       </Card>
 
