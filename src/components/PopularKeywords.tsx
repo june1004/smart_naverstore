@@ -35,6 +35,7 @@ const PopularKeywords = () => {
       console.log('[PopularKeywords] 카테고리 데이터 조회 시작...', { user: !!user });
       
       // 모든 row를 1000개씩 반복적으로 fetch해서 합치는 함수
+      // CategoryList와 동일한 방식으로 구현
       async function fetchAllCategories() {
         const allRows = [];
         let from = 0;
@@ -58,6 +59,7 @@ const PopularKeywords = () => {
           
           console.log(`[PopularKeywords] 배치 ${from}-${from + batchSize - 1}: ${data?.length || 0}개 로드`);
           
+          // CategoryList와 동일한 로직
           if (!data || data.length === 0) {
             keepGoing = false;
           } else {
@@ -72,6 +74,7 @@ const PopularKeywords = () => {
           }
         }
         
+        console.log('[PopularKeywords] fetchAllCategories 완료, 총 개수:', allRows.length);
         return allRows;
       }
       
@@ -79,11 +82,42 @@ const PopularKeywords = () => {
         const data = await fetchAllCategories();
         console.log('[PopularKeywords] 로드된 전체 카테고리 수:', data.length);
         
+        if (data.length === 0) {
+          // 데이터가 없을 경우 is_active 필터 없이 다시 시도
+          console.warn('[PopularKeywords] is_active=true인 데이터가 없습니다. 전체 데이터 조회 시도...');
+          const { data: allData, error: allError } = await supabase
+            .from('naver_categories')
+            .select('*')
+            .limit(10);
+          
+          if (allError) {
+            console.error('[PopularKeywords] 전체 데이터 조회 오류:', allError);
+          } else {
+            console.log('[PopularKeywords] 전체 데이터 샘플 (10개):', allData?.length || 0);
+            if (allData && allData.length > 0) {
+              console.log('[PopularKeywords] 샘플 데이터:', allData[0]);
+              console.log('[PopularKeywords] is_active 값 분포:', {
+                true: allData.filter(d => d.is_active === true).length,
+                false: allData.filter(d => d.is_active === false).length,
+                null: allData.filter(d => d.is_active === null || d.is_active === undefined).length
+              });
+            }
+          }
+        }
+        
         // 대분류만 필터링
         const level1Categories = data.filter(cat => cat.category_level === 1);
         console.log('[PopularKeywords] 대분류 카테고리 수:', level1Categories.length);
         if (level1Categories.length > 0) {
           console.log('[PopularKeywords] 대분류 카테고리 목록:', level1Categories.map(c => c.category_name));
+        } else if (data.length > 0) {
+          console.log('[PopularKeywords] 전체 카테고리 레벨 분포:', {
+            level1: data.filter(c => c.category_level === 1).length,
+            level2: data.filter(c => c.category_level === 2).length,
+            level3: data.filter(c => c.category_level === 3).length,
+            level4: data.filter(c => c.category_level === 4).length,
+            other: data.filter(c => !c.category_level || c.category_level > 4).length
+          });
         }
         
         return data;
