@@ -6,11 +6,16 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
 };
 
 serve(async (req) => {
+  // CORS preflight 요청 처리
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, { 
+      status: 200,
+      headers: corsHeaders 
+    });
   }
 
   try {
@@ -33,10 +38,17 @@ serve(async (req) => {
       throw new Error('Invalid authentication');
     }
 
-    // 관리자 권한 체크
-    const adminEmails = ['admin@example.com', 'junezzang@gmail.com', 'june@nanumlab.com'];
-    if (!adminEmails.includes(user.email || '')) {
-      throw new Error('Admin privileges required');
+    // 수퍼관리자 권한 체크 (profiles 테이블에서 확인)
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('is_super_admin')
+      .eq('id', user.id)
+      .single();
+    
+    const isSuperAdmin = profile?.is_super_admin === true || user.email === 'june@nanumlab.com';
+    
+    if (!isSuperAdmin) {
+      throw new Error('수퍼관리자 권한이 필요합니다.');
     }
 
     console.log(`${format.toUpperCase()} 업로드 시작:`, { filename, rowCount: csvData.length, userEmail: user.email, replaceAll, format });

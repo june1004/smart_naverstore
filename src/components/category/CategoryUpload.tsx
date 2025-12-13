@@ -35,31 +35,30 @@ const CategoryUpload = ({ isAdmin, onUploadSuccess }: CategoryUploadProps) => {
         throw new Error('수퍼관리자 권한이 필요합니다.');
       }
 
-      const response = await fetch(`https://votlredkpkiafedzkham.supabase.co/functions/v1/upload-categories`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`,
-        },
-        body: JSON.stringify({ 
+      // Supabase Edge Function 호출 (supabase client 사용)
+      const { data: result, error } = await supabase.functions.invoke('upload-categories', {
+        body: { 
           csvData: data, 
           filename,
           replaceAll: true,
           format
-        }),
+        },
       });
 
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || '업로드 실패');
+      if (error) {
+        throw new Error(error.message || '업로드 실패');
       }
 
-      return await response.json();
+      if (!result || !result.success) {
+        throw new Error(result?.error || result?.message || '업로드 실패');
+      }
+
+      return result;
     },
     onSuccess: (result) => {
       toast({
         title: "업로드 완료",
-        description: `성공: ${result.successful}개, 실패: ${result.failed}개`,
+        description: result.message || `성공: ${result.successful}개, 실패: ${result.failed}개`,
       });
       // 모든 카테고리 관련 쿼리 무효화
       queryClient.invalidateQueries({ queryKey: ['naver-categories-paginated'] });
