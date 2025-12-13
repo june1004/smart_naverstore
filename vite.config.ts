@@ -4,22 +4,27 @@ import path from "path";
 import { componentTagger } from "lovable-tagger";
 
 // https://vitejs.dev/config/
-export default defineConfig(({ mode }) => ({
+export default defineConfig(({ mode }) => {
+  const config: any = {
+    plugins: [
+      react(),
+      mode === 'development' &&
+      componentTagger(),
+    ].filter(Boolean),
+    resolve: {
+      alias: {
+        "@": path.resolve(__dirname, "./src"),
+      },
+    },
+  };
+
   // server 설정은 개발 환경에서만 적용 (배포 환경과 충돌 방지)
-  ...(mode === 'development' && {
-    server: {
+  if (mode === 'development') {
+    config.server = {
       host: "::",
       port: 9000,
-    },
-  }),
-  plugins: [
-    react(),
-    mode === 'development' &&
-    componentTagger(),
-  ].filter(Boolean),
-  resolve: {
-    alias: {
-      "@": path.resolve(__dirname, "./src"),
-    },
-  },
-}));
+    };
+  }
+
+  return config;
+});
