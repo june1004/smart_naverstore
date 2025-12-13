@@ -131,12 +131,33 @@ JSON만 반환하세요.`;
 
     if (!geminiResponse.ok) {
       const errorText = await geminiResponse.text();
-      console.error('Gemini API 오류:', geminiResponse.status, errorText);
+      let errorDetails;
+      try {
+        errorDetails = JSON.parse(errorText);
+      } catch {
+        errorDetails = errorText;
+      }
+      
+      console.error('Gemini API 오류:', geminiResponse.status, errorDetails);
+      
+      // 404 에러인 경우 모델 이름 문제일 수 있음
+      if (geminiResponse.status === 404) {
+        const errorMessage = errorDetails?.error?.message || errorDetails?.message || '모델을 찾을 수 없습니다.';
+        return new Response(JSON.stringify({ 
+          error: 'Gemini 모델을 찾을 수 없습니다.',
+          details: errorMessage,
+          suggestion: 'gemini-1.5-flash 모델을 사용 중입니다. API 키 권한을 확인해주세요.'
+        }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      
       return new Response(JSON.stringify({ 
         error: `Gemini API 오류: ${geminiResponse.status}`,
-        details: errorText
+        details: errorDetails?.error?.message || errorDetails?.message || errorDetails
       }), {
-        status: geminiResponse.status,
+        status: geminiResponse.status >= 500 ? 500 : geminiResponse.status,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
