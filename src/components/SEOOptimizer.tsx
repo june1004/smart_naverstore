@@ -81,6 +81,8 @@ const SEOOptimizer = ({
       };
 
       console.log('SEO 추천 요청:', { ...requestBody, currentDetailContentLength: currentDetailContent?.length });
+      console.log('Supabase URL:', supabase.supabaseUrl);
+      console.log('함수 호출: gemini-seo-recommend');
 
       const { data, error } = await supabase.functions.invoke('gemini-seo-recommend', {
         body: requestBody,
@@ -88,10 +90,16 @@ const SEOOptimizer = ({
 
       if (error) {
         console.error('Gemini API 오류 상세:', error);
+        console.error('에러 상태:', error.status);
+        console.error('에러 메시지:', error.message);
+        console.error('에러 컨텍스트:', error.context);
+        
         let errorMessage = error.message || 'SEO 추천 생성에 실패했습니다.';
         
         // 에러 응답에서 상세 정보 추출
-        if (error.status === 400) {
+        if (error.status === 404) {
+          errorMessage = '함수를 찾을 수 없습니다. Edge Function이 배포되었는지 확인해주세요. 잠시 후 다시 시도해주세요.';
+        } else if (error.status === 400) {
           errorMessage = `요청 오류: ${error.details || error.message}. 키워드와 필수 정보를 확인해주세요.`;
         } else if (error.status === 401) {
           errorMessage = '인증 오류: 로그인 상태를 확인해주세요.';
