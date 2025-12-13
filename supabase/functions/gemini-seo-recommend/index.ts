@@ -218,9 +218,13 @@ JSON만 반환하세요.`;
 
   } catch (error) {
     console.error('SEO 추천 생성 오류:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const errorStack = error instanceof Error ? error.stack : undefined;
+    
     return new Response(JSON.stringify({ 
-      error: error instanceof Error ? error.message : 'Unknown error',
-      details: 'SEO 추천 생성 중 오류가 발생했습니다.'
+      error: errorMessage,
+      details: 'SEO 추천 생성 중 오류가 발생했습니다.',
+      stack: errorStack ? errorStack.substring(0, 500) : undefined
     }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

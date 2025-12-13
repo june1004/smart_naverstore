@@ -94,17 +94,34 @@ const SEOOptimizer = ({
         console.error('에러 메시지:', error.message);
         console.error('에러 컨텍스트:', error.context);
         
-        let errorMessage = error.message || 'SEO 추천 생성에 실패했습니다.';
+        // 에러 응답 본문에서 상세 정보 추출 시도
+        let errorDetails = error.message || 'SEO 추천 생성에 실패했습니다.';
+        if (error.context?.body) {
+          try {
+            const parsedError = typeof error.context.body === 'string' 
+              ? JSON.parse(error.context.body) 
+              : error.context.body;
+            if (parsedError.error) {
+              errorDetails = parsedError.error;
+            } else if (parsedError.details) {
+              errorDetails = parsedError.details;
+            }
+          } catch (e) {
+            console.error('에러 본문 파싱 실패:', e);
+          }
+        }
+        
+        let errorMessage = errorDetails;
         
         // 에러 응답에서 상세 정보 추출
         if (error.status === 404) {
           errorMessage = '함수를 찾을 수 없습니다. Edge Function이 배포되었는지 확인해주세요. 잠시 후 다시 시도해주세요.';
         } else if (error.status === 400) {
-          errorMessage = `요청 오류: ${error.details || error.message}. 키워드와 필수 정보를 확인해주세요.`;
+          errorMessage = `요청 오류: ${errorDetails}. 키워드와 필수 정보를 확인해주세요.`;
         } else if (error.status === 401) {
           errorMessage = '인증 오류: 로그인 상태를 확인해주세요.';
         } else if (error.status === 500) {
-          errorMessage = `서버 오류: ${error.details || error.message}. Gemini API 키가 설정되어 있는지 확인해주세요.`;
+          errorMessage = `서버 오류: ${errorDetails}. Gemini API 키가 설정되어 있는지 확인하거나, Supabase 대시보드의 함수 로그를 확인해주세요.`;
         }
         
         throw new Error(errorMessage);
