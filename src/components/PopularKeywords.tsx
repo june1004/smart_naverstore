@@ -30,7 +30,7 @@ const PopularKeywords = () => {
   // 실제 카테고리 데이터 조회 (모든 데이터를 가져오기 위해 배치 페칭)
   // CategoryList와 동일한 쿼리 키를 사용하여 캐시 공유
   const { data: categoryData, isLoading: categoriesLoading, error: categoriesError } = useQuery({
-    queryKey: ['naver-categories-paginated', '', null, 1, 20, 'category_id', 'asc'],
+    queryKey: ['naver-categories-all-active'],
     queryFn: async () => {
       console.log('[PopularKeywords] 카테고리 데이터 조회 시작...', { user: !!user });
       
