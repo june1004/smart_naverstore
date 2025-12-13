@@ -203,7 +203,7 @@ const SEOOptimization = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-50 p-8">
+    <div className="min-h-screen bg-gradient-to-br from-[#F0F9F8] via-white to-[#E6F4F1] p-8">
       <div className="container mx-auto max-w-6xl space-y-8">
         {/* 헤더 */}
         <div className="text-center space-y-2">
@@ -214,7 +214,7 @@ const SEOOptimization = () => {
         </div>
 
         {/* 상품 정보 입력 섹션 */}
-        <Card className="border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.12)] rounded-2xl">
+        <Card className="border border-[#E2D9C8] shadow-sm bg-white rounded-2xl">
           <CardHeader className="p-8">
             <CardTitle className="text-xl font-bold text-slate-700 flex items-center gap-2">
               <Package className="h-5 w-5 text-[#0F4C5C]" />
@@ -237,7 +237,7 @@ const SEOOptimization = () => {
                   value={productIdOrUrl}
                   onChange={(e) => setProductIdOrUrl(e.target.value)}
                   placeholder="예: 12345678 또는 https://smartstore.naver.com/.../products/12345678"
-                  className="flex-1 border-slate-200 focus:border-[#0F4C5C] focus:ring-[#0F4C5C]"
+                  className="flex-1 border-[#E2D9C8] focus:border-[#0F4C5C] focus:ring-[#0F4C5C]"
                   onKeyDown={(e) => {
                     if (e.key === 'Enter') {
                       e.preventDefault();
@@ -318,7 +318,7 @@ const SEOOptimization = () => {
                 value={keyword}
                 onChange={(e) => setKeyword(e.target.value)}
                 placeholder="예: 무선 이어폰 (또는 AI 추천 키워드 선택)"
-                className="border-slate-200 focus:border-[#0F4C5C] focus:ring-[#0F4C5C]"
+                className="border-[#E2D9C8] focus:border-[#0F4C5C] focus:ring-[#0F4C5C]"
               />
               
               {/* 추천 키워드 표시 */}
@@ -356,7 +356,7 @@ const SEOOptimization = () => {
                 value={productName}
                 onChange={(e) => setProductName(e.target.value)}
                 placeholder="상품 정보를 불러오면 자동으로 입력됩니다"
-                className="border-slate-200 focus:border-[#0F4C5C] focus:ring-[#0F4C5C]"
+                className="border-[#E2D9C8] focus:border-[#0F4C5C] focus:ring-[#0F4C5C]"
                 disabled={isLoadingProduct}
               />
             </div>
@@ -375,7 +375,7 @@ const SEOOptimization = () => {
                 value={category}
                 onChange={(e) => setCategory(e.target.value)}
                 placeholder="상품 정보를 불러오면 자동으로 입력됩니다"
-                className="border-slate-200 focus:border-[#0F4C5C] focus:ring-[#0F4C5C]"
+                className="border-[#E2D9C8] focus:border-[#0F4C5C] focus:ring-[#0F4C5C]"
                 disabled={isLoadingProduct}
               />
             </div>
@@ -390,11 +390,11 @@ const SEOOptimization = () => {
                   </Badge>
                 )}
               </Label>
-              <div className="flex flex-wrap gap-2 p-3 bg-slate-50 rounded-xl border border-slate-200 min-h-[60px]">
+              <div className="flex flex-wrap gap-2 p-3 bg-[#FDF6E3]/30 rounded-xl border border-[#E2D9C8] min-h-[60px]">
                 {tags.map((tag, index) => (
                   <span
                     key={index}
-                    className="inline-flex items-center gap-1 px-3 py-1 bg-white border border-slate-300 rounded-full text-sm text-slate-700"
+                    className="inline-flex items-center gap-1 px-3 py-1 bg-white border border-[#E2D9C8] rounded-full text-sm text-slate-700"
                   >
                     {tag}
                     <button
@@ -417,7 +417,7 @@ const SEOOptimization = () => {
                         }
                       }}
                       placeholder="태그 추가..."
-                      className="w-32 h-8 text-sm border-slate-200"
+                      className="w-32 h-8 text-sm border-[#E2D9C8]"
                     />
                     <button
                       onClick={handleAddTag}
@@ -445,7 +445,7 @@ const SEOOptimization = () => {
                 value={detailContent}
                 onChange={(e) => setDetailContent(e.target.value)}
                 placeholder="상품 정보를 불러오면 자동으로 입력됩니다 (선택사항)"
-                className="min-h-[200px] border-slate-200 focus:border-[#0F4C5C] focus:ring-[#0F4C5C] font-mono text-sm"
+                className="min-h-[200px] border-[#E2D9C8] focus:border-[#0F4C5C] focus:ring-[#0F4C5C] font-mono text-sm"
                 disabled={isLoadingProduct}
               />
             </div>
