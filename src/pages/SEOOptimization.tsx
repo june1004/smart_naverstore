@@ -105,8 +105,40 @@ const SEOOptimization = () => {
       });
 
       if (error) {
-        console.error('상품 정보 조회 오류:', error);
-        throw new Error(error.message || '상품 정보를 불러오는데 실패했습니다.');
+        console.error('상품 정보 조회 오류 상세:', error);
+        console.error('에러 상태:', error.status);
+        console.error('에러 메시지:', error.message);
+        console.error('에러 컨텍스트:', error.context);
+        
+        // 에러 응답 본문에서 상세 정보 추출 시도
+        let errorDetails = error.message || '상품 정보를 불러오는데 실패했습니다.';
+        if (error.context?.body) {
+          try {
+            const parsedError = typeof error.context.body === 'string' 
+              ? JSON.parse(error.context.body) 
+              : error.context.body;
+            if (parsedError.error) {
+              errorDetails = parsedError.error;
+            } else if (parsedError.details) {
+              errorDetails = parsedError.details;
+            }
+          } catch (e) {
+            console.error('에러 본문 파싱 실패:', e);
+          }
+        }
+        
+        let errorMessage = errorDetails;
+        if (error.status === 400) {
+          errorMessage = `요청 오류: ${errorDetails}. 상품ID가 올바른지 확인해주세요.`;
+        } else if (error.status === 401) {
+          errorMessage = '인증 오류: 네이버 커머스 API 키를 확인해주세요.';
+        } else if (error.status === 404) {
+          errorMessage = '상품을 찾을 수 없습니다. 상품ID가 올바른지 확인해주세요.';
+        } else if (error.status === 500) {
+          errorMessage = `서버 오류: ${errorDetails}. 네이버 커머스 API 설정을 확인해주세요.`;
+        }
+        
+        throw new Error(errorMessage);
       }
 
       if (!data) {

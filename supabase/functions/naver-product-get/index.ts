@@ -20,11 +20,30 @@ serve(async (req) => {
   }
 
   try {
-    const body: ProductGetRequest = await req.json();
+    // 요청 본문 파싱 (에러 처리 포함)
+    let body: ProductGetRequest;
+    try {
+      body = await req.json();
+    } catch (parseError) {
+      console.error('요청 본문 파싱 오류:', parseError);
+      return new Response(JSON.stringify({ 
+        error: 'Invalid request body',
+        details: parseError instanceof Error ? parseError.message : 'Unknown error'
+      }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     const { originProductId } = body;
 
-    if (!originProductId) {
-      return new Response(JSON.stringify({ error: 'originProductId가 필요합니다.' }), {
+    console.log('상품 정보 조회 요청 받음:', { originProductId });
+
+    if (!originProductId || originProductId.trim() === '') {
+      return new Response(JSON.stringify({ 
+        error: 'originProductId가 필요합니다.',
+        details: 'originProductId 필드는 필수이며 비어있을 수 없습니다.'
+      }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
@@ -86,10 +105,11 @@ serve(async (req) => {
     }
 
     // 2. 상품 정보 조회 API 호출
-    // GET /external/v1/products/origin-products/{originProductId}
+    // 네이버 커머스 API 상품 조회 엔드포인트
+    // 참고: 실제 API 문서에 따라 엔드포인트가 다를 수 있음
     const productUrl = `https://api.commerce.naver.com/external/v1/products/origin-products/${originProductId}`;
     
-    console.log('상품 정보 조회 요청:', { originProductId });
+    console.log('상품 정보 조회 요청:', { originProductId, url: productUrl });
 
     const productResponse = await fetch(productUrl, {
       method: 'GET',
@@ -101,12 +121,32 @@ serve(async (req) => {
 
     if (!productResponse.ok) {
       const errorText = await productResponse.text();
-      console.error('상품 정보 조회 실패:', productResponse.status, errorText);
+      let errorDetails;
+      try {
+        errorDetails = JSON.parse(errorText);
+      } catch {
+        errorDetails = errorText;
+      }
+      
+      console.error('상품 정보 조회 실패:', productResponse.status, errorDetails);
+      
+      // 400 에러인 경우 상세 정보 제공
+      if (productResponse.status === 400) {
+        return new Response(JSON.stringify({ 
+          error: '상품 정보 조회 요청 오류',
+          details: errorDetails?.message || errorDetails?.error || errorText,
+          suggestion: '상품ID가 올바른지 확인하거나, 네이버 커머스 API 문서를 확인해주세요.'
+        }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      
       return new Response(JSON.stringify({ 
         error: `상품 정보 조회 실패: ${productResponse.status}`,
-        details: errorText
+        details: errorDetails?.message || errorDetails?.error || errorText
       }), {
-        status: productResponse.status,
+        status: productResponse.status >= 500 ? 500 : productResponse.status,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
