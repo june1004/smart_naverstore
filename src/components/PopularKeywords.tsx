@@ -278,6 +278,59 @@ const PopularKeywords = () => {
     return `${year}-${month}-${day}`;
   };
 
+  // 기간별 날짜 계산 함수
+  const calculatePeriodDates = (periodOption: PeriodOption): { start: string; end: string } => {
+    const today = new Date();
+    const end = formatDate(today);
+    let start = new Date();
+
+    switch (periodOption) {
+      case '1week':
+        start.setDate(today.getDate() - 7);
+        break;
+      case '1month':
+        start.setMonth(today.getMonth() - 1);
+        break;
+      case '3months':
+        start.setMonth(today.getMonth() - 3);
+        break;
+      case '6months':
+        start.setMonth(today.getMonth() - 6);
+        break;
+      case '1year':
+        start.setFullYear(today.getFullYear() - 1);
+        break;
+      case 'custom':
+        // 사용자 지정은 현재 날짜 값 유지
+        return { start: startDate || formatDate(new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)), end: endDate || formatDate(today) };
+      default:
+        start.setDate(today.getDate() - 7);
+    }
+
+    return { start: formatDate(start), end };
+  };
+
+  // 기간 변경 시 날짜 자동 업데이트
+  useEffect(() => {
+    if (period !== 'custom') {
+      const { start, end } = calculatePeriodDates(period);
+      setStartDate(start);
+      setEndDate(end);
+      setIsCustomDateOpen(false);
+    } else {
+      setIsCustomDateOpen(true);
+    }
+  }, [period]);
+
+  // 초기 날짜 설정 (일주일)
+  useEffect(() => {
+    if (!startDate && !endDate) {
+      const { start, end } = calculatePeriodDates('1week');
+      setStartDate(start);
+      setEndDate(end);
+    }
+  }, []);
+
   const today = formatDate(new Date());
   const lastWeek = new Date();
   lastWeek.setDate(lastWeek.getDate() - 7);
