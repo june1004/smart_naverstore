@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,24 +10,39 @@ import { useToast } from "@/hooks/use-toast";
 
 const ApiKeyManager = () => {
   const [isOpen, setIsOpen] = useState(false);
+  const [solutionId, setSolutionId] = useState("");
+  const [applicationId, setApplicationId] = useState("");
+  const [applicationSecret, setApplicationSecret] = useState("");
   const [clientId, setClientId] = useState("");
   const [clientSecret, setClientSecret] = useState("");
   const [isConfigured, setIsConfigured] = useState(false);
   const { toast } = useToast();
 
   const handleSave = () => {
-    if (!clientId.trim() || !clientSecret.trim()) {
+    // 네이버 커머스 API 정보 저장
+    if (solutionId.trim() || applicationId.trim() || applicationSecret.trim()) {
+      localStorage.setItem('naver_solution_id', solutionId);
+      localStorage.setItem('naver_application_id', applicationId);
+      localStorage.setItem('naver_application_secret', applicationSecret);
+    }
+    
+    // 네이버 일반 API 정보 저장
+    if (clientId.trim() || clientSecret.trim()) {
+      localStorage.setItem('naver_client_id', clientId);
+      localStorage.setItem('naver_client_secret', clientSecret);
+    }
+
+    const hasCommerceConfig = solutionId.trim() && applicationId.trim() && applicationSecret.trim();
+    const hasGeneralConfig = clientId.trim() && clientSecret.trim();
+    
+    if (!hasCommerceConfig && !hasGeneralConfig) {
       toast({
         title: "입력 오류",
-        description: "네이버 클라이언트 ID와 시크릿을 모두 입력해주세요.",
+        description: "최소한 하나의 API 설정(커머스 또는 일반)을 입력해주세요.",
         variant: "destructive",
       });
       return;
     }
-
-    // 로컬 스토리지에 임시 저장 (실제로는 환경변수를 사용)
-    localStorage.setItem('naver_client_id', clientId);
-    localStorage.setItem('naver_client_secret', clientSecret);
     
     setIsConfigured(true);
     setIsOpen(false);
@@ -39,9 +54,15 @@ const ApiKeyManager = () => {
   };
 
   const handleReset = () => {
+    setSolutionId("");
+    setApplicationId("");
+    setApplicationSecret("");
     setClientId("");
     setClientSecret("");
     setIsConfigured(false);
+    localStorage.removeItem('naver_solution_id');
+    localStorage.removeItem('naver_application_id');
+    localStorage.removeItem('naver_application_secret');
     localStorage.removeItem('naver_client_id');
     localStorage.removeItem('naver_client_secret');
     setIsOpen(true);
@@ -53,16 +74,25 @@ const ApiKeyManager = () => {
   };
 
   // 컴포넌트 마운트 시 저장된 설정 확인
-  useState(() => {
+  useEffect(() => {
+    const savedSolutionId = localStorage.getItem('naver_solution_id');
+    const savedApplicationId = localStorage.getItem('naver_application_id');
+    const savedApplicationSecret = localStorage.getItem('naver_application_secret');
     const savedClientId = localStorage.getItem('naver_client_id');
     const savedClientSecret = localStorage.getItem('naver_client_secret');
     
-    if (savedClientId && savedClientSecret) {
+    if (savedSolutionId) setSolutionId(savedSolutionId);
+    if (savedApplicationId) setApplicationId(savedApplicationId);
+    if (savedApplicationSecret) setApplicationSecret(savedApplicationSecret);
+    if (savedClientId) setClientId(savedClientId);
+    if (savedClientSecret) setClientSecret(savedClientSecret);
+    
+    if ((savedSolutionId && savedApplicationId && savedApplicationSecret) || (savedClientId && savedClientSecret)) {
       setIsConfigured(true);
     } else {
       setIsOpen(true);
     }
-  });
+  }, []);
 
   return (
     <Card className="mb-6 shadow-lg border-0 bg-white/80 backdrop-blur-sm">
@@ -89,26 +119,65 @@ const ApiKeyManager = () => {
         </CollapsibleTrigger>
         
         <CollapsibleContent>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="clientId">네이버 클라이언트 ID</Label>
-                <Input
-                  id="clientId"
-                  placeholder="네이버 클라이언트 ID를 입력하세요"
-                  value={clientId}
-                  onChange={(e) => setClientId(e.target.value)}
-                />
+          <CardContent className="space-y-6">
+            {/* 네이버 커머스 API 설정 */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold text-gray-800">네이버 커머스 API</h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="solutionId">솔루션 ID</Label>
+                  <Input
+                    id="solutionId"
+                    placeholder="SOL_..."
+                    value={solutionId}
+                    onChange={(e) => setSolutionId(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="applicationId">애플리케이션 ID</Label>
+                  <Input
+                    id="applicationId"
+                    placeholder="애플리케이션 ID"
+                    value={applicationId}
+                    onChange={(e) => setApplicationId(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="applicationSecret">애플리케이션 Secret</Label>
+                  <Input
+                    id="applicationSecret"
+                    type="password"
+                    placeholder="애플리케이션 Secret"
+                    value={applicationSecret}
+                    onChange={(e) => setApplicationSecret(e.target.value)}
+                  />
+                </div>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="clientSecret">네이버 클라이언트 시크릿</Label>
-                <Input
-                  id="clientSecret"
-                  type="password"
-                  placeholder="네이버 클라이언트 시크릿을 입력하세요"
-                  value={clientSecret}
-                  onChange={(e) => setClientSecret(e.target.value)}
-                />
+            </div>
+
+            {/* 네이버 일반 API 설정 */}
+            <div className="space-y-4 border-t pt-4">
+              <h3 className="text-lg font-semibold text-gray-800">네이버 일반 API (선택사항)</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="clientId">클라이언트 ID</Label>
+                  <Input
+                    id="clientId"
+                    placeholder="네이버 클라이언트 ID를 입력하세요"
+                    value={clientId}
+                    onChange={(e) => setClientId(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="clientSecret">클라이언트 시크릿</Label>
+                  <Input
+                    id="clientSecret"
+                    type="password"
+                    placeholder="네이버 클라이언트 시크릿을 입력하세요"
+                    value={clientSecret}
+                    onChange={(e) => setClientSecret(e.target.value)}
+                  />
+                </div>
               </div>
             </div>
             
@@ -124,10 +193,16 @@ const ApiKeyManager = () => {
             </div>
             
             <div className="text-sm text-gray-600 bg-blue-50 p-3 rounded-lg">
-              <p className="font-medium mb-1">📌 네이버 개발자센터에서 API 키를 발급받으세요:</p>
-              <p>1. https://developers.naver.com/apps/ 접속</p>
-              <p>2. 애플리케이션 등록 → 쇼핑 API 사용 설정</p>
-              <p>3. 클라이언트 ID와 시크릿 복사하여 입력</p>
+              <p className="font-medium mb-1">📌 Supabase Edge Functions에서 사용하려면:</p>
+              <p>1. Supabase 대시보드 → Project Settings → Edge Functions → Secrets</p>
+              <p>2. 다음 환경 변수를 추가하세요:</p>
+              <ul className="list-disc list-inside mt-2 space-y-1">
+                <li>NAVER_SOLUTION_ID</li>
+                <li>NAVER_APPLICATION_ID</li>
+                <li>NAVER_APPLICATION_SECRET</li>
+                <li>NAVER_CLIENT_ID (선택)</li>
+                <li>NAVER_CLIENT_SECRET (선택)</li>
+              </ul>
             </div>
           </CardContent>
         </CollapsibleContent>
