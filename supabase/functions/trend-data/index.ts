@@ -71,21 +71,43 @@ serve(async (req) => {
       });
     }
 
-    // 날짜 형식 변환 (YYYY-MM-DD -> YYYYMMDD)
+    // 날짜 형식 변환 (YYYY-MM-DD 형식으로 정규화)
     const formatDate = (dateStr: string) => {
       if (!dateStr) {
         throw new Error('날짜가 제공되지 않았습니다.');
       }
-      if (dateStr.length === 8) {
+      
+      // 이미 YYYY-MM-DD 형식인 경우
+      if (dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
         return dateStr;
       }
-      return dateStr.replace(/-/g, '');
+      
+      // YYYYMMDD 형식인 경우 YYYY-MM-DD로 변환
+      if (dateStr.length === 8 && /^\d{8}$/.test(dateStr)) {
+        return `${dateStr.substring(0, 4)}-${dateStr.substring(4, 6)}-${dateStr.substring(6, 8)}`;
+      }
+      
+      // Date 객체로 파싱 시도
+      const date = new Date(dateStr);
+      if (isNaN(date.getTime())) {
+        throw new Error(`잘못된 날짜 형식입니다: ${dateStr}`);
+      }
+      
+      // YYYY-MM-DD 형식으로 반환
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
     };
 
     let formattedStartDate, formattedEndDate;
     try {
       formattedStartDate = formatDate(startDate);
       formattedEndDate = formatDate(endDate);
+      console.log('날짜 형식 변환:', { 
+        original: { startDate, endDate },
+        formatted: { formattedStartDate, formattedEndDate }
+      });
     } catch (dateError) {
       console.error('날짜 형식 변환 오류:', dateError);
       return new Response(JSON.stringify({ 
