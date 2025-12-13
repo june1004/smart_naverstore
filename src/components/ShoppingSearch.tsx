@@ -475,7 +475,7 @@ const ShoppingSearch = () => {
                       <h4 className="font-medium mb-2">전체 카테고리 분포</h4>
                       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
                         {searchHistory.categoryAnalysis.allCategories.slice(0, 12).map(([category, count], index) => (
-                          <Badge variant="secondary" className="text-xs">
+                          <Badge key={`category-${index}-${category}`} variant="secondary" className="text-xs">
                             {category.split('>')[0]} ({count})
                           </Badge>
                         ))}
