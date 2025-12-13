@@ -7,6 +7,7 @@ interface AuthContextType {
   user: User | null;
   session: Session | null;
   loading: boolean;
+  isSuperAdmin: boolean;
   signOut: () => Promise<void>;
 }
 
@@ -28,6 +29,39 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+
+  // 수퍼관리자 여부 확인
+  useEffect(() => {
+    const checkSuperAdmin = async () => {
+      if (!user) {
+        setIsSuperAdmin(false);
+        return;
+      }
+
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('is_super_admin')
+          .eq('id', user.id)
+          .single();
+
+        if (error) {
+          console.error('수퍼관리자 확인 오류:', error);
+          // 오류 발생 시 이메일로 폴백 체크
+          setIsSuperAdmin(user.email === 'june@nanumlab.com');
+        } else {
+          setIsSuperAdmin(data?.is_super_admin === true || user.email === 'june@nanumlab.com');
+        }
+      } catch (error) {
+        console.error('수퍼관리자 확인 중 오류:', error);
+        // 오류 발생 시 이메일로 폴백 체크
+        setIsSuperAdmin(user.email === 'june@nanumlab.com');
+      }
+    };
+
+    checkSuperAdmin();
+  }, [user]);
 
   useEffect(() => {
     // 인증 상태 변화 리스너 설정
@@ -58,6 +92,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       user,
       session,
       loading,
+      isSuperAdmin,
       signOut
     }}>
       {children}

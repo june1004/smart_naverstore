@@ -4,11 +4,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Key, AlertCircle, CheckCircle, ChevronDown, ChevronRight } from "lucide-react";
+import { Key, AlertCircle, CheckCircle, ChevronDown, ChevronRight, Shield } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
 
 const ApiKeyManager = () => {
+  const { isSuperAdmin } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const [solutionId, setSolutionId] = useState("");
   const [applicationId, setApplicationId] = useState("");
@@ -94,6 +97,22 @@ const ApiKeyManager = () => {
     }
   }, []);
 
+  // 수퍼관리자가 아닌 경우 접근 제한
+  if (!isSuperAdmin) {
+    return (
+      <Card className="mb-6 shadow-lg border-0 bg-white/80 backdrop-blur-sm">
+        <CardContent className="p-6">
+          <Alert variant="destructive">
+            <Shield className="h-4 w-4" />
+            <AlertDescription>
+              네이버 API 설정은 수퍼관리자만 접근할 수 있습니다.
+            </AlertDescription>
+          </Alert>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <Card className="mb-6 shadow-lg border-0 bg-white/80 backdrop-blur-sm">
       <Collapsible open={isOpen} onOpenChange={setIsOpen}>
@@ -103,6 +122,7 @@ const ApiKeyManager = () => {
               <div className="flex items-center gap-2">
                 <Key className="h-5 w-5 text-blue-600" />
                 네이버 API 설정
+                <Shield className="h-4 w-4 text-purple-600" />
                 {isConfigured ? (
                   <CheckCircle className="h-4 w-4 text-green-600" />
                 ) : (

@@ -13,8 +13,8 @@ const ServiceManager = () => {
   const { user } = useAuth();
   const uploadHistoryRef = useRef<any>(null);
 
-  // 관리자 권한 확인 (june@nanumlab.com만 허용)
-  const isAdmin = user?.email === 'june@nanumlab.com';
+  // 수퍼관리자 권한 확인
+  const { isSuperAdmin } = useAuth();
 
   const handleLevelFilter = (level: number | null) => {
     if (!user) {
@@ -45,21 +45,21 @@ const ServiceManager = () => {
       {/* 로그인 안내 메시지 */}
       {!user && <LoginRequiredMessage />}
 
-      {/* 관리자 권한 알림 */}
-      {user && !isAdmin && (
-        <Alert>
+      {/* 수퍼관리자 권한 알림 */}
+      {user && !isSuperAdmin && (
+        <Alert variant="destructive">
           <Shield className="h-4 w-4" />
           <AlertDescription>
-            서비스 관리는 관리자 권한이 필요합니다. (june@nanumlab.com 계정만 가능) 현재 읽기 전용 모드입니다.
+            서비스 관리는 수퍼관리자 권한이 필요합니다. 현재 읽기 전용 모드입니다.
           </AlertDescription>
         </Alert>
       )}
 
-      {/* 네이버 API 설정 - 로그인 후에만 표시 */}
-      {user && <ApiKeyManager />}
+      {/* 네이버 API 설정 - 수퍼관리자만 접근 가능 */}
+      {isSuperAdmin && <ApiKeyManager />}
 
-      {/* CSV/JSON 업로드 섹션 - 로그인 후에만 표시 */}
-      {user && <CategoryUpload isAdmin={isAdmin} onUploadSuccess={() => uploadHistoryRef.current?.()} />}
+      {/* CSV/JSON 업로드 섹션 - 수퍼관리자만 접근 가능 */}
+      {isSuperAdmin && <CategoryUpload isAdmin={isSuperAdmin} onUploadSuccess={() => uploadHistoryRef.current?.()} />}
 
       {/* 업로드 기록 - 로그인 후에만 표시 */}
       {user && <UploadHistory refetchRef={uploadHistoryRef} />}
