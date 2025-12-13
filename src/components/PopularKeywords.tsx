@@ -28,13 +28,13 @@ const PopularKeywords = () => {
   const { user } = useAuth();
 
   // CategoryList와 동일한 쿼리 키를 사용하여 캐시 공유
-  // CategoryList에서 이미 데이터를 가져오고 있다면 재사용
+  // CategoryList의 기본 쿼리 파라미터와 일치시킴
   const { data: categoryDataRaw, isLoading: categoriesLoading, error: categoriesError } = useQuery({
     queryKey: ['naver-categories-paginated', '', null, 1, 20, 'category_id', 'asc'],
     queryFn: async () => {
       console.log('[PopularKeywords] CategoryList 쿼리 재사용 시도...');
       
-      // CategoryList와 완전히 동일한 쿼리
+      // CategoryList와 완전히 동일한 쿼리 로직
       async function fetchAllCategories() {
         const allRows = [];
         let from = 0;
@@ -46,8 +46,11 @@ const PopularKeywords = () => {
             .from('naver_categories')
             .select('*', { count: 'exact' })
             .eq('is_active', true)
-            .order('category_id', { ascending: true })
             .range(from, from + batchSize - 1);
+
+          // CategoryList와 동일: selectedLevel이 null이 아니면 정렬 추가
+          // 여기서는 항상 정렬 추가 (CategoryList의 기본 동작과 유사)
+          query = query.order('category_id', { ascending: true });
 
           const { data, error } = await query;
           
@@ -55,6 +58,8 @@ const PopularKeywords = () => {
             console.error('[PopularKeywords] 카테고리 데이터 조회 오류:', error);
             throw error;
           }
+          
+          console.log(`[PopularKeywords] 배치 ${from}-${from + batchSize - 1}: ${data?.length || 0}개 로드`);
           
           if (!data || data.length === 0) {
             keepGoing = false;
@@ -69,11 +74,17 @@ const PopularKeywords = () => {
           }
         }
         
+        console.log('[PopularKeywords] fetchAllCategories 완료, 총 개수:', allRows.length);
         return allRows;
       }
       
       const data = await fetchAllCategories();
       console.log('[PopularKeywords] 로드된 전체 카테고리 수:', data.length);
+      
+      // 대분류 카테고리 확인
+      const level1Categories = data.filter(cat => cat.category_level === 1);
+      console.log('[PopularKeywords] 대분류 카테고리 수:', level1Categories.length);
+      
       return data;
     },
     retry: 2,
