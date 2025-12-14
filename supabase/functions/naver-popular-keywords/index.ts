@@ -117,7 +117,7 @@ serve(async (req) => {
       }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+    });
     }
 
     // 데이터베이스에서 카테고리 정보 조회 (category는 category_id로 전달됨)
@@ -144,7 +144,7 @@ serve(async (req) => {
         
         categoryInfo = dbCategoryByName;
       } else {
-        categoryInfo = dbCategory;
+      categoryInfo = dbCategory;
       }
       
       if (categoryInfo) {
@@ -155,7 +155,7 @@ serve(async (req) => {
         console.warn('카테고리 정보를 찾지 못했습니다:', category);
       }
     }
-
+      
     // 네이버 쇼핑인사이트 카테고리 API 사용 (카테고리별 인기검색어)
     // 참고: 네이버 데이터랩 쇼핑인사이트 API는 카테고리별 트렌드만 제공하고 인기검색어는 직접 제공하지 않음
     // 따라서 샘플 데이터를 카테고리별로 다르게 생성하여 반환
@@ -168,11 +168,11 @@ serve(async (req) => {
       categoryName, 
       keywordCount: sampleKeywords.length 
     });
-
-    return new Response(JSON.stringify({
-      keywords: sampleKeywords,
-      categoryInfo: categoryInfo,
-      isSampleData: true,
+      
+      return new Response(JSON.stringify({
+        keywords: sampleKeywords,
+        categoryInfo: categoryInfo,
+        isSampleData: true,
       message: '네이버 API는 카테고리별 인기검색어를 직접 제공하지 않아 샘플 데이터를 표시합니다.'
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

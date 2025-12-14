@@ -137,31 +137,31 @@ const CategoryList = ({ selectedLevel, onLevelFilter, refetchRef }: CategoryList
         const batchSize = 1000;
         let keepGoing = true;
         while (keepGoing) {
-          let query = supabase
-            .from('naver_categories')
-            .select('*', { count: 'exact' })
+      let query = supabase
+        .from('naver_categories')
+        .select('*', { count: 'exact' })
             .eq('is_active', true)
             .range(from, from + batchSize - 1);
 
-          // 검색 조건 추가 (단일 키워드 검색 지원)
-          if (searchTerm) {
-            const searchQuery = buildSearchQuery(searchTerm);
-            if (searchQuery) {
-              query = query.or(searchQuery);
-            }
-          }
+      // 검색 조건 추가 (단일 키워드 검색 지원)
+      if (searchTerm) {
+        const searchQuery = buildSearchQuery(searchTerm);
+        if (searchQuery) {
+          query = query.or(searchQuery);
+        }
+      }
 
           // 정렬
           if (selectedLevel !== null) {
-            if (sortField !== 'category_hierarchy') {
-              query = query.order(sortField, { ascending: sortDirection === 'asc' });
-            } else {
-              query = query.order('category_id', { ascending: true });
-            }
-          }
+        if (sortField !== 'category_hierarchy') {
+          query = query.order(sortField, { ascending: sortDirection === 'asc' });
+        } else {
+          query = query.order('category_id', { ascending: true });
+        }
+      }
 
           const { data, error } = await query;
-          if (error) throw error;
+      if (error) throw error;
           if (!data || data.length === 0) break;
           allRows.push(...data);
           if (data.length < batchSize) {
@@ -538,15 +538,15 @@ const CategoryList = ({ selectedLevel, onLevelFilter, refetchRef }: CategoryList
               ))
                 .filter(Boolean)
                 .map(medium => (
-                  <Button
-                    key={medium}
-                    size="sm"
-                    variant={selectedMediumCategory === medium ? 'default' : 'outline'}
-                    onClick={() => handleMediumCategoryClick(medium)}
-                  >
-                    {medium}
-                  </Button>
-                ))}
+                <Button
+                  key={medium}
+                  size="sm"
+                  variant={selectedMediumCategory === medium ? 'default' : 'outline'}
+                  onClick={() => handleMediumCategoryClick(medium)}
+                >
+                  {medium}
+                </Button>
+              ))}
             </div>
           )}
           {/* 소분류 버튼 */}
@@ -565,15 +565,15 @@ const CategoryList = ({ selectedLevel, onLevelFilter, refetchRef }: CategoryList
               ))
                 .filter(Boolean)
                 .map(small => (
-                  <Button
-                    key={small}
-                    size="sm"
-                    variant={selectedSmallCategory === small ? 'default' : 'outline'}
-                    onClick={() => handleSmallCategoryClick(small)}
-                  >
-                    {small}
-                  </Button>
-                ))}
+                <Button
+                  key={small}
+                  size="sm"
+                  variant={selectedSmallCategory === small ? 'default' : 'outline'}
+                  onClick={() => handleSmallCategoryClick(small)}
+                >
+                  {small}
+                </Button>
+              ))}
             </div>
           )}
           {/* 세분류 버튼 */}
@@ -593,15 +593,15 @@ const CategoryList = ({ selectedLevel, onLevelFilter, refetchRef }: CategoryList
               ))
                 .filter(Boolean)
                 .map(smallest => (
-                  <Button
-                    key={smallest}
-                    size="sm"
+                <Button
+                  key={smallest}
+                  size="sm"
                     variant={selectedSmallestCategory === smallest ? 'default' : 'outline'}
                     onClick={() => handleSmallestCategoryClick(smallest)}
-                  >
-                    {smallest}
-                  </Button>
-                ))}
+                >
+                  {smallest}
+                </Button>
+              ))}
             </div>
           )}
           {categoriesLoading ? (
