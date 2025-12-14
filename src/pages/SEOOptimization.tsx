@@ -194,8 +194,14 @@ const SEOOptimization = () => {
           if (!errorSuggestion) {
             errorSuggestion = '콘솔에 출력된 token attempts를 확인해주세요. (개발자도구 Console에서 `[naver-product-get] token attempts` 그룹을 펼치면 됩니다)';
           }
-        } else if (error.status === 401 || (error.context && error.context.status === 401)) {
-          errorMessage = '인증 오류: 네이버 커머스 API 키 권한이 없거나 만료되었습니다.';
+        } else if (
+          error.status === 401 ||
+          error.status === 403 ||
+          (error.context && (error.context.status === 401 || error.context.status === 403))
+        ) {
+          // 심사요청중/미연결 상태에서 흔히 발생: 토큰은 발급되지만 상품 API 접근이 막힘
+          errorMessage =
+            '인증/권한 오류: 네이버 커머스API센터에서 솔루션 심사/연결(권한 부여)이 완료되기 전에는 판매자 상품 데이터 접근이 제한될 수 있습니다.';
         } else if (error.status === 404 || (error.context && error.context.status === 404)) {
           errorMessage = `상품을 찾을 수 없습니다: ${errorDetails}`;
         } else if (error.status === 500 || (error.context && error.context.status === 500)) {
