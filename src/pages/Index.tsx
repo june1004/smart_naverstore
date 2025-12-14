@@ -7,15 +7,18 @@ import SearchTrend from "@/components/SearchTrend";
 import ShoppingInsight from "@/components/ShoppingInsight";
 import AutoKeywordAnalyzer from "@/components/AutoKeywordAnalyzer";
 import ServiceManager from "@/components/ServiceManager";
-import SEOOptimization from "@/pages/SEOOptimization";
 import UserProfile from "@/components/UserProfile";
-import { TrendingUp, BarChart3, Sparkles, Settings, Search, Zap, Store as StoreIcon } from "lucide-react";
+import { TrendingUp, BarChart3, Sparkles, Settings, Search, Store as StoreIcon, Lock } from "lucide-react";
 import Logo from "@/components/Logo";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
+import { useToast } from "@/hooks/use-toast";
 
 const Index = () => {
   const navigate = useNavigate();
+  const { hasStoreAddon } = useAuth();
+  const { toast } = useToast();
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#F0F9F8] via-white to-[#E6F4F1]">
@@ -26,10 +29,22 @@ const Index = () => {
             <Button
               variant="outline"
               className="border-[#E2D9C8] bg-white hover:bg-slate-50 text-slate-700"
-              onClick={() => navigate("/store")}
+              onClick={() => {
+                if (!hasStoreAddon) {
+                  toast({
+                    title: "추가 구독이 필요합니다",
+                    description: "스토어 관리는 ‘추가 구독(애드온)’ 활성화 후 이용할 수 있어요.",
+                    variant: "destructive",
+                  });
+                  navigate("/pricing?reason=store-addon");
+                  return;
+                }
+                navigate("/store");
+              }}
             >
               <StoreIcon className="h-4 w-4 mr-2" />
               스토어관리
+              {!hasStoreAddon && <Lock className="h-3.5 w-3.5 ml-2 text-slate-500" />}
             </Button>
             <Logo size="md" />
             <UserProfile />
@@ -39,7 +54,7 @@ const Index = () => {
 
         {/* Main Tabs */}
         <Tabs defaultValue="auto-analyzer" className="w-full">
-          <TabsList className="grid w-full grid-cols-6 mb-8 bg-white border border-[#E2D9C8] shadow-sm rounded-xl p-1">
+          <TabsList className="grid w-full grid-cols-5 mb-8 bg-white border border-[#E2D9C8] shadow-sm rounded-xl p-1">
             <TabsTrigger value="auto-analyzer" className="flex items-center gap-2 py-3 px-6 data-[state=active]:bg-[#0F4C5C] data-[state=active]:text-white rounded-lg transition-all">
               <Sparkles className="h-4 w-4" />
               AI 자동분석
@@ -55,10 +70,6 @@ const Index = () => {
             <TabsTrigger value="insight" className="flex items-center gap-2 py-3 px-6 data-[state=active]:bg-[#0F4C5C] data-[state=active]:text-white rounded-lg transition-all">
               <BarChart3 className="h-4 w-4" />
               쇼핑인사이트
-            </TabsTrigger>
-            <TabsTrigger value="seo" className="flex items-center gap-2 py-3 px-6 data-[state=active]:bg-[#0F4C5C] data-[state=active]:text-white rounded-lg transition-all">
-              <Zap className="h-4 w-4" />
-              SEO 최적화
             </TabsTrigger>
             <TabsTrigger value="service" className="flex items-center gap-2 py-3 px-6 data-[state=active]:bg-[#0F4C5C] data-[state=active]:text-white rounded-lg transition-all">
               <Settings className="h-4 w-4" />
@@ -117,23 +128,6 @@ const Index = () => {
               </CardHeader>
               <CardContent className="p-6">
                 <ShoppingInsight />
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="seo" className="space-y-6">
-            <Card className="shadow-sm border border-[#E2D9C8] bg-white rounded-xl">
-              <CardHeader className="bg-gradient-to-r from-[#0F4C5C] to-[#1a6b7a] text-white rounded-t-xl">
-                <CardTitle className="flex items-center gap-2">
-                  <Zap className="h-5 w-5" />
-                  SEO 자동 최적화
-                </CardTitle>
-                <CardDescription className="text-slate-100">
-                  Gemini AI가 상품 정보를 분석하여 검색 최적화 제안을 제공하고 네이버 스마트스토어에 자동 반영합니다 (로그인 필요)
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="p-6">
-                <SEOOptimization />
               </CardContent>
             </Card>
           </TabsContent>

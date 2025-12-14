@@ -30,7 +30,13 @@
 Supabase Dashboard에서 Scheduled Trigger를 추가합니다.
 
 - Function: `naver-order-sync`
-- Schedule: 매일 1회 (예: `0 3 * * *` → KST 새벽 3시)
+- Schedule: 매일 1회
+  - **중요**: Supabase Scheduled Trigger의 Cron은 보통 **UTC 기준**으로 동작합니다.
+  - 따라서 **KST(UTC+9)** 로 “매일 03:00”에 실행하려면 **UTC 18:00** 이므로 `0 18 * * *` 로 설정합니다.
+  - 예시:
+    - KST 03:00 → `0 18 * * *` (UTC)
+    - KST 09:00 → `0 0 * * *` (UTC)
+    - KST 18:00 → `0 9 * * *` (UTC)
 - Headers: `x-cron-secret: <CRON_SECRET>`
 
 ## 4) 프론트 설정

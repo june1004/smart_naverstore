@@ -36,7 +36,7 @@ const App = () => (
                 <Route 
                   path="/dashboard" 
                   element={
-                    <ProtectedRoute>
+                    <ProtectedRoute requireSubscription>
                       <Index />
                     </ProtectedRoute>
                   } 
@@ -45,7 +45,7 @@ const App = () => (
                 <Route
                   path="/store"
                   element={
-                    <ProtectedRoute>
+                    <ProtectedRoute requireSubscription requireStoreAddon>
                       <Store />
                     </ProtectedRoute>
                   }

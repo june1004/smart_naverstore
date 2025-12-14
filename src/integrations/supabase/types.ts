@@ -164,6 +164,9 @@ export type Database = {
           created_at: string
           full_name: string | null
           id: string
+          is_paid_subscriber: boolean
+          is_super_admin: boolean | null
+          store_addon_active: boolean
           updated_at: string
           username: string | null
         }
@@ -174,6 +177,9 @@ export type Database = {
           created_at?: string
           full_name?: string | null
           id: string
+          is_paid_subscriber?: boolean
+          is_super_admin?: boolean | null
+          store_addon_active?: boolean
           updated_at?: string
           username?: string | null
         }
@@ -184,8 +190,44 @@ export type Database = {
           created_at?: string
           full_name?: string | null
           id?: string
+          is_paid_subscriber?: boolean
+          is_super_admin?: boolean | null
+          store_addon_active?: boolean
           updated_at?: string
           username?: string | null
+        }
+        Relationships: []
+      }
+      user_stores: {
+        Row: {
+          created_at: string
+          enabled: boolean
+          id: string
+          last_synced_at: string | null
+          store_name: string
+          sync_days: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          enabled?: boolean
+          id?: string
+          last_synced_at?: string | null
+          store_name: string
+          sync_days?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Update: {
+          created_at?: string
+          enabled?: boolean
+          id?: string
+          last_synced_at?: string | null
+          store_name?: string
+          sync_days?: number
+          updated_at?: string
+          user_id?: string
         }
         Relationships: []
       }

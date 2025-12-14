@@ -20,13 +20,13 @@ const Auth = () => {
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, hasActiveSubscription } = useAuth();
 
   useEffect(() => {
     if (!authLoading && user) {
-      navigate("/");
+      navigate(hasActiveSubscription ? "/dashboard" : "/pricing?reason=subscription", { replace: true });
     }
-  }, [user, authLoading, navigate]);
+  }, [user, authLoading, navigate, hasActiveSubscription]);
 
   const handleSignUp = async () => {
     if (!email || !password || !fullName) {
@@ -112,7 +112,7 @@ const Auth = () => {
           title: "로그인 성공",
           description: "환영합니다!",
         });
-        navigate("/");
+        navigate(hasActiveSubscription ? "/dashboard" : "/pricing?reason=subscription");
       }
     } catch (error: any) {
       toast({

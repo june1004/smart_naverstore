@@ -13,8 +13,9 @@ import UserProfile from "@/components/UserProfile";
 const Pricing = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { user } = useAuth();
+  const { user, hasActiveSubscription, hasStoreAddon } = useAuth();
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isProcessingStoreAddon, setIsProcessingStoreAddon] = useState(false);
 
   const handlePayment = async () => {
     if (!user) {
@@ -63,6 +64,46 @@ const Pricing = () => {
       });
     } finally {
       setIsProcessing(false);
+    }
+  };
+
+  const handleStoreAddonPayment = async () => {
+    if (!user) {
+      toast({
+        title: "로그인이 필요합니다",
+        description: "추가 구독을 시작하려면 먼저 로그인해주세요.",
+        variant: "destructive",
+      });
+      navigate("/auth");
+      return;
+    }
+
+    if (!hasActiveSubscription) {
+      toast({
+        title: "기본 구독이 필요합니다",
+        description: "스토어 관리는 ‘추가 구독’이므로 먼저 기본 구독을 활성화해주세요.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsProcessingStoreAddon(true);
+    try {
+      // TODO: 결제 연동 (토스페이먼츠/포트원)
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+      toast({
+        title: "추가 구독 결제 준비 중",
+        description: "결제 모듈 연동 후 실제 결제가 진행됩니다.",
+      });
+    } catch (error) {
+      console.error("추가 구독 결제 오류:", error);
+      toast({
+        title: "결제 실패",
+        description: "결제 처리 중 오류가 발생했습니다. 다시 시도해주세요.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsProcessingStoreAddon(false);
     }
   };
 
@@ -148,13 +189,14 @@ const Pricing = () => {
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.6, delay: 0.2 }}
-          className="max-w-2xl mx-auto"
+          className="max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-6"
         >
+          {/* Base subscription */}
           <Card className="bg-white border-2 border-[#E2D9C8] shadow-lg hover:shadow-xl transition-all duration-300 rounded-2xl overflow-hidden relative">
             {/* Premium Badge */}
             <div className="absolute top-6 right-6">
               <Badge className="bg-gradient-to-r from-[#D4AF37] to-[#F4D03F] text-[#0F4C5C] border-0 px-3 py-1">
-                추천
+                기본 구독
               </Badge>
             </div>
 
@@ -202,7 +244,7 @@ const Pricing = () => {
               {/* CTA Button */}
               <Button
                 onClick={handlePayment}
-                disabled={isProcessing}
+                disabled={isProcessing || hasActiveSubscription}
                 size="lg"
                 className="w-full bg-[#0F4C5C] hover:bg-[#0a3d4a] text-white text-lg font-semibold py-6 rounded-xl shadow-md hover:shadow-lg transition-all duration-300 group"
               >
@@ -211,6 +253,8 @@ const Pricing = () => {
                     <Loader2 className="mr-2 h-5 w-5 animate-spin" />
                     처리 중...
                   </>
+                ) : hasActiveSubscription ? (
+                  <>현재 이용 중</>
                 ) : (
                   <>
                     구독하고 시작하기
@@ -222,6 +266,68 @@ const Pricing = () => {
               {/* Additional Info */}
               <p className="text-center text-sm text-slate-500 mt-6">
                 언제든지 취소 가능 · 첫 달 무료 체험
+              </p>
+            </CardContent>
+          </Card>
+
+          {/* Store management add-on */}
+          <Card className="bg-white border border-[#E2D9C8] shadow-sm hover:shadow-md transition-all duration-300 rounded-2xl overflow-hidden relative">
+            <div className="absolute top-6 right-6">
+              <Badge variant="outline" className="border-[#D4AF37]/40 text-[#0F4C5C]">
+                추가 구독(애드온)
+              </Badge>
+            </div>
+            <CardHeader className="p-8 pb-6 text-center border-b border-[#E2D9C8]/50">
+              <CardTitle className="text-2xl font-bold text-slate-700 mb-2">
+                Store Manager Add-on
+              </CardTitle>
+              <CardDescription className="text-slate-600 text-base">
+                스토어관리(상품 수정/주문·결제/고객 저장소/폴링)를 활성화합니다
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="p-8">
+              <div className="text-center mb-8">
+                <div className="flex items-baseline justify-center gap-2">
+                  <span className="text-4xl font-bold text-[#0F4C5C]">₩20,000</span>
+                  <span className="text-lg text-slate-600">/ 월</span>
+                </div>
+                <p className="text-sm text-slate-500 mt-2">기본 구독이 필요합니다</p>
+              </div>
+
+              <div className="space-y-3 mb-8">
+                {[
+                  "상품명·태그·상세페이지(HTML) 수정",
+                  "주문/결제 조회 및 자동 고객 저장",
+                  "전화/이메일 마스킹 방지용 매일 폴링(기본 7일)",
+                  "CS용 고객 저장소 관리(중복 갱신 정책)",
+                ].map((t) => (
+                  <div key={t} className="flex items-start gap-3 p-3 rounded-lg hover:bg-[#FDF6E3]/50 transition-colors">
+                    <CheckCircle2 className="h-5 w-5 text-[#D4AF37] flex-shrink-0 mt-0.5" />
+                    <div className="text-sm text-slate-700">{t}</div>
+                  </div>
+                ))}
+              </div>
+
+              <Button
+                onClick={handleStoreAddonPayment}
+                disabled={isProcessingStoreAddon || hasStoreAddon}
+                size="lg"
+                className="w-full bg-white border border-[#0F4C5C] text-[#0F4C5C] hover:bg-[#0F4C5C] hover:text-white text-lg font-semibold py-6 rounded-xl transition-all duration-300"
+              >
+                {isProcessingStoreAddon ? (
+                  <>
+                    <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                    처리 중...
+                  </>
+                ) : hasStoreAddon ? (
+                  <>현재 이용 중</>
+                ) : (
+                  <>추가 구독 신청</>
+                )}
+              </Button>
+
+              <p className="text-center text-sm text-slate-500 mt-6">
+                마스킹되기 전에 고객 정보를 선저장합니다
               </p>
             </CardContent>
           </Card>
