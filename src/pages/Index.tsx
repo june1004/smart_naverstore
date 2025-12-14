@@ -22,7 +22,7 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#F0F9F8] via-white to-[#E6F4F1]">
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="text-center mb-8">
           <div className="flex justify-between items-center mb-4">
@@ -54,7 +54,7 @@ const Index = () => {
 
         {/* Main Tabs */}
         <Tabs defaultValue="auto-analyzer" className="w-full">
-          <TabsList className="grid w-full grid-cols-5 mb-8 bg-white border border-[#E2D9C8] shadow-sm rounded-xl p-1">
+          <TabsList className="grid w-full grid-cols-2 md:grid-cols-5 mb-8 bg-white border border-[#E2D9C8] shadow-sm rounded-xl p-1">
             <TabsTrigger value="auto-analyzer" className="flex items-center gap-2 py-3 px-6 data-[state=active]:bg-[#0F4C5C] data-[state=active]:text-white rounded-lg transition-all">
               <Sparkles className="h-4 w-4" />
               AI 자동분석

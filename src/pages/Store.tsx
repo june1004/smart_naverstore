@@ -15,7 +15,7 @@ const Store = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#F0F9F8] via-white to-[#E6F4F1]">
-      <div className="container mx-auto px-4 py-8 space-y-8">
+      <div className="container mx-auto px-6 lg:px-8 py-8 space-y-8">
         {/* Header */}
         <div className="flex items-center justify-between">
           <Button
@@ -38,7 +38,7 @@ const Store = () => {
         </div>
 
         <Tabs defaultValue="product" className="w-full">
-          <TabsList className="grid w-full grid-cols-4 bg-white border border-[#E2D9C8] shadow-sm rounded-xl p-1">
+          <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 bg-white border border-[#E2D9C8] shadow-sm rounded-xl p-1">
             <TabsTrigger
               value="product"
               className="flex items-center gap-2 py-3 px-4 data-[state=active]:bg-[#0F4C5C] data-[state=active]:text-white rounded-lg transition-all"

@@ -13,9 +13,10 @@ export default {
 	theme: {
 		container: {
 			center: true,
-			padding: '2rem',
+			// FHD/WFHD(1920/2560)에서 카드가 너무 좁지 않게 2XL 폭을 확장
+			padding: '1.5rem',
 			screens: {
-				'2xl': '1400px'
+				'2xl': '1600px'
 			}
 		},
 		extend: {
