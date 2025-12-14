@@ -34,6 +34,17 @@ type PollingRunRow = {
   error_text: string | null;
 };
 
+type PaymentOrderRow = {
+  id: string;
+  created_at: string;
+  user_id: string;
+  plan: string;
+  order_id: string;
+  amount: number;
+  status: string;
+  payment_key: string | null;
+};
+
 const Admin = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -44,6 +55,7 @@ const Admin = () => {
   const [profiles, setProfiles] = useState<ProfileRow[]>([]);
   const [isLoadingHealth, setIsLoadingHealth] = useState(false);
   const [pollingRuns, setPollingRuns] = useState<PollingRunRow[]>([]);
+  const [recentPayments, setRecentPayments] = useState<PaymentOrderRow[]>([]);
   const [stats, setStats] = useState<null | {
     totalUsers: number;
     paidUsers: number;
@@ -131,12 +143,20 @@ const Admin = () => {
         .limit(50);
       if (runsErr) throw runsErr;
 
+      const { data: payments, error: payErr } = await supabase
+        .from("payment_orders" as any)
+        .select("id,created_at,user_id,plan,order_id,amount,status,payment_key")
+        .order("created_at", { ascending: false })
+        .limit(20);
+      if (payErr) throw payErr;
+
       const runsTyped = (runs ?? []) as PollingRunRow[];
       const last24h = runsTyped.filter((r) => r.created_at >= since);
       const last24hPollingSuccess = last24h.filter((r) => r.status === "success").length;
       const last24hPollingFail = last24h.filter((r) => r.status !== "success").length;
 
       setPollingRuns(runsTyped);
+      setRecentPayments((payments ?? []) as PaymentOrderRow[]);
       setStats({
         totalUsers: Number(totalUsers ?? 0),
         paidUsers: Number(paidUsers ?? 0),
@@ -327,6 +347,30 @@ const Admin = () => {
                               스토어애드온
                             </Button>
                           </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div className="border border-[#E2D9C8] rounded-xl overflow-hidden bg-white">
+                  <div className="px-4 py-3 bg-[#F0F9F8] text-sm font-semibold text-slate-700">
+                    최근 결제 ({recentPayments.length})
+                  </div>
+                  {recentPayments.length === 0 ? (
+                    <div className="p-6 text-sm text-slate-600">결제 기록이 없습니다.</div>
+                  ) : (
+                    <div className="divide-y divide-slate-100">
+                      {recentPayments.map((p) => (
+                        <div key={p.id} className="p-4 flex flex-col lg:flex-row lg:items-center gap-2">
+                          <div className="text-xs text-slate-500 font-mono">{p.created_at}</div>
+                          <div className="flex-1 text-sm text-slate-700">
+                            {p.plan} / {p.amount.toLocaleString()}원
+                            <div className="text-xs text-slate-500 font-mono mt-1">{p.order_id}</div>
+                          </div>
+                          <Badge className={p.status === "paid" ? "bg-emerald-600 text-white" : "bg-slate-600 text-white"}>
+                            {p.status}
+                          </Badge>
                         </div>
                       ))}
                     </div>

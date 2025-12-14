@@ -40,6 +40,7 @@ FUNCTIONS=(
   "naver-order-sync"
   "toss-create-order"
   "toss-confirm-payment"
+  "toss-webhook"
   "gemini-seo-recommend"
   "keyword-recommend"
   "upload-categories"
