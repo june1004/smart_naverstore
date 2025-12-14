@@ -352,19 +352,31 @@ serve(async (req) => {
       // (기존: 401/403이 아니면 무조건 500으로 감쌌음 → 디버깅이 어려움)
       const status =
         Number.isFinite(rawStatus) && rawStatus >= 100 && rawStatus <= 599 ? rawStatus : 502;
+
+      // 네이버가 권한/기능 미제공 상황에서 404 + code=4040을 주는 케이스가 있어,
+      // 사용자에게는 "심사/권한부여 필요"로 더 친절하게 안내합니다.
+      const naverCode = (last?.body && typeof last.body === "object" && "code" in last.body)
+        ? String((last.body as any).code)
+        : null;
+      const isNaverEndpointUnavailable = status === 404 && naverCode === "4040";
       return new Response(
         JSON.stringify({
           error:
             status === 401 || status === 403
               ? "네이버 주문 API 인증/권한 오류"
-              : status === 404
-                ? "네이버 주문 API 엔드포인트/리소스를 찾을 수 없습니다"
+              : status === 404 && isNaverEndpointUnavailable
+                ? "네이버 주문/결제 API가 현재 계정에서 사용 불가(심사/권한부여 필요)"
+                : status === 404
+                  ? "네이버 주문 API 엔드포인트/리소스를 찾을 수 없습니다"
                 : status === 429
                   ? "네이버 주문 API 호출이 너무 많습니다(429)"
                   : status >= 400 && status < 500
                     ? "네이버 주문 API 요청 오류"
                     : "네이버 주문 API 서버 오류",
           details: last?.body ?? null,
+          suggestion: isNaverEndpointUnavailable
+            ? "네이버 커머스API센터에서 솔루션 심사 완료 + 판매자(nanumlab) 연결(권한 부여) + 주문/결제 API 사용 권한이 활성화되어야 합니다."
+            : undefined,
           debug,
         }),
         { status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
