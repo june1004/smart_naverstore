@@ -14,10 +14,11 @@ import { useAuth } from "@/contexts/AuthContext";
 // URL에서 상품ID 추출 함수
 const extractProductIdFromUrl = (urlOrId: string): string | null => {
   if (!urlOrId) return null;
+  const raw = urlOrId.trim();
   
   // 숫자만 있는 경우 (상품ID)
-  if (/^\d+$/.test(urlOrId.trim())) {
-    return urlOrId.trim();
+  if (/^\d+$/.test(raw)) {
+    return raw;
   }
   
   // URL에서 상품ID 추출
@@ -30,11 +31,20 @@ const extractProductIdFromUrl = (urlOrId: string): string | null => {
   ];
   
   for (const pattern of urlPatterns) {
-    const match = urlOrId.match(pattern);
+    const match = raw.match(pattern);
     if (match && match[1]) {
       return match[1];
     }
   }
+
+  // 추가 지원: "스토어명/상품번호" 형태 (예: nanumlab/10713170202)
+  const storeSlashId = raw.match(/\/(\d{5,})$/);
+  if (storeSlashId?.[1]) return storeSlashId[1];
+
+  // 마지막 수단: 문자열 내 연속 숫자(길이 5 이상) 추출
+  // (주의: 다른 숫자가 섞여 있을 수 있어 너무 짧은 숫자는 제외)
+  const anyLongDigits = raw.match(/(\d{5,})/);
+  if (anyLongDigits?.[1]) return anyLongDigits[1];
   
   return null;
 };
@@ -146,6 +156,12 @@ const SEOOptimization = () => {
               } catch {
                 // ignore
               }
+            }
+
+            if (body?.searchDebugInfo) {
+              console.groupCollapsed('[naver-product-get] product search debug');
+              console.log(body.searchDebugInfo);
+              console.groupEnd();
             }
 
             if (body?.suggestion) errorSuggestion = body.suggestion;
