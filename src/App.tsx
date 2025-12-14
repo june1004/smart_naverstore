@@ -14,6 +14,7 @@ import Pricing from "./pages/Pricing";
 import NotFound from "./pages/NotFound";
 import ProtectedRoute from "./components/ProtectedRoute";
 import Store from "./pages/Store";
+import Admin from "./pages/Admin";
 
 const queryClient = new QueryClient();
 
@@ -47,6 +48,15 @@ const App = () => (
                   element={
                     <ProtectedRoute requireSubscription requireStoreAddon>
                       <Store />
+                    </ProtectedRoute>
+                  }
+                />
+
+                <Route
+                  path="/admin"
+                  element={
+                    <ProtectedRoute requireSubscription>
+                      <Admin />
                     </ProtectedRoute>
                   }
                 />
