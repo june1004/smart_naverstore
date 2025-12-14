@@ -37,6 +37,15 @@ interface ProductGetRequest {
   originProductId: string;
 }
 
+type TokenAttempt = {
+  name: string;
+  clientId: string;
+  type: 'SELF' | 'SOLUTION';
+  timestamp: string; // 그대로 전송되는 timestamp 문자열
+  signaturePassword: string;
+  extraParams?: Record<string, string>;
+};
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { 
@@ -96,7 +105,9 @@ serve(async (req) => {
 
     // 1. OAuth 2.0 토큰 발급
     const tokenUrl = "https://api.commerce.naver.com/external/v1/oauth2/token";
-    const timestamp = Date.now(); // 밀리초 단위 (13자리)
+    const nowMs = Date.now();
+    const tsMs = String(nowMs); // 13자리 (밀리초)
+    const tsSec = String(Math.floor(nowMs / 1000)); // 10자리 (초)
     
     // 서명 생성
     // 네이버 커머스 API에서 client_secret은 bcrypt salt 형식을 따름 ($2a$...)
@@ -106,73 +117,141 @@ serve(async (req) => {
     // 참고: timestamp 유효 시간은 5분(300초) 이내여야 함.
     // 서버 시간 동기화 문제로 인한 에러 가능성도 있으나 일단 진행.
     
-    // 전자서명 생성
-    // 네이버 커머스 OAuth2 토큰 발급은 보통 client_id + "_" + timestamp 문자열을 bcrypt(clientSecret salt)로 서명합니다.
-    // (문서: [네이버 커머스 API 개발 가이드](https://apicenter.commerce.naver.com/ko/basic/solution-doc#section/%EA%B0%9C%EB%B0%9C%ED%95%98%EA%B8%B0))
+    // 전자서명 + 토큰 발급: 문서/계정 타입 차이로 파라미터 조합이 달라질 수 있어 여러 조합을 순차적으로 시도합니다.
+    // 참고: [네이버 커머스 API 개발 가이드](https://apicenter.commerce.naver.com/ko/basic/solution-doc#section/%EA%B0%9C%EB%B0%9C%ED%95%98%EA%B8%B0)
     const cleanedSecret = applicationSecret.trim().replace(/\u200B|\u200C|\u200D|\uFEFF/g, '');
-    const signaturePassword = `${applicationId}_${timestamp}`;
-    let signature;
-    try {
-      // Secret 값 디버깅 (로그에는 전체 노출 금지)
-      if (!cleanedSecret.startsWith('$2a$')) {
-        console.error('Invalid Secret Format:', cleanedSecret.substring(0, 5));
-        throw new Error(`Invalid Secret Format: ${cleanedSecret.substring(0, 5)}...`);
-      }
-      
-      console.log('서명 생성 시도:', { 
-        password: signaturePassword, 
-        secretLength: cleanedSecret.length,
-        secretPrefix: cleanedSecret.substring(0, 7)
-      });
-
-      // bcryptjs는 Promise 기반 hash()가 없고, 주로 hashSync()를 사용합니다.
-      // cleanedSecret(29자 salt)이 유효하면 정상 동작합니다.
-      signature = bcrypt.hashSync(signaturePassword, cleanedSecret);
-      
-    } catch (e) {
-      console.error('서명 생성 실패:', e);
-      return new Response(JSON.stringify({ 
-        error: '서명 생성 실패',
-        details: `서명 생성 중 오류가 발생했습니다. Secret 길이: ${cleanedSecret?.length}, 에러: ${e?.message ?? e}`
-      }), {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-
-    const tokenParams = new URLSearchParams();
-    tokenParams.append('client_id', applicationId);
-    tokenParams.append('timestamp', timestamp.toString());
-    tokenParams.append('grant_type', 'client_credentials');
-    tokenParams.append('client_secret_sign', signature);
-    // 솔루션 ID가 있으면 SOLUTION, 아니면 SELF로 처리
     const solutionId = Deno.env.get('NAVER_SOLUTION_ID')?.trim();
-    tokenParams.append('type', solutionId ? 'SOLUTION' : 'SELF');
 
-
-    console.log('네이버 커머스 API 토큰 발급 요청');
-
-    const tokenResponse = await fetch(tokenUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-      },
-      body: tokenParams,
-    });
-
-    if (!tokenResponse.ok) {
-      const errorText = await tokenResponse.text();
-      console.error('토큰 발급 실패:', tokenResponse.status, errorText);
-      return new Response(JSON.stringify({ 
-        error: `토큰 발급 실패: ${tokenResponse.status}`,
-        details: errorText
+    if (!cleanedSecret.startsWith('$2a$')) {
+      return new Response(JSON.stringify({
+        error: '네이버 커머스 API secret 형식이 올바르지 않습니다.',
+        details: `secret prefix=${cleanedSecret.substring(0, 5)}, length=${cleanedSecret.length}`,
       }), {
-        status: tokenResponse.status,
+        status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    const tokenData = await tokenResponse.json();
+    const attempts: TokenAttempt[] = [
+      {
+        name: 'SELF + ms + client_id=appId',
+        clientId: applicationId,
+        type: 'SELF',
+        timestamp: tsMs,
+        signaturePassword: `${applicationId}_${tsMs}`,
+      },
+      {
+        name: 'SELF + sec + client_id=appId',
+        clientId: applicationId,
+        type: 'SELF',
+        timestamp: tsSec,
+        signaturePassword: `${applicationId}_${tsSec}`,
+      },
+    ];
+
+    if (solutionId) {
+      // 솔루션 계정일 때 흔히 시도하는 조합들
+      attempts.push(
+        {
+          name: 'SOLUTION + ms + client_id=appId + solutionId param',
+          clientId: applicationId,
+          type: 'SOLUTION',
+          timestamp: tsMs,
+          signaturePassword: `${applicationId}_${tsMs}`,
+          extraParams: { solutionId },
+        },
+        {
+          name: 'SOLUTION + sec + client_id=appId + solutionId param',
+          clientId: applicationId,
+          type: 'SOLUTION',
+          timestamp: tsSec,
+          signaturePassword: `${applicationId}_${tsSec}`,
+          extraParams: { solutionId },
+        },
+        {
+          name: 'SOLUTION + ms + client_id=solutionId',
+          clientId: solutionId,
+          type: 'SOLUTION',
+          timestamp: tsMs,
+          signaturePassword: `${solutionId}_${tsMs}`,
+        },
+        {
+          name: 'SOLUTION + sec + client_id=solutionId',
+          clientId: solutionId,
+          type: 'SOLUTION',
+          timestamp: tsSec,
+          signaturePassword: `${solutionId}_${tsSec}`,
+        }
+      );
+    }
+
+    const attemptLogs: Array<{ name: string; status: number; body: unknown }> = [];
+    let tokenData: any = null;
+    let tokenError: { status: number; body: unknown } | null = null;
+
+    for (const attempt of attempts) {
+      try {
+        const signature = bcrypt.hashSync(attempt.signaturePassword, cleanedSecret);
+
+        const tokenParams = new URLSearchParams();
+        tokenParams.append('grant_type', 'client_credentials');
+        tokenParams.append('client_id', attempt.clientId);
+        tokenParams.append('timestamp', attempt.timestamp);
+        tokenParams.append('client_secret_sign', signature);
+        tokenParams.append('type', attempt.type);
+        if (attempt.extraParams) {
+          for (const [k, v] of Object.entries(attempt.extraParams)) {
+            tokenParams.append(k, v);
+          }
+        }
+
+        console.log('네이버 커머스 API 토큰 발급 요청 시도:', {
+          attempt: attempt.name,
+          type: attempt.type,
+          clientIdPrefix: attempt.clientId.substring(0, 4),
+          timestampDigits: attempt.timestamp.length,
+        });
+
+        const res = await fetch(tokenUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: tokenParams,
+        });
+
+        const text = await res.text();
+        let body: unknown = text;
+        try {
+          body = JSON.parse(text);
+        } catch {
+          // ignore
+        }
+
+        attemptLogs.push({ name: attempt.name, status: res.status, body });
+
+        if (res.ok) {
+          tokenData = body;
+          tokenError = null;
+          break;
+        }
+
+        tokenError = { status: res.status, body };
+      } catch (e) {
+        attemptLogs.push({ name: attempt.name, status: 0, body: { error: String(e) } });
+        tokenError = { status: 500, body: { error: String(e) } };
+      }
+    }
+
+    if (!tokenData || !tokenData.access_token) {
+      return new Response(JSON.stringify({
+        error: `토큰 발급 실패`,
+        details: tokenError,
+        attempts: attemptLogs,
+      }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     const accessToken = tokenData.access_token;
 
     if (!accessToken) {
