@@ -42,11 +42,13 @@ function normalizePhone(phone: string | null) {
   return digits || null;
 }
 
-function makeContactKey(phone: string | null, email: string | null) {
+function makeContactKey(phone: string | null, email: string | null, orderId: string | null) {
   const p = normalizePhone(phone);
   if (p) return `phone:${p}`;
   const e = (email ?? "").trim().toLowerCase();
   if (e) return `email:${e}`;
+  const oid = (orderId ?? "").trim();
+  if (oid) return `order:${oid}`;
   return null;
 }
 
@@ -114,7 +116,8 @@ const CustomerVault = () => {
     }
     const derivedTitle = title.trim() || "고객 메모";
     const parsed = parseContact(rawText);
-    const contactKey = makeContactKey(parsed.phone, parsed.email);
+    const oid = orderId.trim() || null;
+    const contactKey = makeContactKey(parsed.phone, parsed.email, oid);
 
     setIsSaving(true);
     try {
@@ -128,7 +131,7 @@ const CustomerVault = () => {
             phone: normalizePhone(parsed.phone),
             email: parsed.email ? parsed.email.trim().toLowerCase() : null,
             address: address.trim() || null,
-            order_id: orderId.trim() || null,
+            order_id: oid,
             ordered_at: orderedAt ? new Date(orderedAt).toISOString() : null,
             contact_key: contactKey,
             memo: memo.trim() || null,
