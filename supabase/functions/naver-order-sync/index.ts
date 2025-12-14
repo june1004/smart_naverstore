@@ -255,6 +255,7 @@ serve(async (req) => {
 
     const results: any[] = [];
     for (const s of (stores ?? []) as UserStoreRow[]) {
+      const startedAt = Date.now();
       const syncDays = Math.max(1, Math.min(90, s.sync_days ?? 7));
       const { from, to } = toIsoRangeLastDays(syncDays);
 
@@ -354,8 +355,36 @@ serve(async (req) => {
         }
 
         await sb.from("user_stores").update({ last_synced_at: new Date().toISOString() }).eq("id", s.id);
+        // 모니터링/통계: 성공 로그 적재
+        await sb.from("polling_runs").insert({
+          user_id: s.user_id,
+          store_id: s.id,
+          store_name: s.store_name,
+          sync_days: syncDays,
+          from_iso: from,
+          to_iso: to,
+          status: "success",
+          upserted,
+          duration_ms: Date.now() - startedAt,
+          source_url: source,
+          error_text: null,
+        });
         results.push({ store: s.store_name, ok: true, source, from, to, upserted });
       } catch (e) {
+        // 모니터링/통계: 실패 로그 적재
+        await sb.from("polling_runs").insert({
+          user_id: s.user_id,
+          store_id: s.id,
+          store_name: s.store_name,
+          sync_days: syncDays,
+          from_iso: from,
+          to_iso: to,
+          status: "error",
+          upserted: 0,
+          duration_ms: Date.now() - startedAt,
+          source_url: null,
+          error_text: String(e),
+        });
         results.push({ store: s.store_name, ok: false, error: String(e) });
       }
     }

@@ -23,6 +23,17 @@ type ProfileRow = {
   created_at?: string;
 };
 
+type PollingRunRow = {
+  id: string;
+  created_at: string;
+  store_name: string;
+  status: "success" | "error" | string;
+  upserted: number;
+  duration_ms: number | null;
+  sync_days: number;
+  error_text: string | null;
+};
+
 const Admin = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -31,6 +42,16 @@ const Admin = () => {
   const [query, setQuery] = useState("");
   const [isLoadingProfiles, setIsLoadingProfiles] = useState(false);
   const [profiles, setProfiles] = useState<ProfileRow[]>([]);
+  const [isLoadingHealth, setIsLoadingHealth] = useState(false);
+  const [pollingRuns, setPollingRuns] = useState<PollingRunRow[]>([]);
+  const [stats, setStats] = useState<null | {
+    totalUsers: number;
+    paidUsers: number;
+    storeAddonUsers: number;
+    totalCustomerVault: number;
+    last24hPollingSuccess: number;
+    last24hPollingFail: number;
+  }>(null);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -51,6 +72,7 @@ const Admin = () => {
   useEffect(() => {
     if (!isSuperAdmin) return;
     void loadProfiles();
+    void loadHealth();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isSuperAdmin]);
 
@@ -86,6 +108,51 @@ const Admin = () => {
         description: e?.message || "권한 또는 마이그레이션 적용 여부를 확인해주세요.",
         variant: "destructive",
       });
+    }
+  };
+
+  const loadHealth = async () => {
+    setIsLoadingHealth(true);
+    try {
+      const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+
+      const [{ count: totalUsers }, { count: paidUsers }, { count: storeAddonUsers }, { count: totalCustomerVault }] =
+        await Promise.all([
+          supabase.from("profiles" as any).select("id", { count: "exact", head: true }),
+          supabase.from("profiles" as any).select("id", { count: "exact", head: true }).eq("is_paid_subscriber", true),
+          supabase.from("profiles" as any).select("id", { count: "exact", head: true }).eq("store_addon_active", true),
+          supabase.from("customer_vault_entries" as any).select("id", { count: "exact", head: true }),
+        ]);
+
+      const { data: runs, error: runsErr } = await supabase
+        .from("polling_runs" as any)
+        .select("id,created_at,store_name,status,upserted,duration_ms,sync_days,error_text")
+        .order("created_at", { ascending: false })
+        .limit(50);
+      if (runsErr) throw runsErr;
+
+      const runsTyped = (runs ?? []) as PollingRunRow[];
+      const last24h = runsTyped.filter((r) => r.created_at >= since);
+      const last24hPollingSuccess = last24h.filter((r) => r.status === "success").length;
+      const last24hPollingFail = last24h.filter((r) => r.status !== "success").length;
+
+      setPollingRuns(runsTyped);
+      setStats({
+        totalUsers: Number(totalUsers ?? 0),
+        paidUsers: Number(paidUsers ?? 0),
+        storeAddonUsers: Number(storeAddonUsers ?? 0),
+        totalCustomerVault: Number(totalCustomerVault ?? 0),
+        last24hPollingSuccess,
+        last24hPollingFail,
+      });
+    } catch (e: any) {
+      toast({
+        title: "헬스/통계 로드 실패",
+        description: e?.message || "polling_runs 마이그레이션 적용 여부를 확인해주세요.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoadingHealth(false);
     }
   };
 
@@ -274,16 +341,74 @@ const Admin = () => {
               <CardHeader className="bg-gradient-to-r from-[#0F4C5C] to-[#1a6b7a] text-white rounded-t-xl">
                 <CardTitle className="flex items-center gap-2">
                   <Activity className="h-5 w-5" />
-                  시스템 헬스(초기 스캐폴딩)
+                  시스템 헬스/모니터링
                 </CardTitle>
                 <CardDescription className="text-slate-100">
-                  다음 단계에서 Edge Function 헬스체크(서버 측) + 지표 카드로 확장합니다.
+                  폴링 실행 결과(성공/실패)와 최근 상태를 확인합니다.
                 </CardDescription>
               </CardHeader>
-              <CardContent className="p-6 text-sm text-slate-600 space-y-2">
-                <div>- Supabase 연결/쿼리 테스트</div>
-                <div>- Edge Functions 배포 상태(최근 호출 성공/실패)</div>
-                <div>- 폴링(last_synced_at) 지연 감지</div>
+              <CardContent className="p-6 space-y-4">
+                <div className="flex items-center justify-end">
+                  <Button
+                    onClick={loadHealth}
+                    variant="outline"
+                    className="border-[#E2D9C8] bg-white hover:bg-slate-50 text-slate-700"
+                    disabled={isLoadingHealth}
+                  >
+                    {isLoadingHealth ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        불러오는 중...
+                      </>
+                    ) : (
+                      <>새로고침</>
+                    )}
+                  </Button>
+                </div>
+
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  <div className="p-4 rounded-xl border border-[#E2D9C8] bg-white">
+                    <div className="text-xs text-slate-500">최근 24h 폴링 성공</div>
+                    <div className="text-2xl font-bold text-slate-700">{stats?.last24hPollingSuccess ?? "-"}</div>
+                  </div>
+                  <div className="p-4 rounded-xl border border-[#E2D9C8] bg-white">
+                    <div className="text-xs text-slate-500">최근 24h 폴링 실패</div>
+                    <div className="text-2xl font-bold text-slate-700">{stats?.last24hPollingFail ?? "-"}</div>
+                  </div>
+                  <div className="p-4 rounded-xl border border-[#E2D9C8] bg-white">
+                    <div className="text-xs text-slate-500">총 회원</div>
+                    <div className="text-2xl font-bold text-slate-700">{stats?.totalUsers ?? "-"}</div>
+                  </div>
+                  <div className="p-4 rounded-xl border border-[#E2D9C8] bg-white">
+                    <div className="text-xs text-slate-500">총 고객 저장</div>
+                    <div className="text-2xl font-bold text-slate-700">{stats?.totalCustomerVault ?? "-"}</div>
+                  </div>
+                </div>
+
+                <div className="border border-[#E2D9C8] rounded-xl overflow-hidden bg-white">
+                  <div className="px-4 py-3 bg-[#F0F9F8] text-sm font-semibold text-slate-700">
+                    최근 폴링 실행 ({pollingRuns.length})
+                  </div>
+                  {pollingRuns.length === 0 ? (
+                    <div className="p-6 text-sm text-slate-600">
+                      아직 기록이 없습니다. (먼저 `polling_runs` 마이그레이션 적용 후 폴링이 한 번이라도 실행되어야 합니다)
+                    </div>
+                  ) : (
+                    <div className="divide-y divide-slate-100">
+                      {pollingRuns.map((r) => (
+                        <div key={r.id} className="p-4 flex flex-col md:flex-row md:items-center gap-2">
+                          <div className="text-xs text-slate-500 font-mono">{r.created_at}</div>
+                          <div className="flex-1 text-sm text-slate-700">{r.store_name}</div>
+                          <div className="text-sm text-slate-700 font-semibold">{r.upserted}건</div>
+                          <div className="text-xs text-slate-600">{r.duration_ms ? `${r.duration_ms}ms` : "-"}</div>
+                          <Badge className={r.status === "success" ? "bg-emerald-600 text-white" : "bg-rose-600 text-white"}>
+                            {r.status === "success" ? "성공" : "실패"}
+                          </Badge>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </CardContent>
             </Card>
           </TabsContent>
@@ -293,16 +418,30 @@ const Admin = () => {
               <CardHeader className="bg-gradient-to-r from-[#0F4C5C] to-[#1a6b7a] text-white rounded-t-xl">
                 <CardTitle className="flex items-center gap-2">
                   <BarChart3 className="h-5 w-5" />
-                  자주 쓰는 통계(초기 스캐폴딩)
+                  자주 쓰는 통계
                 </CardTitle>
                 <CardDescription className="text-slate-100">
-                  다음 단계에서 실제 DB 집계(최근 분석 수/저장 고객 수/폴링 성공률)를 표시합니다.
+                  운영에 자주 필요한 숫자만 요약합니다.
                 </CardDescription>
               </CardHeader>
-              <CardContent className="p-6 text-sm text-slate-600 space-y-2">
-                <div>- 최근 7일 키워드 분석 요청 수</div>
-                <div>- 고객 저장소 총 저장 건수</div>
-                <div>- 최근 24시간 폴링 성공/실패</div>
+              <CardContent className="p-6 space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <div className="p-4 rounded-xl border border-[#E2D9C8] bg-white">
+                    <div className="text-xs text-slate-500">기본 구독 회원</div>
+                    <div className="text-2xl font-bold text-slate-700">{stats?.paidUsers ?? "-"}</div>
+                  </div>
+                  <div className="p-4 rounded-xl border border-[#E2D9C8] bg-white">
+                    <div className="text-xs text-slate-500">스토어 애드온 회원</div>
+                    <div className="text-2xl font-bold text-slate-700">{stats?.storeAddonUsers ?? "-"}</div>
+                  </div>
+                  <div className="p-4 rounded-xl border border-[#E2D9C8] bg-white">
+                    <div className="text-xs text-slate-500">총 고객 저장</div>
+                    <div className="text-2xl font-bold text-slate-700">{stats?.totalCustomerVault ?? "-"}</div>
+                  </div>
+                </div>
+                <p className="text-xs text-slate-500">
+                  더 많은 통계(최근 7일 분석 수 등)는 다음 단계에서 “관리자 전용 집계 함수/뷰”로 확장합니다.
+                </p>
               </CardContent>
             </Card>
           </TabsContent>
