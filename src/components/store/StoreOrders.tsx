@@ -242,7 +242,53 @@ const StoreOrders = () => {
         body: { storeName: storeName.trim(), dateFrom, dateTo },
       });
 
-      if (error) throw error;
+      if (error) {
+        // FunctionsHttpError인 경우 Response에서 본문(JSON/text) 추출해서 사용자에게 원인 제공
+        let details = error.message || "주문 조회에 실패했습니다.";
+        let status = (error as any)?.status ?? (error as any)?.context?.status;
+        let suggestion = "";
+
+        if ((error as any)?.context && typeof (error as any).context.clone === "function") {
+          try {
+            const clone = (error as any).context.clone();
+            const body = await clone.json();
+            if (body?.error) details = body.error;
+            if (body?.details) {
+              const t = typeof body.details === "string" ? body.details : JSON.stringify(body.details);
+              details += ` (${t})`;
+            }
+            if (body?.debug) {
+              console.groupCollapsed("[naver-order-list] debug");
+              console.log(body.debug);
+              console.groupEnd();
+              // 사용자에게는 마지막 시도 status만 짧게
+              const last = Array.isArray(body.debug?.orderFetchAttempts)
+                ? body.debug.orderFetchAttempts[body.debug.orderFetchAttempts.length - 1]
+                : null;
+              if (last?.status) details += ` (마지막 시도 status=${last.status})`;
+            }
+          } catch {
+            try {
+              const clone = (error as any).context.clone();
+              const text = await clone.text();
+              if (text) details = text;
+            } catch {
+              // ignore
+            }
+          }
+        }
+
+        if (status === 401 || status === 403) {
+          suggestion =
+            "네이버 커머스API센터에서 솔루션 심사/연결(권한 부여)이 완료되기 전에는 주문/결제 데이터 접근이 제한될 수 있어요.";
+        } else if (status === 404) {
+          suggestion =
+            "네이버 주문 API 엔드포인트가 계정/버전에 따라 다를 수 있어요. 콘솔의 [naver-order-list] debug에서 orderFetchAttempts를 확인해주세요.";
+        }
+
+        const msg = suggestion ? `${details}\n💡 ${suggestion}` : details;
+        throw new Error(msg);
+      }
 
       const items = Array.isArray((data as any)?.orders) ? ((data as any).orders as OrderRow[]) : [];
       setRows(items);

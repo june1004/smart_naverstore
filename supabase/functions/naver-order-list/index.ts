@@ -285,14 +285,27 @@ serve(async (req) => {
 
     if (!okBody) {
       const last = debug.orderFetchAttempts[debug.orderFetchAttempts.length - 1];
-      const status = last?.status ?? 500;
+      const rawStatus = Number(last?.status ?? 500);
+      // 네이버 응답이 4xx/5xx인 경우 가능한 한 원본 상태를 보존해서 프론트에서 원인을 구분할 수 있게 합니다.
+      // (기존: 401/403이 아니면 무조건 500으로 감쌌음 → 디버깅이 어려움)
+      const status =
+        Number.isFinite(rawStatus) && rawStatus >= 100 && rawStatus <= 599 ? rawStatus : 502;
       return new Response(
         JSON.stringify({
-          error: status === 401 || status === 403 ? "네이버 주문 API 인증/권한 오류" : "주문 조회 실패",
+          error:
+            status === 401 || status === 403
+              ? "네이버 주문 API 인증/권한 오류"
+              : status === 404
+                ? "네이버 주문 API 엔드포인트/리소스를 찾을 수 없습니다"
+                : status === 429
+                  ? "네이버 주문 API 호출이 너무 많습니다(429)"
+                  : status >= 400 && status < 500
+                    ? "네이버 주문 API 요청 오류"
+                    : "네이버 주문 API 서버 오류",
           details: last?.body ?? null,
           debug,
         }),
-        { status: status === 401 || status === 403 ? status : 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
