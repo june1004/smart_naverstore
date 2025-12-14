@@ -55,6 +55,9 @@ export type Database = {
           buyer_name: string | null
           phone: string | null
           email: string | null
+          address: string | null
+          order_id: string | null
+          ordered_at: string | null
           memo: string | null
         }
         Insert: {
@@ -66,6 +69,9 @@ export type Database = {
           buyer_name?: string | null
           phone?: string | null
           email?: string | null
+          address?: string | null
+          order_id?: string | null
+          ordered_at?: string | null
           memo?: string | null
         }
         Update: {
@@ -77,6 +83,9 @@ export type Database = {
           buyer_name?: string | null
           phone?: string | null
           email?: string | null
+          address?: string | null
+          order_id?: string | null
+          ordered_at?: string | null
           memo?: string | null
         }
         Relationships: []

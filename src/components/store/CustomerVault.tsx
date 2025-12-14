@@ -18,6 +18,9 @@ type VaultRow = {
   buyer_name: string | null;
   phone: string | null;
   email: string | null;
+  address: string | null;
+  order_id: string | null;
+  ordered_at: string | null;
   memo: string | null;
 };
 
@@ -38,6 +41,9 @@ const CustomerVault = () => {
   const [title, setTitle] = useState("");
   const [rawText, setRawText] = useState("");
   const [memo, setMemo] = useState("");
+  const [orderedAt, setOrderedAt] = useState<string>("");
+  const [address, setAddress] = useState<string>("");
+  const [orderId, setOrderId] = useState<string>("");
   const [query, setQuery] = useState("");
   const [rows, setRows] = useState<VaultRow[]>([]);
   const [isSaving, setIsSaving] = useState(false);
@@ -52,6 +58,8 @@ const CustomerVault = () => {
         (r.buyer_name ?? "").toLowerCase().includes(q) ||
         (r.phone ?? "").toLowerCase().includes(q) ||
         (r.email ?? "").toLowerCase().includes(q) ||
+        (r.address ?? "").toLowerCase().includes(q) ||
+        (r.order_id ?? "").toLowerCase().includes(q) ||
         r.raw_text.toLowerCase().includes(q)
       );
     });
@@ -62,7 +70,7 @@ const CustomerVault = () => {
     try {
       const { data, error } = await supabase
         .from("customer_vault_entries" as any)
-        .select("id, created_at, title, raw_text, buyer_name, phone, email, memo")
+        .select("id, created_at, title, raw_text, buyer_name, phone, email, address, order_id, ordered_at, memo")
         .order("created_at", { ascending: false })
         .limit(100);
       if (error) throw error;
@@ -101,6 +109,9 @@ const CustomerVault = () => {
         buyer_name: parsed.buyerName,
         phone: parsed.phone,
         email: parsed.email,
+        address: address.trim() || null,
+        order_id: orderId.trim() || null,
+        ordered_at: orderedAt ? new Date(orderedAt).toISOString() : null,
         memo: memo.trim() || null,
       });
       if (error) throw error;
@@ -109,6 +120,9 @@ const CustomerVault = () => {
       setTitle("");
       setRawText("");
       setMemo("");
+      setOrderedAt("");
+      setAddress("");
+      setOrderId("");
       await load();
     } catch (e: any) {
       toast({
@@ -163,6 +177,36 @@ const CustomerVault = () => {
                 placeholder="예: 12/14 구매자 문의"
                 className="border-[#E2D9C8] focus:border-[#0F4C5C] focus:ring-[#0F4C5C]"
               />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <div className="space-y-2">
+                <Label className="text-slate-700">주문일시</Label>
+                <Input
+                  type="datetime-local"
+                  value={orderedAt}
+                  onChange={(e) => setOrderedAt(e.target.value)}
+                  className="border-[#E2D9C8] focus:border-[#0F4C5C] focus:ring-[#0F4C5C]"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-slate-700">주문번호(선택)</Label>
+                <Input
+                  value={orderId}
+                  onChange={(e) => setOrderId(e.target.value)}
+                  placeholder="예: 20251214-000001"
+                  className="border-[#E2D9C8] focus:border-[#0F4C5C] focus:ring-[#0F4C5C]"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-slate-700">주소</Label>
+                <Input
+                  value={address}
+                  onChange={(e) => setAddress(e.target.value)}
+                  placeholder="예: 서울시 …"
+                  className="border-[#E2D9C8] focus:border-[#0F4C5C] focus:ring-[#0F4C5C]"
+                />
+              </div>
             </div>
 
             <div className="space-y-2">
@@ -272,6 +316,21 @@ const CustomerVault = () => {
                             이메일: {r.email}
                           </Badge>
                         )}
+                      {r.address && (
+                        <Badge variant="outline" className="border-slate-300 text-slate-700 bg-white">
+                          주소: {r.address}
+                        </Badge>
+                      )}
+                      {r.ordered_at && (
+                        <Badge variant="outline" className="border-slate-300 text-slate-700 bg-white">
+                          주문일시: {new Date(r.ordered_at).toLocaleString("ko-KR")}
+                        </Badge>
+                      )}
+                      {r.order_id && (
+                        <Badge variant="outline" className="border-slate-300 text-slate-700 bg-white">
+                          주문번호: {r.order_id}
+                        </Badge>
+                      )}
                       </div>
 
                       {r.memo && <div className="text-sm text-slate-600 whitespace-pre-wrap">{r.memo}</div>}
