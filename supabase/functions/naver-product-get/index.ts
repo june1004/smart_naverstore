@@ -2,7 +2,7 @@ import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 // Deno 호환성 문제(Worker is not defined) 해결을 위해 npm 패키지 사용 또는 다른 구현체 사용
 // npm:bcryptjs는 순수 JS 구현체라 호환성이 좋음
-import * as bcrypt from "npm:bcryptjs@2.4.3";
+import bcrypt from "npm:bcryptjs@2.4.3";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
