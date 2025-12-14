@@ -70,6 +70,27 @@ function pickFirstString(...candidates: unknown[]): string | null {
   return null;
 }
 
+function hasAuthFailure(searchDebugInfo: any): boolean {
+  const statuses: number[] = [];
+  const pushStatus = (v: unknown) => {
+    if (typeof v === 'number') statuses.push(v);
+  };
+
+  try {
+    pushStatus(searchDebugInfo?.channelProductV2?.status);
+    pushStatus(searchDebugInfo?.channelProductV1?.status);
+    pushStatus(searchDebugInfo?.originProductV2?.status);
+    pushStatus(searchDebugInfo?.originProductV1?.status);
+
+    const attempts = Array.isArray(searchDebugInfo?.attempts) ? searchDebugInfo.attempts : [];
+    for (const a of attempts) pushStatus(a?.status);
+  } catch {
+    // ignore
+  }
+
+  return statuses.some((s) => s === 401 || s === 403);
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { 
@@ -222,6 +243,7 @@ serve(async (req) => {
     const attemptLogs: Array<{ name: string; status: number; body: unknown }> = [];
     let tokenData: any = null;
     let tokenError: { status: number; body: unknown } | null = null;
+    let tokenAttemptSelected: string | null = null;
 
     for (const attempt of attempts) {
       try {
@@ -270,6 +292,7 @@ serve(async (req) => {
         if (res.ok) {
           tokenData = body;
           tokenError = null;
+          tokenAttemptSelected = attempt.name;
           break;
         }
 
@@ -307,7 +330,16 @@ serve(async (req) => {
     // 사용자가 입력한 ID가 originProductId인지(원본상품ID), 스마트스토어 URL의 상품번호(채널상품번호)인지 알 수 없으므로
     // (v2) 채널상품 조회 API를 먼저 시도한 다음, products/search로 여러 searchKeywordType을 시도해 originProductId(원상품번호)를 찾습니다.
     let targetOriginProductId = originProductId;
-    const searchDebugInfo: any = { attempts: [] };
+    const searchDebugInfo: any = {
+      attempts: [],
+      tokenAttemptSelected,
+      // access_token은 민감정보라 제외하고 메타만 남김
+      tokenMeta: {
+        token_type: tokenData.token_type,
+        expires_in: tokenData.expires_in,
+        scope: tokenData.scope,
+      },
+    };
 
     try {
       // 2-1) (v2) 채널 상품 조회로 originProductNo(원상품번호) 획득 시도
@@ -481,6 +513,20 @@ serve(async (req) => {
       }
 
       if (productResponse.status === 404) {
+        // 중간 단계에서 401/403이 있었으면 "상품 없음"이 아니라 "권한 없음"으로 봐야 합니다.
+        // (솔루션 심사요청중/미연결 상태에서 흔히 발생)
+        if (hasAuthFailure(searchDebugInfo)) {
+          return new Response(JSON.stringify({
+            error: '네이버 커머스 API 인증/권한 오류',
+            details: '상품 조회 과정에서 인증/권한 실패(401/403)가 감지되었습니다. 솔루션 심사/연결이 완료되기 전에는 판매자 상품 데이터 접근이 제한될 수 있습니다.',
+            searchDebugInfo,
+            suggestion: '커머스API센터에서 솔루션 상태가 승인(심사완료)인지, 판매자(상점) 연결/권한 부여가 완료됐는지 확인해주세요. 승인 후에도 동일하면 account_id가 정확한지 확인이 필요합니다.',
+          }), {
+            status: 401,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+
         return new Response(JSON.stringify({
           error: '상품을 찾을 수 없습니다.',
           details: (errorDetails as any)?.message || (errorDetails as any)?.error || errorDetails,
