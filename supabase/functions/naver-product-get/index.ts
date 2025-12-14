@@ -51,6 +51,15 @@ function base64EncodeAscii(input: string) {
   return btoa(input);
 }
 
+async function safeReadJsonOrText(res: Response): Promise<unknown> {
+  const text = await res.text();
+  try {
+    return JSON.parse(text);
+  } catch {
+    return text;
+  }
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { 
@@ -280,58 +289,59 @@ serve(async (req) => {
     }
 
     // 2. 상품 ID 식별 및 조회 전략
-    // 사용자가 입력한 ID가 originProductId인지 channelProductId인지 알 수 없으므로,
-    // 먼저 channelProductId로 검색하여 originProductId를 찾습니다.
+    // 사용자가 입력한 ID가 originProductId인지(원본상품ID), 스마트스토어 URL의 상품번호(채널상품번호)인지 알 수 없으므로
+    // products/search로 여러 searchKeywordType을 시도해 originProductId를 찾습니다.
     let targetOriginProductId = originProductId;
-    let searchDebugInfo: any = {};
+    const searchDebugInfo: any = { attempts: [] };
 
     try {
-      console.log('상품 ID 검색 시도 (ChannelProductId로 가정):', originProductId);
-      
+      console.log('상품 ID 검색 시도:', originProductId);
+
       const searchUrl = "https://api.commerce.naver.com/external/v1/products/search";
-      const searchBody = {
-        searchKeywordType: "CHANNEL_PRODUCT_ID",
-        searchKeyword: originProductId,
-        page: 1,
-        size: 1
-      };
+      // 문서/계정에 따라 searchKeywordType 이름이 다를 수 있어 여러 타입을 시도
+      const keywordTypes = [
+        "CHANNEL_PRODUCT_NO", // 스마트스토어 URL의 products/{숫자}가 이 값인 경우가 많음
+        "CHANNEL_PRODUCT_ID",
+        "ORIGIN_PRODUCT_NO",
+        "ORIGIN_PRODUCT_ID",
+      ];
 
-      const searchResponse = await fetch(searchUrl, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(searchBody)
-      });
+      for (const searchKeywordType of keywordTypes) {
+        const searchBody = {
+          searchKeywordType,
+          searchKeyword: originProductId,
+          page: 1,
+          size: 1,
+        };
 
-      if (searchResponse.ok) {
-        const searchResult = await searchResponse.json();
-        searchDebugInfo.result = searchResult;
-        
-        if (searchResult.contents && searchResult.contents.length > 0) {
-          const foundProduct = searchResult.contents[0];
-          console.log('상품 검색 성공:', {
-            channelProductId: foundProduct.channelProducts?.[0]?.channelProductId,
-            originProductId: foundProduct.originProduct?.id
-          });
-          
-          if (foundProduct.originProduct?.id) {
-            targetOriginProductId = foundProduct.originProduct.id;
+        const searchResponse = await fetch(searchUrl, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(searchBody),
+        });
+
+        const body = await safeReadJsonOrText(searchResponse);
+        searchDebugInfo.attempts.push({ searchKeywordType, status: searchResponse.status, body });
+
+        if (!searchResponse.ok) continue;
+
+        const searchResult: any = body;
+        if (searchResult?.contents?.length) {
+          const found = searchResult.contents[0];
+          const foundOriginId = found?.originProduct?.id ?? found?.originProductId ?? found?.originProductNo;
+          console.log('상품 검색 성공:', { searchKeywordType, foundOriginId });
+          if (foundOriginId) {
+            targetOriginProductId = String(foundOriginId);
+            break;
           }
-        } else {
-          searchDebugInfo.message = '검색 결과 없음';
-          console.log('검색 결과 없음. 입력된 ID를 originProductId로 간주합니다.');
         }
-      } else {
-        const errorText = await searchResponse.text();
-        let errorJson;
-        try { errorJson = JSON.parse(errorText); } catch {}
-        
-        searchDebugInfo.error = errorJson || errorText;
-        searchDebugInfo.status = searchResponse.status;
-        
-        console.warn('상품 검색 실패 (무시하고 진행):', searchResponse.status, errorText);
+      }
+
+      if (targetOriginProductId === originProductId) {
+        console.log('originProductId 변환 실패(또는 불필요). 입력값을 originProductId로 간주합니다.');
       }
     } catch (e) {
       searchDebugInfo.exception = e instanceof Error ? e.message : 'Unknown error';
@@ -353,13 +363,7 @@ serve(async (req) => {
     });
 
     if (!productResponse.ok) {
-      const errorText = await productResponse.text();
-      let errorDetails;
-      try {
-        errorDetails = JSON.parse(errorText);
-      } catch {
-        errorDetails = errorText;
-      }
+      const errorDetails = await safeReadJsonOrText(productResponse);
       
       console.error('상품 정보 조회 실패:', productResponse.status, errorDetails);
       
@@ -367,7 +371,7 @@ serve(async (req) => {
       if (productResponse.status === 400) {
         return new Response(JSON.stringify({ 
           error: '상품 정보 조회 요청 오류',
-          details: errorDetails?.message || errorDetails?.error || errorText,
+          details: (errorDetails as any)?.message || (errorDetails as any)?.error || errorDetails,
           searchDebugInfo: searchDebugInfo,
           suggestion: '상품ID가 올바른지 확인하거나, 네이버 커머스 API 문서를 확인해주세요. (본인 소유의 상품만 조회 가능)'
         }), {
@@ -375,10 +379,22 @@ serve(async (req) => {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
+
+      if (productResponse.status === 404) {
+        return new Response(JSON.stringify({
+          error: '상품을 찾을 수 없습니다.',
+          details: (errorDetails as any)?.message || (errorDetails as any)?.error || errorDetails,
+          searchDebugInfo,
+          suggestion: '입력한 상품번호가 originProductId가 아닐 수 있습니다(스마트스토어 URL의 products/{숫자}는 보통 채널상품번호). 또는 해당 상품이 이 판매자(account_id) 소유가 아닐 수 있습니다.',
+        }), {
+          status: 404,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
       
       return new Response(JSON.stringify({ 
         error: `상품 정보 조회 실패: ${productResponse.status}`,
-        details: errorDetails?.message || errorDetails?.error || errorText,
+        details: (errorDetails as any)?.message || (errorDetails as any)?.error || errorDetails,
         searchDebugInfo: searchDebugInfo
       }), {
         status: productResponse.status >= 500 ? 500 : productResponse.status,

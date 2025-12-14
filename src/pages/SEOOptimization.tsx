@@ -172,7 +172,7 @@ const SEOOptimization = () => {
         } else if (error.status === 401 || (error.context && error.context.status === 401)) {
           errorMessage = '인증 오류: 네이버 커머스 API 키 권한이 없거나 만료되었습니다.';
         } else if (error.status === 404 || (error.context && error.context.status === 404)) {
-          errorMessage = '상품을 찾을 수 없습니다. 상품ID가 올바른지 확인해주세요.';
+          errorMessage = `상품을 찾을 수 없습니다: ${errorDetails}`;
         } else if (error.status === 500 || (error.context && error.context.status === 500)) {
           errorMessage = `서버 오류: ${errorDetails}`;
         }
