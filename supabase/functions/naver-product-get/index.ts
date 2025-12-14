@@ -313,31 +313,50 @@ serve(async (req) => {
       // 2-1) (v2) 채널 상품 조회로 originProductNo(원상품번호) 획득 시도
       // 문서상 path param: channelProductNo
       // (v2) 채널 상품 조회: https://apicenter.commerce.naver.com/docs/commerce-api/current/read-channel-product-1-product
-      const channelV2Url = `https://api.commerce.naver.com/external/v2/products/channel-products/${originProductId}`;
-      const channelRes = await fetch(channelV2Url, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-          'Content-Type': 'application/json',
-        },
-      });
-      const channelBody = await safeReadJsonOrText(channelRes);
-      searchDebugInfo.channelProductV2 = { url: channelV2Url, status: channelRes.status, body: channelBody };
+      const fetchWithAuth = async (url: string) => {
+        const res = await fetch(url, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+          },
+        });
+        return { res, body: await safeReadJsonOrText(res) };
+      };
 
-      if (channelRes.ok) {
-        const b: any = channelBody;
-        // 가능한 필드 후보들(문서/버전에 따라 다를 수 있음)
-        const originNo = pickFirstString(
-          b?.originProductNo,
-          b?.originProductId,
-          b?.originProduct?.originProductNo,
-          b?.originProduct?.id,
-          b?.originProduct?.originProductId,
-          b?.originProduct?.originProductNo,
-          b?.originProduct?.no,
+      const extractOriginNoFromChannel = (body: any) =>
+        pickFirstString(
+          body?.originProductNo,
+          body?.originProductId,
+          body?.originProduct?.originProductNo,
+          body?.originProduct?.id,
+          body?.originProduct?.originProductId,
+          body?.originProduct?.originProductNo,
+          body?.originProduct?.no,
+          body?.originProduct?.originProductNo,
         );
+
+      // v2 → (인증 실패 시) v1 순으로 시도
+      const channelV2Url = `https://api.commerce.naver.com/external/v2/products/channel-products/${originProductId}`;
+      const channelV1Url = `https://api.commerce.naver.com/external/v1/products/channel-products/${originProductId}`;
+
+      const chV2 = await fetchWithAuth(channelV2Url);
+      searchDebugInfo.channelProductV2 = { url: channelV2Url, status: chV2.res.status, body: chV2.body };
+
+      let channelBodyAny: any = null;
+      if (chV2.res.ok) {
+        channelBodyAny = chV2.body;
+      } else if (chV2.res.status === 401 || chV2.res.status === 403) {
+        // 일부 계정/권한에서 v2가 막혀 있을 수 있어 v1을 추가로 시도
+        const chV1 = await fetchWithAuth(channelV1Url);
+        searchDebugInfo.channelProductV1 = { url: channelV1Url, status: chV1.res.status, body: chV1.body };
+        if (chV1.res.ok) channelBodyAny = chV1.body;
+      }
+
+      if (channelBodyAny) {
+        const originNo = extractOriginNoFromChannel(channelBodyAny);
         if (originNo) {
-          console.log('채널상품(v2)에서 원상품번호 추출 성공:', originNo);
+          console.log('채널상품에서 원상품번호 추출 성공:', originNo);
           targetOriginProductId = originNo;
         }
       }
@@ -422,6 +441,7 @@ serve(async (req) => {
         productResponse = v2.res;
         productBody = v2.body;
       } else {
+        // v2에서 401/403이면 v1로 fallback
         const v1 = await tryFetchProduct(productUrlV1);
         searchDebugInfo.originProductV1 = { url: productUrlV1, status: v1.res.status, body: v1.body };
         productResponse = v1.res;
@@ -433,6 +453,19 @@ serve(async (req) => {
       const errorDetails = productBody;
       
       console.error('상품 정보 조회 실패:', productResponse.status, errorDetails);
+
+      // 인증 실패는 404로 뭉개지 말고 그대로 반환
+      if (productResponse.status === 401 || productResponse.status === 403) {
+        return new Response(JSON.stringify({
+          error: '네이버 커머스 API 인증/권한 오류',
+          details: (errorDetails as any)?.message || (errorDetails as any)?.error || errorDetails,
+          searchDebugInfo,
+          suggestion: '네이버 커머스 API 센터에서 호출 IP/권한/연결 상태를 확인해주세요. (특히 솔루션 연결 및 API 권한)',
+        }), {
+          status: productResponse.status,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
       
       // 400 에러인 경우 상세 정보 제공
       if (productResponse.status === 400) {
