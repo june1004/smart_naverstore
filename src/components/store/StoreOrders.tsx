@@ -6,15 +6,50 @@ import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, ShieldAlert, Receipt, Search } from "lucide-react";
+import { Loader2, ShieldAlert, Receipt, Search, Save } from "lucide-react";
 
 type OrderRow = {
   orderId: string;
   orderedAt?: string;
   buyerName?: string;
+  phone?: string;
+  email?: string;
+  address?: string;
   productSummary?: string;
   paymentAmount?: number;
   status?: string;
+  masked?: { phone?: boolean; email?: boolean };
+};
+
+const todayStr = () => new Date().toISOString().slice(0, 10);
+
+const addDays = (d: Date, days: number) => {
+  const n = new Date(d);
+  n.setDate(n.getDate() + days);
+  return n;
+};
+
+const toDateInput = (d: Date) => d.toISOString().slice(0, 10);
+
+const normalizePhone = (phone?: string) => {
+  if (!phone) return null;
+  const digits = phone.replace(/[^\d]/g, "");
+  return digits || null;
+};
+
+const normalizeEmail = (email?: string) => {
+  if (!email) return null;
+  const e = email.trim().toLowerCase();
+  return e || null;
+};
+
+const makeContactKey = (phone?: string, email?: string) => {
+  const hasMasked = (v?: string) => Boolean(v && v.includes("*"));
+  const p = normalizePhone(phone);
+  if (p && !hasMasked(phone)) return `phone:${p}`;
+  const e = normalizeEmail(email);
+  if (e && !hasMasked(email)) return `email:${e}`;
+  return null;
 };
 
 const StoreOrders = () => {
@@ -24,10 +59,87 @@ const StoreOrders = () => {
   const [dateTo, setDateTo] = useState<string>("");
   const [isLoading, setIsLoading] = useState(false);
   const [rows, setRows] = useState<OrderRow[]>([]);
+  const [autoSaveCustomers, setAutoSaveCustomers] = useState(true);
 
   const canQuery = useMemo(() => {
     return Boolean(storeName.trim() && dateFrom && dateTo);
   }, [storeName, dateFrom, dateTo]);
+
+  const applyPreset = (days: number) => {
+    const today = new Date();
+    const to = toDateInput(today);
+    const from = toDateInput(addDays(today, -days + 1));
+    setDateFrom(from);
+    setDateTo(to);
+  };
+
+  const saveCustomerFromOrder = async (o: OrderRow) => {
+    // 마스킹된 값은 저장해도 의미가 없으므로, 저장 시도 전에 안내
+    if (o.masked?.phone || o.masked?.email) {
+      toast({
+        title: "마스킹 감지",
+        description:
+          "전화번호/이메일이 마스킹(*)되어 있습니다. 마스킹되기 전에(가급적 2주 이내) 정기 동기화로 선저장하는 것을 권장합니다.",
+      });
+    }
+
+    const rawText = [
+      `주문번호: ${o.orderId}`,
+      o.orderedAt ? `주문일시: ${o.orderedAt}` : "",
+      o.buyerName ? `이름: ${o.buyerName}` : "",
+      o.phone ? `휴대폰: ${o.phone}` : "",
+      o.email ? `이메일: ${o.email}` : "",
+      o.address ? `주소: ${o.address}` : "",
+      o.status ? `상태: ${o.status}` : "",
+    ]
+      .filter(Boolean)
+      .join("\n");
+
+    const contactKey = makeContactKey(o.phone, o.email) ?? `order:${o.orderId}`;
+
+    // 1) contact_key 기준 업서트 (B: 고객 단위 갱신)
+    const { error } = await supabase.from("customer_vault_entries" as any).upsert(
+      {
+        title: `${storeName.trim()} 주문 고객`,
+        raw_text: rawText,
+        buyer_name: o.buyerName ?? null,
+        phone: normalizePhone(o.phone),
+        email: normalizeEmail(o.email),
+        address: o.address ?? null,
+        order_id: o.orderId,
+        ordered_at: o.orderedAt ? new Date(o.orderedAt).toISOString() : null,
+        contact_key: contactKey,
+        memo: null,
+      },
+      {
+        onConflict: "user_id,contact_key",
+      }
+    );
+
+    if (!error) return;
+
+    // 2) 예외: 같은 order_id가 이미 다른 contact_key로 저장된 경우(유니크 인덱스 충돌)
+    // → order_id 기준으로 해당 row를 찾아 update (내 데이터만 RLS로 업데이트 가능)
+    if (String(error.message ?? "").includes("order_id") || String(error.message ?? "").includes("unique")) {
+      const { error: updateError } = await supabase
+        .from("customer_vault_entries" as any)
+        .update({
+          title: `${storeName.trim()} 주문 고객`,
+          raw_text: rawText,
+          buyer_name: o.buyerName ?? null,
+          phone: normalizePhone(o.phone),
+          email: normalizeEmail(o.email),
+          address: o.address ?? null,
+          ordered_at: o.orderedAt ? new Date(o.orderedAt).toISOString() : null,
+          memo: null,
+        })
+        .eq("order_id", o.orderId);
+      if (updateError) throw updateError;
+      return;
+    }
+
+    throw error;
+  };
 
   const handleQuery = async () => {
     if (!canQuery) {
@@ -39,20 +151,56 @@ const StoreOrders = () => {
       return;
     }
 
+    const today = todayStr();
+    if (dateTo > today) {
+      toast({
+        title: "종료일 오류",
+        description: "종료일(to)은 오늘 이후로 설정할 수 없습니다.",
+        variant: "destructive",
+      });
+      return;
+    }
+    if (dateFrom > dateTo) {
+      toast({
+        title: "기간 오류",
+        description: "시작일(from)이 종료일(to)보다 늦을 수 없습니다.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsLoading(true);
     setRows([]);
 
     try {
-      // NOTE: 승인 전에는 401이 정상일 수 있습니다.
-      // 승인 후에는 Edge Function을 실제 주문 조회 API로 연결합니다.
       const { data, error } = await supabase.functions.invoke("naver-order-list", {
         body: { storeName: storeName.trim(), dateFrom, dateTo },
       });
 
       if (error) throw error;
 
-      const items = Array.isArray((data as any)?.orders) ? (data as any).orders : [];
+      const items = Array.isArray((data as any)?.orders) ? ((data as any).orders as OrderRow[]) : [];
       setRows(items);
+
+      if (autoSaveCustomers && items.length > 0) {
+        try {
+          // 너무 많은 호출을 피하기 위해 상위 N개만 저장 (초기값 100)
+          const limit = Math.min(items.length, 100);
+          for (const o of items.slice(0, limit)) {
+            await saveCustomerFromOrder(o);
+          }
+          toast({
+            title: "고객 저장소 업데이트",
+            description: `주문 고객 정보를 ${limit}건 저장/갱신했습니다. (B: 중복은 갱신)`,
+          });
+        } catch (e: any) {
+          toast({
+            title: "고객 저장 실패",
+            description: e?.message || "고객 저장소에 저장하는 중 오류가 발생했습니다.",
+            variant: "destructive",
+          });
+        }
+      }
 
       toast({
         title: "조회 완료",
@@ -76,10 +224,10 @@ const StoreOrders = () => {
     <div className="space-y-6">
       <Alert className="border-[#E2D9C8] bg-white">
         <ShieldAlert className="h-4 w-4 text-amber-600" />
-        <AlertTitle className="text-slate-700">승인 전에는 주문/결제 API가 제한될 수 있어요</AlertTitle>
+        <AlertTitle className="text-slate-700">2주 이후 마스킹 방지: “주문 고객”은 선저장하세요</AlertTitle>
         <AlertDescription className="text-slate-600">
-          현재 솔루션이 심사요청중이면 네이버가 주문/결제 데이터 접근을 401로 차단할 수 있습니다.
-          심사완료 후 자동으로 동작하도록 구조를 미리 만들어두었습니다.
+          네이버 정책상 일정 기간이 지나면 전화번호/이메일이 *** 로 마스킹될 수 있습니다.
+          따라서 (권장) 최근 기간을 매일 동기화해서 고객 저장소에 선저장하면 CS/마케팅에 필요한 정보를 보존할 수 있습니다.
         </AlertDescription>
       </Alert>
 
@@ -94,6 +242,54 @@ const StoreOrders = () => {
           </CardDescription>
         </CardHeader>
         <CardContent className="p-6 space-y-4">
+            <div className="flex flex-wrap gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                className="border-[#E2D9C8] bg-white hover:bg-slate-50 text-slate-700"
+                onClick={() => applyPreset(1)}
+              >
+                1일
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                className="border-[#E2D9C8] bg-white hover:bg-slate-50 text-slate-700"
+                onClick={() => applyPreset(7)}
+              >
+                1주일
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                className="border-[#E2D9C8] bg-white hover:bg-slate-50 text-slate-700"
+                onClick={() => applyPreset(30)}
+              >
+                1개월
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                className="border-[#E2D9C8] bg-white hover:bg-slate-50 text-slate-700"
+                onClick={() => applyPreset(90)}
+              >
+                3개월
+              </Button>
+              <Button
+                type="button"
+                variant={autoSaveCustomers ? "default" : "outline"}
+                className={
+                  autoSaveCustomers
+                    ? "bg-[#0F4C5C] hover:bg-[#0a3d4a] text-white"
+                    : "border-[#E2D9C8] bg-white hover:bg-slate-50 text-slate-700"
+                }
+                onClick={() => setAutoSaveCustomers((v) => !v)}
+              >
+                <Save className="h-4 w-4 mr-2" />
+                고객 자동저장: {autoSaveCustomers ? "ON" : "OFF"}
+              </Button>
+            </div>
+
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             <div className="space-y-2">
               <Label className="text-slate-700">상점명</Label>
@@ -119,6 +315,7 @@ const StoreOrders = () => {
                 type="date"
                 value={dateTo}
                 onChange={(e) => setDateTo(e.target.value)}
+                max={todayStr()}
                 className="border-[#E2D9C8] focus:border-[#0F4C5C] focus:ring-[#0F4C5C]"
               />
             </div>
@@ -157,8 +354,14 @@ const StoreOrders = () => {
                 {rows.map((r) => (
                   <div key={r.orderId} className="p-4 flex flex-col md:flex-row md:items-center gap-2">
                     <div className="font-mono text-xs text-slate-500">{r.orderId}</div>
-                    <div className="flex-1 text-sm text-slate-700">{r.productSummary ?? "-"}</div>
-                    <div className="text-sm text-slate-600">{r.buyerName ?? "-"}</div>
+                    <div className="flex-1 text-sm text-slate-700">
+                      {r.buyerName ?? "-"}
+                      <div className="text-xs text-slate-500 mt-1">
+                        {r.phone ? `📞 ${r.phone}${r.masked?.phone ? " (마스킹)" : ""}` : ""}
+                        {r.email ? ` / ✉️ ${r.email}${r.masked?.email ? " (마스킹)" : ""}` : ""}
+                      </div>
+                      <div className="text-xs text-slate-500 mt-1">{r.address ? `🏠 ${r.address}` : ""}</div>
+                    </div>
                     <div className="text-sm text-slate-700 font-semibold">
                       {typeof r.paymentAmount === "number" ? `${r.paymentAmount.toLocaleString()}원` : "-"}
                     </div>
