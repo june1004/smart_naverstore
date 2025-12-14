@@ -62,6 +62,14 @@ async function safeReadJsonOrText(res: Response): Promise<unknown> {
   }
 }
 
+function pickFirstString(...candidates: unknown[]): string | null {
+  for (const c of candidates) {
+    if (typeof c === 'string' && c.trim()) return c.trim();
+    if (typeof c === 'number' && Number.isFinite(c)) return String(c);
+  }
+  return null;
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { 
@@ -297,11 +305,43 @@ serve(async (req) => {
 
     // 2. 상품 ID 식별 및 조회 전략
     // 사용자가 입력한 ID가 originProductId인지(원본상품ID), 스마트스토어 URL의 상품번호(채널상품번호)인지 알 수 없으므로
-    // products/search로 여러 searchKeywordType을 시도해 originProductId를 찾습니다.
+    // (v2) 채널상품 조회 API를 먼저 시도한 다음, products/search로 여러 searchKeywordType을 시도해 originProductId(원상품번호)를 찾습니다.
     let targetOriginProductId = originProductId;
     const searchDebugInfo: any = { attempts: [] };
 
     try {
+      // 2-1) (v2) 채널 상품 조회로 originProductNo(원상품번호) 획득 시도
+      // 문서상 path param: channelProductNo
+      // (v2) 채널 상품 조회: https://apicenter.commerce.naver.com/docs/commerce-api/current/read-channel-product-1-product
+      const channelV2Url = `https://api.commerce.naver.com/external/v2/products/channel-products/${originProductId}`;
+      const channelRes = await fetch(channelV2Url, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+      });
+      const channelBody = await safeReadJsonOrText(channelRes);
+      searchDebugInfo.channelProductV2 = { url: channelV2Url, status: channelRes.status, body: channelBody };
+
+      if (channelRes.ok) {
+        const b: any = channelBody;
+        // 가능한 필드 후보들(문서/버전에 따라 다를 수 있음)
+        const originNo = pickFirstString(
+          b?.originProductNo,
+          b?.originProductId,
+          b?.originProduct?.originProductNo,
+          b?.originProduct?.id,
+          b?.originProduct?.originProductId,
+          b?.originProduct?.originProductNo,
+          b?.originProduct?.no,
+        );
+        if (originNo) {
+          console.log('채널상품(v2)에서 원상품번호 추출 성공:', originNo);
+          targetOriginProductId = originNo;
+        }
+      }
+
       console.log('상품 ID 검색 시도:', originProductId);
 
       const searchUrl = "https://api.commerce.naver.com/external/v1/products/search";
@@ -356,21 +396,41 @@ serve(async (req) => {
     }
 
     // 3. 상품 상세 정보 조회 API 호출
-    // GET /external/v1/products/origin-products/{originProductId}
-    const productUrl = `https://api.commerce.naver.com/external/v1/products/origin-products/${targetOriginProductId}`;
+    // 우선 (v2) 원상품 조회를 시도하고, 실패하면 (v1)로 fallback
+    const productUrlV2 = `https://api.commerce.naver.com/external/v2/products/origin-products/${targetOriginProductId}`;
+    const productUrlV1 = `https://api.commerce.naver.com/external/v1/products/origin-products/${targetOriginProductId}`;
     
-    console.log('상품 상세 정보 조회 요청:', { targetOriginProductId });
+    console.log('상품 상세 정보 조회 요청:', { targetOriginProductId, productUrlV2, productUrlV1 });
 
-    const productResponse = await fetch(productUrl, {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${accessToken}`,
-        'Content-Type': 'application/json',
-      },
-    });
+    const tryFetchProduct = async (url: string) => {
+      const res = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+      });
+      return { res, body: await safeReadJsonOrText(res) };
+    };
+
+    let productResponse: Response;
+    let productBody: unknown;
+    {
+      const v2 = await tryFetchProduct(productUrlV2);
+      searchDebugInfo.originProductV2 = { url: productUrlV2, status: v2.res.status, body: v2.body };
+      if (v2.res.ok) {
+        productResponse = v2.res;
+        productBody = v2.body;
+      } else {
+        const v1 = await tryFetchProduct(productUrlV1);
+        searchDebugInfo.originProductV1 = { url: productUrlV1, status: v1.res.status, body: v1.body };
+        productResponse = v1.res;
+        productBody = v1.body;
+      }
+    }
 
     if (!productResponse.ok) {
-      const errorDetails = await safeReadJsonOrText(productResponse);
+      const errorDetails = productBody;
       
       console.error('상품 정보 조회 실패:', productResponse.status, errorDetails);
       
@@ -409,23 +469,23 @@ serve(async (req) => {
       });
     }
 
-    const productData = await productResponse.json();
+    const productData: any = productBody;
     console.log('상품 정보 조회 성공:', { 
-      productId: productData.id,
-      productName: productData.name,
-      hasCategory: !!productData.category,
-      tagsCount: productData.tags?.length || 0
+      productId: productData.id ?? productData.originProductNo ?? productData.originProductId,
+      productName: productData.name ?? productData.product?.name,
+      hasCategory: !!(productData.category ?? productData.product?.category),
+      tagsCount: productData.tags?.length || productData.product?.tags?.length || 0
     });
 
     // 응답 데이터 정리
     const response = {
-      originProductId: productData.id || originProductId,
-      productName: productData.name || '',
-      category: productData.category?.name || productData.categoryId || '',
-      categoryPath: productData.category?.fullName || productData.categoryPath || '',
-      tags: productData.tags || [],
-      detailContent: productData.detailContent || '',
-      images: productData.images || [],
+      originProductId: productData.id || productData.originProductNo || productData.originProductId || originProductId,
+      productName: productData.name || productData.product?.name || '',
+      category: productData.category?.name || productData.product?.category?.name || productData.categoryId || '',
+      categoryPath: productData.category?.fullName || productData.product?.category?.fullName || productData.categoryPath || '',
+      tags: productData.tags || productData.product?.tags || [],
+      detailContent: productData.detailContent || productData.product?.detailContent || '',
+      images: productData.images || productData.product?.images || [],
     };
 
     return new Response(JSON.stringify(response), {
