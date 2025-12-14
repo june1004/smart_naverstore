@@ -49,6 +49,7 @@ export type Database = {
         Row: {
           id: string
           created_at: string
+          updated_at: string
           user_id: string
           title: string
           raw_text: string
@@ -58,11 +59,13 @@ export type Database = {
           address: string | null
           order_id: string | null
           ordered_at: string | null
+          contact_key: string | null
           memo: string | null
         }
         Insert: {
           id?: string
           created_at?: string
+          updated_at?: string
           user_id?: string
           title: string
           raw_text: string
@@ -72,11 +75,13 @@ export type Database = {
           address?: string | null
           order_id?: string | null
           ordered_at?: string | null
+          contact_key?: string | null
           memo?: string | null
         }
         Update: {
           id?: string
           created_at?: string
+          updated_at?: string
           user_id?: string
           title?: string
           raw_text?: string
@@ -86,6 +91,7 @@ export type Database = {
           address?: string | null
           order_id?: string | null
           ordered_at?: string | null
+          contact_key?: string | null
           memo?: string | null
         }
         Relationships: []

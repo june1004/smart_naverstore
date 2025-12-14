@@ -36,6 +36,20 @@ function parseContact(raw: string) {
   return { phone: phone?.[1]?.replace(/\s+/g, "") ?? null, email: email?.[0] ?? null, buyerName };
 }
 
+function normalizePhone(phone: string | null) {
+  if (!phone) return null;
+  const digits = phone.replace(/[^\d]/g, "");
+  return digits || null;
+}
+
+function makeContactKey(phone: string | null, email: string | null) {
+  const p = normalizePhone(phone);
+  if (p) return `phone:${p}`;
+  const e = (email ?? "").trim().toLowerCase();
+  if (e) return `email:${e}`;
+  return null;
+}
+
 const CustomerVault = () => {
   const { toast } = useToast();
   const [title, setTitle] = useState("");
@@ -100,23 +114,37 @@ const CustomerVault = () => {
     }
     const derivedTitle = title.trim() || "고객 메모";
     const parsed = parseContact(rawText);
+    const contactKey = makeContactKey(parsed.phone, parsed.email);
 
     setIsSaving(true);
     try {
-      const { error } = await supabase.from("customer_vault_entries" as any).insert({
-        title: derivedTitle,
-        raw_text: rawText,
-        buyer_name: parsed.buyerName,
-        phone: parsed.phone,
-        email: parsed.email,
-        address: address.trim() || null,
-        order_id: orderId.trim() || null,
-        ordered_at: orderedAt ? new Date(orderedAt).toISOString() : null,
-        memo: memo.trim() || null,
-      });
+      const { error } = await supabase
+        .from("customer_vault_entries" as any)
+        .upsert(
+          {
+            title: derivedTitle,
+            raw_text: rawText,
+            buyer_name: parsed.buyerName,
+            phone: normalizePhone(parsed.phone),
+            email: parsed.email ? parsed.email.trim().toLowerCase() : null,
+            address: address.trim() || null,
+            order_id: orderId.trim() || null,
+            ordered_at: orderedAt ? new Date(orderedAt).toISOString() : null,
+            contact_key: contactKey,
+            memo: memo.trim() || null,
+          },
+          {
+            // (B) 중복 정책: 같은 contact_key는 갱신
+            // contact_key가 null이면 중복 체크를 하지 않고 항상 신규 row로 저장됩니다.
+            onConflict: "user_id,contact_key",
+          }
+        );
       if (error) throw error;
 
-      toast({ title: "저장 완료", description: "고객 저장소에 추가했습니다." });
+      toast({
+        title: "저장 완료",
+        description: contactKey ? "기존 고객을 갱신(업데이트)했습니다." : "새 고객 메모를 추가했습니다.",
+      });
       setTitle("");
       setRawText("");
       setMemo("");
@@ -127,7 +155,9 @@ const CustomerVault = () => {
     } catch (e: any) {
       toast({
         title: "저장 실패",
-        description: e?.message || "저장 중 오류가 발생했습니다. (테이블/RLS 설정을 확인해주세요.)",
+        description:
+          e?.message ||
+          "저장 중 오류가 발생했습니다. (마이그레이션 적용 여부 + UPDATE RLS policy + unique index를 확인해주세요.)",
         variant: "destructive",
       });
     } finally {

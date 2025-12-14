@@ -12,6 +12,7 @@
 - **고객 저장소**
   - 주문/문의 화면에서 구매자 정보를 복사 → 붙여넣기 → 내 계정에만 저장
   - 검색/복사/삭제 지원
+  - **중복 정책(B)**: 휴대폰/이메일이 같으면 “새로 추가”가 아니라 **기존 고객을 갱신**합니다.
 - **매출/제안**
   - 매출 상승을 위한 제안 섹션(로드맵/확장 기능 제안 포함)
 
@@ -28,6 +29,8 @@
 고객 저장소는 Supabase 테이블 `customer_vault_entries`를 사용합니다.
 
 - **마이그레이션 파일**: `supabase/migrations/20251214000000_customer_vault_entries.sql`
+- **추가 컬럼(주문일시/주소/주문번호)**: `supabase/migrations/20251214001000_customer_vault_add_order_fields.sql`
+- **중복 갱신(B) 업서트 지원(contact_key/updated_at/UPDATE policy)**: `supabase/migrations/20251214002000_customer_vault_dedupe_upsert.sql`
 
 ### 방법 A) Supabase Dashboard → SQL Editor에서 실행
 1. Supabase Dashboard 접속
