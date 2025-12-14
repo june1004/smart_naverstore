@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, ShieldAlert, Receipt, Search, Save, RefreshCw } from "lucide-react";
+import { Loader2, ShieldAlert, Receipt, Search, Save, RefreshCw, TestTube2 } from "lucide-react";
 
 type OrderRow = {
   orderId: string;
@@ -19,6 +19,7 @@ type OrderRow = {
   paymentAmount?: number;
   status?: string;
   masked?: { phone?: boolean; email?: boolean };
+  demo?: boolean;
 };
 
 const todayStr = () => new Date().toISOString().slice(0, 10);
@@ -52,6 +53,44 @@ const makeContactKey = (phone?: string, email?: string) => {
   return null;
 };
 
+const makeDemoOrders = (opts: { storeName: string; dateFrom: string; dateTo: string; count?: number }): OrderRow[] => {
+  const count = Math.max(3, Math.min(20, opts.count ?? 10));
+  const base = `${opts.storeName || "demo"}-${opts.dateFrom}-${opts.dateTo}`;
+
+  const names = ["김나눔", "이서연", "박준호", "최지우", "정민수", "오하늘", "한가람", "윤지안", "송민재", "임가은"];
+  const streets = ["테헤란로", "강남대로", "올림픽로", "세종대로", "월드컵북로", "중앙로", "서초대로", "광화문길"];
+  const cities = ["서울특별시", "부산광역시", "대구광역시", "인천광역시", "광주광역시", "대전광역시"];
+
+  const pick = <T,>(arr: T[], i: number) => arr[i % arr.length];
+  const pad = (n: number) => String(n).padStart(2, "0");
+
+  return Array.from({ length: count }).map((_, i) => {
+    const day = new Date();
+    day.setDate(day.getDate() - (i % 7));
+    const orderedAt = `${day.getFullYear()}-${pad(day.getMonth() + 1)}-${pad(day.getDate())}T${pad(10 + (i % 8))}:${pad(
+      5 * (i % 12)
+    )}:00+09:00`;
+
+    const shouldMask = i % 4 === 0; // 일부는 마스킹 표시(정책 설명용)
+    const phone = shouldMask ? "010-****-1234" : `010-${pad(10 + (i % 90))}${pad(10 + (i % 90))}-${pad(10 + (i % 90))}${pad(10 + (i % 90))}`;
+    const email = shouldMask ? "na****@example.com" : `user${100 + i}@example.com`;
+
+    return {
+      orderId: `DEMO-${base}-${String(i + 1).padStart(4, "0")}`,
+      orderedAt,
+      buyerName: pick(names, i),
+      phone,
+      email,
+      address: `${pick(cities, i)} ${pick(streets, i)} ${100 + i} ${10 + i}층`,
+      productSummary: `샘플 상품 ${i + 1} (심사용 데모)`,
+      paymentAmount: 12900 + i * 500,
+      status: shouldMask ? "PAYED" : "DELIVERING",
+      masked: { phone: shouldMask, email: shouldMask },
+      demo: true,
+    };
+  });
+};
+
 const StoreOrders = () => {
   const { toast } = useToast();
   const [storeName, setStoreName] = useState<string>("");
@@ -60,6 +99,8 @@ const StoreOrders = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [rows, setRows] = useState<OrderRow[]>([]);
   const [autoSaveCustomers, setAutoSaveCustomers] = useState(true);
+  const [demoMode, setDemoMode] = useState(true);
+  const [allowDemoSave, setAllowDemoSave] = useState(false);
   const [syncEnabled, setSyncEnabled] = useState(true);
   const [syncDays, setSyncDays] = useState(7);
   const [isSavingSyncSettings, setIsSavingSyncSettings] = useState(false);
@@ -139,6 +180,10 @@ const StoreOrders = () => {
   };
 
   const saveCustomerFromOrder = async (o: OrderRow) => {
+    if (o.demo && !allowDemoSave) {
+      return;
+    }
+
     // 마스킹된 값은 저장해도 의미가 없으므로, 저장 시도 전에 안내
     if (o.masked?.phone || o.masked?.email) {
       toast({
@@ -149,6 +194,7 @@ const StoreOrders = () => {
     }
 
     const rawText = [
+      o.demo ? "[DEMO] 심사용 샘플 데이터입니다. (승인 후 실데이터로 자동 전환)" : "",
       `주문번호: ${o.orderId}`,
       o.orderedAt ? `주문일시: ${o.orderedAt}` : "",
       o.buyerName ? `이름: ${o.buyerName}` : "",
@@ -165,7 +211,7 @@ const StoreOrders = () => {
     // 1) contact_key 기준 업서트 (B: 고객 단위 갱신)
     const { error } = await supabase.from("customer_vault_entries" as any).upsert(
       {
-        title: `${storeName.trim()} 주문 고객`,
+        title: `${storeName.trim()} 주문 고객${o.demo ? " (DEMO)" : ""}`,
         raw_text: rawText,
         buyer_name: o.buyerName ?? null,
         phone: normalizePhone(o.phone),
@@ -173,8 +219,8 @@ const StoreOrders = () => {
         address: o.address ?? null,
         order_id: o.orderId,
         ordered_at: o.orderedAt ? new Date(o.orderedAt).toISOString() : null,
-        contact_key: contactKey,
-        memo: null,
+        contact_key: o.demo ? `demo:${contactKey}` : contactKey,
+        memo: o.demo ? "DEMO" : null,
       },
       {
         onConflict: "user_id,contact_key",
@@ -238,6 +284,36 @@ const StoreOrders = () => {
     setRows([]);
 
     try {
+      if (demoMode) {
+        const demoOrders = makeDemoOrders({ storeName: storeName.trim(), dateFrom, dateTo, count: 10 });
+        setRows(demoOrders);
+
+        if (autoSaveCustomers && allowDemoSave) {
+          try {
+            const limit = Math.min(demoOrders.length, 100);
+            for (const o of demoOrders.slice(0, limit)) {
+              await saveCustomerFromOrder(o);
+            }
+            toast({
+              title: "데모 고객 저장소 업데이트",
+              description: `DEMO 고객 정보를 ${limit}건 저장/갱신했습니다. (승인 후에는 실데이터로 전환됩니다)`,
+            });
+          } catch (e: any) {
+            toast({
+              title: "데모 저장 실패",
+              description: e?.message || "고객 저장소에 저장하는 중 오류가 발생했습니다.",
+              variant: "destructive",
+            });
+          }
+        }
+
+        toast({
+          title: "데모 조회 완료",
+          description: `${demoOrders.length}건의 데모 주문을 표시했습니다.`,
+        });
+        return;
+      }
+
       const { data, error } = await supabase.functions.invoke("naver-order-list", {
         body: { storeName: storeName.trim(), dateFrom, dateTo },
       });
@@ -287,6 +363,13 @@ const StoreOrders = () => {
         }
 
         const msg = suggestion ? `${details}\n💡 ${suggestion}` : details;
+        if (status === 404 && (details.includes("4040") || details.includes("GW.NOT_FOUND"))) {
+          toast({
+            title: "심사요청중: 데모 모드로 전환할까요?",
+            description: "현재 주문/결제 API가 제한될 수 있어요. 데모 모드로 화면 흐름을 먼저 완성할 수 있습니다.",
+          });
+          setDemoMode(true);
+        }
         throw new Error(msg);
       }
 
@@ -353,6 +436,45 @@ const StoreOrders = () => {
           </CardDescription>
         </CardHeader>
         <CardContent className="p-6 space-y-4">
+            <div className="p-4 rounded-xl border border-[#E2D9C8] bg-[#FDF6E3]">
+              <div className="flex items-center justify-between gap-3 flex-wrap">
+                <div className="text-sm font-semibold text-slate-700">심사요청중 대응: 데모 모드(심사용)</div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Button
+                    type="button"
+                    variant={demoMode ? "default" : "outline"}
+                    className={
+                      demoMode
+                        ? "bg-[#0F4C5C] hover:bg-[#0a3d4a] text-white"
+                        : "border-[#E2D9C8] bg-white hover:bg-slate-50 text-slate-700"
+                    }
+                    onClick={() => setDemoMode((v) => !v)}
+                  >
+                    <TestTube2 className="h-4 w-4 mr-2" />
+                    데모: {demoMode ? "ON" : "OFF"}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={allowDemoSave ? "default" : "outline"}
+                    className={
+                      allowDemoSave
+                        ? "bg-[#0F4C5C] hover:bg-[#0a3d4a] text-white"
+                        : "border-[#E2D9C8] bg-white hover:bg-slate-50 text-slate-700"
+                    }
+                    onClick={() => setAllowDemoSave((v) => !v)}
+                    disabled={!demoMode}
+                  >
+                    <Save className="h-4 w-4 mr-2" />
+                    데모 저장: {allowDemoSave ? "ON" : "OFF"}
+                  </Button>
+                </div>
+              </div>
+              <p className="text-xs text-slate-600 mt-2">
+                데모 모드에서는 <b>샘플 주문</b>을 표시해 “조회→저장→폴링 설정” 흐름을 심사 단계에서도 확인할 수 있어요.
+                데모 저장을 켜면 고객 저장소에 <b>(DEMO)</b>로 별도 저장됩니다.
+              </p>
+            </div>
+
           <div className="p-4 rounded-xl border border-[#E2D9C8] bg-white">
             <div className="flex items-center justify-between gap-3 flex-wrap">
               <div className="text-sm font-semibold text-slate-700">전화/이메일 폴링(매일) 설정</div>
