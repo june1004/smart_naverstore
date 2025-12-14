@@ -38,6 +38,8 @@ FUNCTIONS=(
   "naver-product-update"
   "naver-order-list"
   "naver-order-sync"
+  "toss-create-order"
+  "toss-confirm-payment"
   "gemini-seo-recommend"
   "keyword-recommend"
   "upload-categories"

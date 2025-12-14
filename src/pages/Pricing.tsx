@@ -9,6 +9,15 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import Logo from "@/components/Logo";
 import UserProfile from "@/components/UserProfile";
+import { supabase } from "@/integrations/supabase/client";
+
+declare global {
+  interface Window {
+    TossPayments?: (clientKey: string) => {
+      requestPayment: (method: string, params: Record<string, any>) => Promise<void>;
+    };
+  }
+}
 
 const Pricing = () => {
   const navigate = useNavigate();
@@ -16,6 +25,32 @@ const Pricing = () => {
   const { user, hasActiveSubscription, hasStoreAddon } = useAuth();
   const [isProcessing, setIsProcessing] = useState(false);
   const [isProcessingStoreAddon, setIsProcessingStoreAddon] = useState(false);
+
+  const tossClientKey = (import.meta as any).env?.VITE_TOSS_CLIENT_KEY as string | undefined;
+
+  const requestTossPayment = async (plan: "base" | "store_addon") => {
+    if (!tossClientKey) {
+      throw new Error("VITE_TOSS_CLIENT_KEY가 설정되지 않았습니다. (Vercel env 설정 필요)");
+    }
+    if (!window.TossPayments) {
+      throw new Error("TossPayments SDK가 로드되지 않았습니다. (네트워크/스크립트 로드 확인)");
+    }
+
+    const { data, error } = await supabase.functions.invoke("toss-create-order", { body: { plan } });
+    if (error) throw error;
+
+    const { orderId, amount, orderName, successUrl, failUrl, customerName } = data as any;
+    const toss = window.TossPayments(tossClientKey);
+
+    await toss.requestPayment("CARD", {
+      amount,
+      orderId,
+      orderName,
+      customerName: customerName ?? user?.email ?? "customer",
+      successUrl,
+      failUrl,
+    });
+  };
 
   const handlePayment = async () => {
     if (!user) {
@@ -31,35 +66,13 @@ const Pricing = () => {
     setIsProcessing(true);
 
     try {
-      // TODO: 토스페이먼츠 또는 포트원 결제 연동
-      // 예시: 토스페이먼츠 결제창 호출
-      // const payment = await window.TossPayments.requestPayment('카드', {
-      //   amount: 10000,
-      //   orderId: generateOrderId(),
-      //   orderName: 'Pro Seller Plan - 월간 구독',
-      //   customerName: user.email,
-      //   successUrl: `${window.location.origin}/pricing/success`,
-      //   failUrl: `${window.location.origin}/pricing/fail`,
-      // });
-
-      // 임시: 결제 시뮬레이션
-      await new Promise((resolve) => setTimeout(resolve, 2000));
-
-      toast({
-        title: "결제 준비 중",
-        description: "결제 모듈 연동 후 실제 결제가 진행됩니다.",
-      });
-
-      // 실제 구현 시:
-      // 1. Supabase에 구독 정보 저장
-      // 2. 결제 성공 후 리다이렉트
-      // 3. 사용자 프로필에 구독 상태 업데이트
+      await requestTossPayment("base");
 
     } catch (error) {
       console.error("결제 오류:", error);
       toast({
         title: "결제 실패",
-        description: "결제 처리 중 오류가 발생했습니다. 다시 시도해주세요.",
+        description: (error as any)?.message || "결제 처리 중 오류가 발생했습니다. 다시 시도해주세요.",
         variant: "destructive",
       });
     } finally {
@@ -89,17 +102,12 @@ const Pricing = () => {
 
     setIsProcessingStoreAddon(true);
     try {
-      // TODO: 결제 연동 (토스페이먼츠/포트원)
-      await new Promise((resolve) => setTimeout(resolve, 2000));
-      toast({
-        title: "추가 구독 결제 준비 중",
-        description: "결제 모듈 연동 후 실제 결제가 진행됩니다.",
-      });
+      await requestTossPayment("store_addon");
     } catch (error) {
       console.error("추가 구독 결제 오류:", error);
       toast({
         title: "결제 실패",
-        description: "결제 처리 중 오류가 발생했습니다. 다시 시도해주세요.",
+        description: (error as any)?.message || "결제 처리 중 오류가 발생했습니다. 다시 시도해주세요.",
         variant: "destructive",
       });
     } finally {

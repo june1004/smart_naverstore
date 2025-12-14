@@ -26,6 +26,7 @@ Vercel Project → Settings → Environment Variables에 아래를 추가하세�
 
 - `VITE_SUPABASE_URL`
 - `VITE_SUPABASE_ANON_KEY`
+- `VITE_TOSS_CLIENT_KEY` (Toss Payments Client Key)
 
 > ⚠️ 비밀키/서비스 롤 키는 프론트에 넣으면 안 됩니다.
 

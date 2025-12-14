@@ -15,6 +15,8 @@ import NotFound from "./pages/NotFound";
 import ProtectedRoute from "./components/ProtectedRoute";
 import Store from "./pages/Store";
 import Admin from "./pages/Admin";
+import PricingSuccess from "./pages/PricingSuccess";
+import PricingFail from "./pages/PricingFail";
 
 const queryClient = new QueryClient();
 
@@ -32,6 +34,8 @@ const App = () => (
                 <Route path="/" element={<Landing />} />
                 <Route path="/auth" element={<Auth />} />
                 <Route path="/pricing" element={<Pricing />} />
+                <Route path="/pricing/success" element={<PricingSuccess />} />
+                <Route path="/pricing/fail" element={<PricingFail />} />
                 
                 {/* Protected Routes */}
                 <Route 
