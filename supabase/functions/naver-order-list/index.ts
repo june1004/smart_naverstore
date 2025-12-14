@@ -48,6 +48,49 @@ function toIsoRange(fromDate: string, toDate: string) {
   return { from, to };
 }
 
+function toKstDayStart(date: string) {
+  return `${date}T00:00:00`;
+}
+
+function toKstDayEnd(date: string) {
+  return `${date}T23:59:59.999`;
+}
+
+function addDaysDateString(date: string, days: number) {
+  const d = new Date(`${date}T00:00:00+09:00`);
+  d.setDate(d.getDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
+function enumerateDatesInclusive(fromDate: string, toDate: string, maxDays = 31) {
+  const out: string[] = [];
+  let cur = fromDate;
+  let i = 0;
+  while (cur <= toDate) {
+    out.push(cur);
+    cur = addDaysDateString(cur, 1);
+    i += 1;
+    if (i > maxDays) break;
+  }
+  return out;
+}
+
+function buildRangeVariants(fromDate: string, toDate: string) {
+  // 네이버가 from/to 형식을 명확히 고정하지 않는 경우가 있어, 여러 포맷을 시도합니다.
+  // 1) KST 로컬(오프셋 없음): 2025-12-14T00:00:00
+  // 2) KST 로컬(space): 2025-12-14 00:00:00
+  // 3) ISO(Z): 2025-12-13T15:00:00.000Z
+  const kstFrom = toKstDayStart(fromDate);
+  const kstTo = toKstDayEnd(toDate);
+  const iso = toIsoRange(fromDate, toDate);
+
+  return [
+    { name: "KST local (T)", from: kstFrom, to: kstTo },
+    { name: "KST local (space)", from: kstFrom.replace("T", " "), to: kstTo.replace("T", " ") },
+    { name: "ISO (Z)", from: iso.from, to: iso.to },
+  ];
+}
+
 function isMasked(value: unknown): boolean {
   if (typeof value !== "string") return false;
   return value.includes("*");
@@ -210,7 +253,9 @@ serve(async (req) => {
     // 2) 주문 조회(조건형)
     // 문서 화면 URL: seller-get-product-orders-with-conditions-pay-order-seller
     // 실제 경로는 문서/버전/계정에 따라 차이가 있을 수 있어 "시도 목록"으로 구현합니다.
-    const { from, to } = toIsoRange(body.dateFrom, body.dateTo);
+    // 참고: 문서에 "to 생략 시 from + 24시간"이라고 되어 있어, 최대 24시간 제한이 있을 수 있습니다.
+    // 따라서 기간이 길면 '일 단위'로 나눠 호출합니다.
+    const dayList = enumerateDatesInclusive(body.dateFrom, body.dateTo, 62);
 
     const debug: any = {
       tokenAttemptSelected,
@@ -222,69 +267,86 @@ serve(async (req) => {
       },
     };
 
-    const query = new URLSearchParams();
-    query.append("from", from);
-    query.append("to", to);
-    if (body.rangeType) query.append("rangeType", body.rangeType);
-    // 다중 상태는 반복 파라미터 방식일 수 있어 일단 여러 번 append
-    for (const s of body.productOrderStatus ?? []) query.append("productOrderStatus", s);
-    for (const s of body.claimStatus ?? []) query.append("claimStatus", s);
+    const allBodies: Array<{ url: string; body: any }> = [];
+    const successes: Array<{ date: string; url: string }> = [];
+    let lastFailure: any = null;
 
-    const candidates: Array<{ name: string; method: "GET" | "POST"; url: string; body?: unknown }> = [
-      {
-        name: "v1 GET /pay-order/seller/product-orders (query)",
-        method: "GET",
-        url: `https://api.commerce.naver.com/external/v1/pay-order/seller/product-orders?${query.toString()}`,
-      },
-      {
-        name: "v1 GET /pay-order/seller/product-orders/with-conditions (query)",
-        method: "GET",
-        url: `https://api.commerce.naver.com/external/v1/pay-order/seller/product-orders/with-conditions?${query.toString()}`,
-      },
-      {
-        name: "v2 GET /pay-order/seller/product-orders (query)",
-        method: "GET",
-        url: `https://api.commerce.naver.com/external/v2/pay-order/seller/product-orders?${query.toString()}`,
-      },
-      {
-        name: "v1 POST /pay-order/seller/product-orders (json)",
-        method: "POST",
-        url: "https://api.commerce.naver.com/external/v1/pay-order/seller/product-orders",
-        body: { from, to, rangeType: body.rangeType ?? undefined, productOrderStatus: body.productOrderStatus ?? undefined },
-      },
-      {
-        name: "v1 POST /pay-order/seller/product-orders/with-conditions (json)",
-        method: "POST",
-        url: "https://api.commerce.naver.com/external/v1/pay-order/seller/product-orders/with-conditions",
-        body: { from, to, rangeType: body.rangeType ?? undefined, productOrderStatus: body.productOrderStatus ?? undefined },
-      },
-    ];
+    for (const day of dayList) {
+      const variants = buildRangeVariants(day, day);
 
-    let okBody: any = null;
-    let okUrl: string | null = null;
+      for (const v of variants) {
+        const query = new URLSearchParams();
+        query.append("from", v.from);
+        query.append("to", v.to);
+        if (body.rangeType) query.append("rangeType", body.rangeType);
+        for (const s of body.productOrderStatus ?? []) query.append("productOrderStatus", s);
+        for (const s of body.claimStatus ?? []) query.append("claimStatus", s);
 
-    for (const c of candidates) {
-      const res = await fetch(c.url, {
-        method: c.method,
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          "Content-Type": "application/json",
-        },
-        body: c.method === "POST" ? JSON.stringify(c.body ?? {}) : undefined,
-      });
-      const b = await safeReadJsonOrText(res);
-      debug.orderFetchAttempts.push({ name: c.name, status: res.status, url: c.url, body: b });
-      if (res.ok) {
-        okBody = b;
-        okUrl = c.url;
-        break;
+        const candidates: Array<{ name: string; method: "GET" | "POST"; url: string; body?: unknown }> = [
+          {
+            name: `v1 GET /pay-order/seller/product-orders/with-conditions (query) [${v.name}]`,
+            method: "GET",
+            url: `https://api.commerce.naver.com/external/v1/pay-order/seller/product-orders/with-conditions?${query.toString()}`,
+          },
+          {
+            name: `v1 GET /pay-order/seller/product-orders (query) [${v.name}]`,
+            method: "GET",
+            url: `https://api.commerce.naver.com/external/v1/pay-order/seller/product-orders?${query.toString()}`,
+          },
+          {
+            name: `v2 GET /pay-order/seller/product-orders (query) [${v.name}]`,
+            method: "GET",
+            url: `https://api.commerce.naver.com/external/v2/pay-order/seller/product-orders?${query.toString()}`,
+          },
+          {
+            name: `v1 POST /pay-order/seller/product-orders/with-conditions (json) [${v.name}]`,
+            method: "POST",
+            url: "https://api.commerce.naver.com/external/v1/pay-order/seller/product-orders/with-conditions",
+            body: { from: v.from, to: v.to, rangeType: body.rangeType ?? undefined, productOrderStatus: body.productOrderStatus ?? undefined },
+          },
+          {
+            name: `v1 POST /pay-order/seller/product-orders (json) [${v.name}]`,
+            method: "POST",
+            url: "https://api.commerce.naver.com/external/v1/pay-order/seller/product-orders",
+            body: { from: v.from, to: v.to, rangeType: body.rangeType ?? undefined, productOrderStatus: body.productOrderStatus ?? undefined },
+          },
+        ];
+
+        for (const c of candidates) {
+          const res = await fetch(c.url, {
+            method: c.method,
+            headers: {
+              Authorization: `Bearer ${accessToken}`,
+              Accept: "application/json",
+              "Content-Type": "application/json",
+            },
+            body: c.method === "POST" ? JSON.stringify(c.body ?? {}) : undefined,
+          });
+          const b = await safeReadJsonOrText(res);
+          debug.orderFetchAttempts.push({ date: day, variant: v.name, name: c.name, status: res.status, url: c.url, body: b });
+
+          if (res.ok) {
+            allBodies.push({ url: c.url, body: b });
+            successes.push({ date: day, url: c.url });
+            lastFailure = null;
+            break;
+          }
+
+          lastFailure = { status: res.status, body: b, url: c.url, name: c.name, date: day, variant: v.name };
+          // 401/403이면 빠르게 종료 (권한 문제)
+          if (res.status === 401 || res.status === 403) break;
+        }
+
+        // 이 variant에서 성공했으면 다음 날짜로
+        if (successes.length > 0 && successes[successes.length - 1]?.date === day) break;
+        if (lastFailure?.status === 401 || lastFailure?.status === 403) break;
       }
-      // 401/403이면 빠르게 종료 (권한 문제)
-      if (res.status === 401 || res.status === 403) break;
+
+      if (lastFailure?.status === 401 || lastFailure?.status === 403) break;
     }
 
-    if (!okBody) {
-      const last = debug.orderFetchAttempts[debug.orderFetchAttempts.length - 1];
+    if (allBodies.length === 0) {
+      const last = lastFailure ?? debug.orderFetchAttempts[debug.orderFetchAttempts.length - 1];
       const rawStatus = Number(last?.status ?? 500);
       // 네이버 응답이 4xx/5xx인 경우 가능한 한 원본 상태를 보존해서 프론트에서 원인을 구분할 수 있게 합니다.
       // (기존: 401/403이 아니면 무조건 500으로 감쌌음 → 디버깅이 어려움)
@@ -311,11 +373,17 @@ serve(async (req) => {
 
     // 3) 응답 정규화
     // 구조가 다양할 수 있어 최대한 방어적으로 파싱합니다.
-    const root: any = okBody;
-    const list: any[] =
-      (Array.isArray(root?.contents) ? root.contents : null) ??
-      (Array.isArray(root?.productOrders) ? root.productOrders : null) ??
-      (Array.isArray(root) ? root : []);
+    const list: any[] = [];
+    const sources: string[] = [];
+    for (const it of allBodies) {
+      sources.push(it.url);
+      const root: any = it.body;
+      const one: any[] =
+        (Array.isArray(root?.contents) ? root.contents : null) ??
+        (Array.isArray(root?.productOrders) ? root.productOrders : null) ??
+        (Array.isArray(root) ? root : []);
+      for (const row of one) list.push(row);
+    }
 
     const orders = list
       .map((item: any) => {
@@ -360,9 +428,10 @@ serve(async (req) => {
 
     return new Response(
       JSON.stringify({
-        source: okUrl,
-        from,
-        to,
+        sources,
+        dateFrom: body.dateFrom,
+        dateTo: body.dateTo,
+        fetchedDays: successes,
         orders,
         debug,
       }),
