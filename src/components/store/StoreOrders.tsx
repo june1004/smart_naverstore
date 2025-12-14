@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, ShieldAlert, Receipt, Search, Save } from "lucide-react";
+import { Loader2, ShieldAlert, Receipt, Search, Save, RefreshCw } from "lucide-react";
 
 type OrderRow = {
   orderId: string;
@@ -60,10 +60,75 @@ const StoreOrders = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [rows, setRows] = useState<OrderRow[]>([]);
   const [autoSaveCustomers, setAutoSaveCustomers] = useState(true);
+  const [syncEnabled, setSyncEnabled] = useState(true);
+  const [syncDays, setSyncDays] = useState(7);
+  const [isSavingSyncSettings, setIsSavingSyncSettings] = useState(false);
 
   const canQuery = useMemo(() => {
     return Boolean(storeName.trim() && dateFrom && dateTo);
   }, [storeName, dateFrom, dateTo]);
+
+  const canSaveSyncSettings = useMemo(() => Boolean(storeName.trim()), [storeName]);
+
+  useEffect(() => {
+    // 기본 UX: 스토어명이 nanumlab이면 최근 7일 자동 세팅
+    if (!dateFrom && !dateTo) applyPreset(7);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const loadSyncSettings = async (sn: string) => {
+    try {
+      const { data, error } = await supabase
+        .from("user_stores" as any)
+        .select("enabled,sync_days")
+        .eq("store_name", sn)
+        .maybeSingle();
+      if (error) return;
+      if (data) {
+        setSyncEnabled(Boolean((data as any).enabled));
+        setSyncDays(Number((data as any).sync_days ?? 7));
+      }
+    } catch {
+      // ignore
+    }
+  };
+
+  useEffect(() => {
+    const sn = storeName.trim();
+    if (!sn) return;
+    void loadSyncSettings(sn);
+  }, [storeName]);
+
+  const saveSyncSettings = async () => {
+    const sn = storeName.trim();
+    if (!sn) return;
+    setIsSavingSyncSettings(true);
+    try {
+      const { error } = await supabase
+        .from("user_stores" as any)
+        .upsert(
+          {
+            store_name: sn,
+            enabled: syncEnabled,
+            sync_days: Math.max(1, Math.min(90, syncDays)),
+          },
+          { onConflict: "user_id,store_name" }
+        );
+      if (error) throw error;
+      toast({
+        title: "자동 동기화 설정 저장됨",
+        description: `기본 ${Math.max(1, Math.min(90, syncDays))}일 · 매일 1회 동기화`,
+      });
+    } catch (e: any) {
+      toast({
+        title: "설정 저장 실패",
+        description: e?.message || "user_stores 테이블/마이그레이션 적용 여부를 확인해주세요.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSavingSyncSettings(false);
+    }
+  };
 
   const applyPreset = (days: number) => {
     const today = new Date();
@@ -242,6 +307,62 @@ const StoreOrders = () => {
           </CardDescription>
         </CardHeader>
         <CardContent className="p-6 space-y-4">
+          <div className="p-4 rounded-xl border border-[#E2D9C8] bg-white">
+            <div className="flex items-center justify-between gap-3 flex-wrap">
+              <div className="text-sm font-semibold text-slate-700">전화/이메일 폴링(매일) 설정</div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <Button
+                  type="button"
+                  variant={syncEnabled ? "default" : "outline"}
+                  className={
+                    syncEnabled
+                      ? "bg-[#0F4C5C] hover:bg-[#0a3d4a] text-white"
+                      : "border-[#E2D9C8] bg-white hover:bg-slate-50 text-slate-700"
+                  }
+                  onClick={() => setSyncEnabled((v) => !v)}
+                  disabled={!canSaveSyncSettings}
+                >
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                  폴링: {syncEnabled ? "ON" : "OFF"}
+                </Button>
+                <div className="flex items-center gap-2">
+                  <Label className="text-slate-600 text-sm">기본 기간</Label>
+                  <Input
+                    type="number"
+                    min={1}
+                    max={90}
+                    value={syncDays}
+                    onChange={(e) => setSyncDays(Number(e.target.value))}
+                    className="w-24 border-[#E2D9C8] focus:border-[#0F4C5C] focus:ring-[#0F4C5C]"
+                    disabled={!canSaveSyncSettings}
+                  />
+                  <span className="text-sm text-slate-600">일</span>
+                </div>
+                <Button
+                  type="button"
+                  onClick={saveSyncSettings}
+                  disabled={!canSaveSyncSettings || isSavingSyncSettings}
+                  className="bg-[#0F4C5C] hover:bg-[#0a3d4a] text-white"
+                >
+                  {isSavingSyncSettings ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      저장 중...
+                    </>
+                  ) : (
+                    <>
+                      <Save className="h-4 w-4 mr-2" />
+                      설정 저장
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+            <p className="text-xs text-slate-500 mt-2">
+              기본값은 <b>7일</b>이며, 마스킹(*)되기 전에 자동으로 고객 저장소에 선저장합니다.
+            </p>
+          </div>
+
             <div className="flex flex-wrap gap-2">
               <Button
                 type="button"
