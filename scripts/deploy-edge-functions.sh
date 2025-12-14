@@ -36,6 +36,7 @@ FUNCTIONS=(
   "naver-product-list"
   "naver-product-get"
   "naver-product-update"
+  "naver-order-list"
   "gemini-seo-recommend"
   "keyword-recommend"
   "upload-categories"

@@ -45,6 +45,42 @@ export type Database = {
         }
         Relationships: []
       }
+      customer_vault_entries: {
+        Row: {
+          id: string
+          created_at: string
+          user_id: string
+          title: string
+          raw_text: string
+          buyer_name: string | null
+          phone: string | null
+          email: string | null
+          memo: string | null
+        }
+        Insert: {
+          id?: string
+          created_at?: string
+          user_id?: string
+          title: string
+          raw_text: string
+          buyer_name?: string | null
+          phone?: string | null
+          email?: string | null
+          memo?: string | null
+        }
+        Update: {
+          id?: string
+          created_at?: string
+          user_id?: string
+          title?: string
+          raw_text?: string
+          buyer_name?: string | null
+          phone?: string | null
+          email?: string | null
+          memo?: string | null
+        }
+        Relationships: []
+      }
       keyword_analysis: {
         Row: {
           analysis_data: Json | null

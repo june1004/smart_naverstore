@@ -13,6 +13,7 @@ import Auth from "./pages/Auth";
 import Pricing from "./pages/Pricing";
 import NotFound from "./pages/NotFound";
 import ProtectedRoute from "./components/ProtectedRoute";
+import Store from "./pages/Store";
 
 const queryClient = new QueryClient();
 
@@ -39,6 +40,15 @@ const App = () => (
                       <Index />
                     </ProtectedRoute>
                   } 
+                />
+
+                <Route
+                  path="/store"
+                  element={
+                    <ProtectedRoute>
+                      <Store />
+                    </ProtectedRoute>
+                  }
                 />
                 
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

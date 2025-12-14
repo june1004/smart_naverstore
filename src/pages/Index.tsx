@@ -9,17 +9,28 @@ import AutoKeywordAnalyzer from "@/components/AutoKeywordAnalyzer";
 import ServiceManager from "@/components/ServiceManager";
 import SEOOptimization from "@/pages/SEOOptimization";
 import UserProfile from "@/components/UserProfile";
-import { TrendingUp, BarChart3, Sparkles, Settings, Search, Zap } from "lucide-react";
+import { TrendingUp, BarChart3, Sparkles, Settings, Search, Zap, Store as StoreIcon } from "lucide-react";
 import Logo from "@/components/Logo";
+import { Button } from "@/components/ui/button";
+import { useNavigate } from "react-router-dom";
 
 const Index = () => {
+  const navigate = useNavigate();
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#F0F9F8] via-white to-[#E6F4F1]">
       <div className="container mx-auto px-4 py-8">
         {/* Header */}
         <div className="text-center mb-8">
           <div className="flex justify-between items-center mb-4">
-            <div></div>
+            <Button
+              variant="outline"
+              className="border-[#E2D9C8] bg-white hover:bg-slate-50 text-slate-700"
+              onClick={() => navigate("/store")}
+            >
+              <StoreIcon className="h-4 w-4 mr-2" />
+              스토어관리
+            </Button>
             <Logo size="md" />
             <UserProfile />
           </div>

@@ -57,6 +57,7 @@ const extractFromInput = (urlOrId: string): { productId: string | null; storeNam
 const SEOOptimization = () => {
   const [productIdOrUrl, setProductIdOrUrl] = useState("");
   const [productId, setProductId] = useState("");
+  const [storeName, setStoreName] = useState<string | null>(null);
   const [productName, setProductName] = useState("");
   const [detailContent, setDetailContent] = useState("");
   const [tags, setTags] = useState<string[]>([]);
@@ -115,6 +116,7 @@ const SEOOptimization = () => {
 
     setIsLoadingProduct(true);
     setProductId(extractedId);
+    setStoreName(extractedStoreName);
 
     try {
       const { data, error } = await supabase.functions.invoke('naver-product-get', {
@@ -567,6 +569,7 @@ const SEOOptimization = () => {
         {/* SEO 최적화 컴포넌트 */}
         <SEOOptimizer
           productId={productId}
+          storeName={storeName}
           currentProductName={productName}
           currentDetailContent={detailContent}
           currentTags={tags}

@@ -21,6 +21,7 @@ interface SEORecommendation {
 
 interface SEOOptimizerProps {
   productId?: string;
+  storeName?: string | null;
   currentProductName?: string;
   currentDetailContent?: string;
   currentTags?: string[];
@@ -30,6 +31,7 @@ interface SEOOptimizerProps {
 
 const SEOOptimizer = ({
   productId,
+  storeName = null,
   currentProductName = "",
   currentDetailContent = "",
   currentTags = [],
@@ -194,6 +196,7 @@ const SEOOptimizer = ({
       const { data, error } = await supabase.functions.invoke('naver-product-update', {
         body: {
           originProductId: productId,
+          storeName,
           product: {
             name: editedName,
             detailContent: editedHtml,
