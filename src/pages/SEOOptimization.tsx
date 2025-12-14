@@ -110,6 +110,7 @@ const SEOOptimization = () => {
         // 에러 상세 정보 추출
         let errorDetails = error.message || '상품 정보를 불러오는데 실패했습니다.';
         let errorSuggestion = '';
+        let errorAttempts: unknown = null;
 
         // FunctionsHttpError인 경우 Response 객체에서 본문 추출 시도
         if (error.context && typeof error.context.json === 'function') {
@@ -118,9 +119,36 @@ const SEOOptimization = () => {
             const clone = error.context.clone();
             const body = await clone.json();
             
-            if (body.error) errorDetails = body.error;
-            if (body.details) errorDetails += ` (${body.details})`;
-            if (body.suggestion) errorSuggestion = body.suggestion;
+            // body 구조 예시:
+            // { error: string, details: string|object, attempts?: Array<{name,status,body}> }
+            if (body?.error) errorDetails = body.error;
+            if (body?.message && !body?.error) errorDetails = body.message;
+
+            if (body?.details) {
+              const detailsText =
+                typeof body.details === 'string' ? body.details : JSON.stringify(body.details, null, 2);
+              errorDetails += ` (${detailsText})`;
+            }
+
+            if (body?.attempts) {
+              errorAttempts = body.attempts;
+              // 화면에서는 길 수 있으니 콘솔에 자세히 출력
+              console.groupCollapsed('[naver-product-get] token attempts');
+              console.log(body.attempts);
+              console.groupEnd();
+
+              // 사용자에게는 마지막 시도 결과만 짧게 보여주기
+              try {
+                const last = Array.isArray(body.attempts) ? body.attempts[body.attempts.length - 1] : null;
+                if (last?.status) {
+                  errorDetails += ` (마지막 시도 status=${last.status})`;
+                }
+              } catch {
+                // ignore
+              }
+            }
+
+            if (body?.suggestion) errorSuggestion = body.suggestion;
             
             console.log('에러 응답 본문:', body);
           } catch (e) {
@@ -139,7 +167,7 @@ const SEOOptimization = () => {
         if (error.status === 400 || (error.context && error.context.status === 400)) {
           errorMessage = `요청 오류: ${errorDetails}`;
           if (!errorSuggestion) {
-            errorSuggestion = '상품ID가 올바른지 확인하거나, Supabase Secrets에 NAVER_APPLICATION_ID와 NAVER_APPLICATION_SECRET이 설정되어 있는지 확인해주세요.';
+            errorSuggestion = '콘솔에 출력된 token attempts를 확인해주세요. (개발자도구 Console에서 `[naver-product-get] token attempts` 그룹을 펼치면 됩니다)';
           }
         } else if (error.status === 401 || (error.context && error.context.status === 401)) {
           errorMessage = '인증 오류: 네이버 커머스 API 키 권한이 없거나 만료되었습니다.';
@@ -152,6 +180,11 @@ const SEOOptimization = () => {
         // 제안 사항이 있으면 추가
         if (errorSuggestion) {
           errorMessage += `\n💡 ${errorSuggestion}`;
+        }
+
+        // attempts가 있으면 추가 안내 (UI에 다 보여주긴 길어서 콘솔로 유도)
+        if (errorAttempts) {
+          errorMessage += `\n📌 (상세: 브라우저 콘솔의 token attempts 참고)`;
         }
         
         throw new Error(errorMessage);
