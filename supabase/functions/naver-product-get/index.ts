@@ -35,6 +35,8 @@ async function generateSignature(clientId: string, clientSecret: string, timesta
 
 interface ProductGetRequest {
   originProductId: string;
+  storeName?: string | null;
+  accountId?: string | null;
 }
 
 type TokenAttempt = {
@@ -149,7 +151,12 @@ serve(async (req) => {
     // 토큰은 type + account_id 조합으로 발급/캐시된다고 문서에 명시됩니다.
     // 따라서 account_id(판매자/계정 식별자)가 필요할 수 있습니다.
     // 문서: https://apicenter.commerce.naver.com/docs/auth (전자서명/토큰 발급)
-    const accountId = Deno.env.get('NAVER_ACCOUNT_ID')?.trim();
+    // account_id는 판매자센터 로그인 이메일이 아니라, 상점/판매자 식별자(예: smartstore.naver.com/{storeName}/...)인 경우가 많습니다.
+    // 우선순위: 요청에서 받은 accountId/storeName > 환경변수 NAVER_ACCOUNT_ID
+    const accountId =
+      (body.accountId ?? undefined)?.toString().trim() ||
+      (body.storeName ?? undefined)?.toString().trim() ||
+      Deno.env.get('NAVER_ACCOUNT_ID')?.trim();
 
     const attempts: TokenAttempt[] = [
       {

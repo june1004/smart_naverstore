@@ -11,14 +11,14 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 
-// URL에서 상품ID 추출 함수
-const extractProductIdFromUrl = (urlOrId: string): string | null => {
+// URL/입력에서 상품ID/상점명 추출
+const extractFromInput = (urlOrId: string): { productId: string | null; storeName: string | null } => {
   if (!urlOrId) return null;
   const raw = urlOrId.trim();
   
   // 숫자만 있는 경우 (상품ID)
   if (/^\d+$/.test(raw)) {
-    return raw;
+    return { productId: raw, storeName: null };
   }
   
   // URL에서 상품ID 추출
@@ -33,20 +33,25 @@ const extractProductIdFromUrl = (urlOrId: string): string | null => {
   for (const pattern of urlPatterns) {
     const match = raw.match(pattern);
     if (match && match[1]) {
-      return match[1];
+      // smartstore URL이면 상점명도 같이 추출
+      const storeMatch = raw.match(/smartstore\.naver\.com\/([^\/?#]+)\//);
+      return { productId: match[1], storeName: storeMatch?.[1] ?? null };
     }
   }
 
   // 추가 지원: "스토어명/상품번호" 형태 (예: nanumlab/10713170202)
   const storeSlashId = raw.match(/\/(\d{5,})$/);
-  if (storeSlashId?.[1]) return storeSlashId[1];
+  if (storeSlashId?.[1]) {
+    const storeName = raw.split('/')[0] || null;
+    return { productId: storeSlashId[1], storeName };
+  }
 
   // 마지막 수단: 문자열 내 연속 숫자(길이 5 이상) 추출
   // (주의: 다른 숫자가 섞여 있을 수 있어 너무 짧은 숫자는 제외)
   const anyLongDigits = raw.match(/(\d{5,})/);
-  if (anyLongDigits?.[1]) return anyLongDigits[1];
+  if (anyLongDigits?.[1]) return { productId: anyLongDigits[1], storeName: null };
   
-  return null;
+  return { productId: null, storeName: null };
 };
 
 const SEOOptimization = () => {
@@ -95,8 +100,10 @@ const SEOOptimization = () => {
       return;
     }
 
-    // URL에서 상품ID 추출
-    const extractedId = extractProductIdFromUrl(productIdOrUrl.trim());
+    // URL/입력에서 상품ID 추출
+    const extracted = extractFromInput(productIdOrUrl.trim());
+    const extractedId = extracted?.productId;
+    const extractedStoreName = extracted?.storeName;
     if (!extractedId) {
       toast({
         title: "상품ID를 찾을 수 없습니다",
@@ -111,7 +118,9 @@ const SEOOptimization = () => {
 
     try {
       const { data, error } = await supabase.functions.invoke('naver-product-get', {
-        body: { originProductId: extractedId }
+        // 네이버 커머스 토큰 발급의 account_id는 판매자센터 이메일이 아니라 상점/판매자 식별자일 수 있어,
+        // smartstore URL에서 추출한 상점명을 함께 전달합니다.
+        body: { originProductId: extractedId, storeName: extractedStoreName }
       });
 
       if (error) {
