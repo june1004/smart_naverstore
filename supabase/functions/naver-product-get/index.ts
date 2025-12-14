@@ -46,6 +46,11 @@ type TokenAttempt = {
   extraParams?: Record<string, string>;
 };
 
+function base64EncodeAscii(input: string) {
+  // bcrypt 결과는 ASCII 범위 문자열이라 btoa로 안전하게 인코딩 가능
+  return btoa(input);
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { 
@@ -106,8 +111,8 @@ serve(async (req) => {
     // 1. OAuth 2.0 토큰 발급
     const tokenUrl = "https://api.commerce.naver.com/external/v1/oauth2/token";
     const nowMs = Date.now();
-    const tsMs = String(nowMs); // 13자리 (밀리초)
-    const tsSec = String(Math.floor(nowMs / 1000)); // 10자리 (초)
+    const tsMs = String(nowMs); // 13자리 (밀리초) - 문서 예시도 밀리초 사용
+    const tsSec = String(Math.floor(nowMs / 1000)); // 10자리 (초) - 일부 구현체 대비 fallback
     
     // 서명 생성
     // 네이버 커머스 API에서 client_secret은 bcrypt salt 형식을 따름 ($2a$...)
@@ -132,16 +137,21 @@ serve(async (req) => {
       });
     }
 
+    // 토큰은 type + account_id 조합으로 발급/캐시된다고 문서에 명시됩니다.
+    // 따라서 account_id(판매자/계정 식별자)가 필요할 수 있습니다.
+    // 문서: https://apicenter.commerce.naver.com/docs/auth (전자서명/토큰 발급)
+    const accountId = Deno.env.get('NAVER_ACCOUNT_ID')?.trim();
+
     const attempts: TokenAttempt[] = [
       {
-        name: 'SELF + ms + client_id=appId',
+        name: 'SELF + ms + client_id=appId + base64(sign)',
         clientId: applicationId,
         type: 'SELF',
         timestamp: tsMs,
         signaturePassword: `${applicationId}_${tsMs}`,
       },
       {
-        name: 'SELF + sec + client_id=appId',
+        name: 'SELF + sec + client_id=appId + base64(sign)',
         clientId: applicationId,
         type: 'SELF',
         timestamp: tsSec,
@@ -153,7 +163,7 @@ serve(async (req) => {
       // 솔루션 계정일 때 흔히 시도하는 조합들
       attempts.push(
         {
-          name: 'SOLUTION + ms + client_id=appId + solutionId param',
+          name: 'SOLUTION + ms + client_id=appId + base64(sign) + solutionId param',
           clientId: applicationId,
           type: 'SOLUTION',
           timestamp: tsMs,
@@ -161,7 +171,7 @@ serve(async (req) => {
           extraParams: { solutionId },
         },
         {
-          name: 'SOLUTION + sec + client_id=appId + solutionId param',
+          name: 'SOLUTION + sec + client_id=appId + base64(sign) + solutionId param',
           clientId: applicationId,
           type: 'SOLUTION',
           timestamp: tsSec,
@@ -169,14 +179,14 @@ serve(async (req) => {
           extraParams: { solutionId },
         },
         {
-          name: 'SOLUTION + ms + client_id=solutionId',
+          name: 'SOLUTION + ms + client_id=solutionId + base64(sign)',
           clientId: solutionId,
           type: 'SOLUTION',
           timestamp: tsMs,
           signaturePassword: `${solutionId}_${tsMs}`,
         },
         {
-          name: 'SOLUTION + sec + client_id=solutionId',
+          name: 'SOLUTION + sec + client_id=solutionId + base64(sign)',
           clientId: solutionId,
           type: 'SOLUTION',
           timestamp: tsSec,
@@ -191,7 +201,10 @@ serve(async (req) => {
 
     for (const attempt of attempts) {
       try {
-        const signature = bcrypt.hashSync(attempt.signaturePassword, cleanedSecret);
+        // 문서: bcrypt 해싱 결과를 Base64 인코딩 후 전달
+        // (전자서명 생성 방법: password = client_id + "_" + timestamp, salt = client_secret, then Base64 encoding)
+        const signatureRaw = bcrypt.hashSync(attempt.signaturePassword, cleanedSecret);
+        const signature = base64EncodeAscii(signatureRaw);
 
         const tokenParams = new URLSearchParams();
         tokenParams.append('grant_type', 'client_credentials');
@@ -199,6 +212,8 @@ serve(async (req) => {
         tokenParams.append('timestamp', attempt.timestamp);
         tokenParams.append('client_secret_sign', signature);
         tokenParams.append('type', attempt.type);
+        // account_id는 문서에서 동일 리소스 키로 언급됩니다. 제공되면 항상 포함합니다.
+        if (accountId) tokenParams.append('account_id', accountId);
         if (attempt.extraParams) {
           for (const [k, v] of Object.entries(attempt.extraParams)) {
             tokenParams.append(k, v);
