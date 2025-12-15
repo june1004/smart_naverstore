@@ -240,10 +240,10 @@ const SEOOptimizer = ({
   return (
     <>
       {/* Step 1: 메인 트리거 섹션 */}
-      <Card className="border border-[#D4AF37]/20 bg-gradient-to-br from-white via-slate-50 to-white shadow-[0_8px_30px_rgb(0,0,0,0.12)] rounded-2xl overflow-hidden">
+      <Card className="border border-[var(--brand-gold)]/20 bg-gradient-to-br from-white via-slate-50 to-white shadow-[0_8px_30px_rgb(0,0,0,0.12)] rounded-2xl overflow-hidden">
         <CardHeader className="p-8 bg-gradient-to-r from-slate-50/50 to-white border-b border-slate-100">
           <CardTitle className="text-2xl font-bold text-slate-700 flex items-center gap-3">
-            <div className="p-2 bg-gradient-to-br from-[#0F4C5C] to-[#1a6b7a] rounded-lg shadow-sm">
+            <div className="p-2 bg-gradient-to-br from-[var(--brand-primary)] to-[var(--brand-primary-2)] rounded-lg shadow-sm">
               <Sparkles className="h-5 w-5 text-white" />
             </div>
             AI SEO 최적화 분석
@@ -256,7 +256,7 @@ const SEOOptimizer = ({
           {isLoading ? (
             <div className="space-y-6">
               <div className="flex items-center justify-center gap-3 py-4">
-                <Loader2 className="h-6 w-6 text-[#0F4C5C] animate-spin" />
+                <Loader2 className="h-6 w-6 text-[var(--brand-primary)] animate-spin" />
                 <span className="text-slate-700 font-medium">AI가 분석 중입니다...</span>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -278,7 +278,7 @@ const SEOOptimizer = ({
             <Button
               onClick={handleAnalyze}
               disabled={isLoading}
-              className="w-full h-16 bg-gradient-to-r from-[#0F4C5C] via-[#1a6b7a] to-[#0F4C5C] hover:from-[#1a6b7a] hover:via-[#0F4C5C] hover:to-[#1a6b7a] text-white text-lg font-semibold rounded-xl shadow-[0_4px_20px_rgba(15,76,92,0.3)] hover:shadow-[0_6px_30px_rgba(15,76,92,0.4)] transition-all duration-300 flex items-center justify-center gap-3 relative overflow-hidden group"
+              className="w-full h-16 bg-gradient-to-r from-[var(--brand-primary)] via-[var(--brand-primary-2)] to-[var(--brand-primary)] hover:from-[var(--brand-primary-2)] hover:via-[var(--brand-primary)] hover:to-[var(--brand-primary-2)] text-white text-lg font-semibold rounded-xl shadow-[0_4px_20px_rgba(15,76,92,0.3)] hover:shadow-[0_6px_30px_rgba(15,76,92,0.4)] transition-all duration-300 flex items-center justify-center gap-3 relative overflow-hidden group"
             >
               <span className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000"></span>
               <Sparkles className="h-5 w-5 relative z-10" />
@@ -290,10 +290,10 @@ const SEOOptimizer = ({
 
       {/* Step 2: 검토 및 반영 모달 */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto bg-white rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-[#D4AF37]/30">
+        <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto bg-white rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-[var(--brand-gold)]/30">
           <DialogHeader className="pb-6 border-b border-slate-200/80 bg-gradient-to-r from-slate-50/50 to-white rounded-t-2xl -m-6 mb-0 p-6">
             <DialogTitle className="text-2xl font-bold text-slate-700 flex items-center gap-3">
-              <div className="p-2 bg-gradient-to-br from-[#0F4C5C] to-[#1a6b7a] rounded-lg shadow-sm">
+              <div className="p-2 bg-gradient-to-br from-[var(--brand-primary)] to-[var(--brand-primary-2)] rounded-lg shadow-sm">
                 <CheckCircle2 className="h-5 w-5 text-white" />
               </div>
               AI 검색 최적화 제안 및 스토어 반영
@@ -324,9 +324,9 @@ const SEOOptimizer = ({
                 </div>
                 <div className="space-y-3">
                   <Label className="text-sm font-medium text-slate-700 flex items-center gap-2">
-                    <div className="w-2 h-2 rounded-full bg-[#D4AF37] animate-pulse"></div>
+                    <div className="w-2 h-2 rounded-full bg-[var(--brand-gold)] animate-pulse"></div>
                     AI 추천 상품명
-                    <Badge variant="outline" className="border-[#D4AF37]/50 text-[#D4AF37] text-xs bg-[#D4AF37]/5 ml-auto">
+                    <Badge variant="outline" className="border-[var(--brand-gold)]/50 text-[var(--brand-gold)] text-xs bg-[var(--brand-gold)]/5 ml-auto">
                       NEW
                     </Badge>
                   </Label>
@@ -334,12 +334,12 @@ const SEOOptimizer = ({
                     <Input
                       value={editedName}
                       onChange={(e) => setEditedName(e.target.value)}
-                      className="border-2 border-[#D4AF37]/40 focus:border-[#D4AF37] focus:ring-2 focus:ring-[#D4AF37]/20 rounded-xl h-11 bg-white shadow-sm"
+                      className="border-2 border-[var(--brand-gold)]/40 focus:border-[var(--brand-gold)] focus:ring-2 focus:ring-[var(--brand-gold)]/20 rounded-xl h-11 bg-white shadow-sm"
                       placeholder="AI 추천 상품명"
                     />
                     {editedName !== currentProductName && (
                       <div className="absolute -right-2 -top-2">
-                        <div className="w-3 h-3 bg-[#D4AF37] rounded-full animate-pulse"></div>
+                        <div className="w-3 h-3 bg-[var(--brand-gold)] rounded-full animate-pulse"></div>
                       </div>
                     )}
                   </div>
@@ -377,13 +377,13 @@ const SEOOptimizer = ({
                 </div>
                 <div className="space-y-3">
                   <Label className="text-sm font-medium text-slate-700 flex items-center gap-2">
-                    <div className="w-2 h-2 rounded-full bg-[#D4AF37] animate-pulse"></div>
+                    <div className="w-2 h-2 rounded-full bg-[var(--brand-gold)] animate-pulse"></div>
                     AI 추천 태그
-                    <Badge variant="outline" className="border-[#D4AF37]/50 text-[#D4AF37] text-xs bg-[#D4AF37]/5 ml-auto">
+                    <Badge variant="outline" className="border-[var(--brand-gold)]/50 text-[var(--brand-gold)] text-xs bg-[var(--brand-gold)]/5 ml-auto">
                       {editedTags.length}/10
                     </Badge>
                   </Label>
-                  <div className="flex flex-wrap gap-2 min-h-[80px] p-4 bg-gradient-to-br from-white to-[#D4AF37]/5 rounded-xl border-2 border-[#D4AF37]/40 shadow-sm">
+                  <div className="flex flex-wrap gap-2 min-h-[80px] p-4 bg-gradient-to-br from-white to-[var(--brand-gold)]/5 rounded-xl border-2 border-[var(--brand-gold)]/40 shadow-sm">
                     {editedTags.map((tag, index) => {
                       const isNew = !currentTags.includes(tag);
                       return (
@@ -392,17 +392,17 @@ const SEOOptimizer = ({
                           variant="outline"
                           className={`bg-white border-2 ${
                             isNew 
-                              ? 'border-[#D4AF37]/60 text-[#0F4C5C] shadow-sm' 
+                              ? 'border-[var(--brand-gold)]/60 text-[var(--brand-primary)] shadow-sm' 
                               : 'border-slate-300 text-slate-600'
-                          } rounded-full px-3 py-1 pr-1 group hover:border-[#D4AF37]/80 transition-colors`}
+                          } rounded-full px-3 py-1 pr-1 group hover:border-[var(--brand-gold)]/80 transition-colors`}
                         >
                           {tag}
                           {isNew && (
-                            <span className="ml-1 text-[#D4AF37] text-xs">●</span>
+                            <span className="ml-1 text-[var(--brand-gold)] text-xs">●</span>
                           )}
                           <button
                             onClick={() => handleRemoveTag(tag)}
-                            className="ml-2 hover:bg-[#D4AF37]/20 rounded-full p-0.5 transition-colors"
+                            className="ml-2 hover:bg-[var(--brand-gold)]/20 rounded-full p-0.5 transition-colors"
                             aria-label={`${tag} 태그 제거`}
                           >
                             <X className="h-3 w-3" />
@@ -414,7 +414,7 @@ const SEOOptimizer = ({
                       <div className="flex items-center gap-1">
                         <Input
                           placeholder="태그 추가..."
-                          className="w-28 h-8 text-xs border-[#D4AF37]/40 focus:border-[#D4AF37] focus:ring-1 focus:ring-[#D4AF37]/20 rounded-full"
+                          className="w-28 h-8 text-xs border-[var(--brand-gold)]/40 focus:border-[var(--brand-gold)] focus:ring-1 focus:ring-[var(--brand-gold)]/20 rounded-full"
                           onKeyDown={(e) => {
                             if (e.key === 'Enter') {
                               e.preventDefault();
@@ -443,13 +443,13 @@ const SEOOptimizer = ({
                 <TabsList className="grid w-full grid-cols-2 bg-slate-100/80 rounded-xl p-1.5 border border-slate-200">
                   <TabsTrigger 
                     value="preview" 
-                    className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-[#0F4C5C] font-medium"
+                    className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-[var(--brand-primary)] font-medium"
                   >
                     미리보기
                   </TabsTrigger>
                   <TabsTrigger 
                     value="code" 
-                    className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-[#0F4C5C] font-medium"
+                    className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-[var(--brand-primary)] font-medium"
                   >
                     소스코드
                   </TabsTrigger>
@@ -459,7 +459,7 @@ const SEOOptimizer = ({
                     {editedHtml ? (
                       <div
                         dangerouslySetInnerHTML={{ __html: editedHtml }}
-                        className="prose prose-sm max-w-none prose-headings:text-slate-700 prose-p:text-slate-600 prose-a:text-[#0F4C5C] prose-strong:text-slate-700"
+                        className="prose prose-sm max-w-none prose-headings:text-slate-700 prose-p:text-slate-600 prose-a:text-[var(--brand-primary)] prose-strong:text-slate-700"
                       />
                     ) : (
                       <div className="flex flex-col items-center justify-center py-20 text-slate-400">
@@ -474,7 +474,7 @@ const SEOOptimizer = ({
                     <Textarea
                       value={editedHtml}
                       onChange={(e) => setEditedHtml(e.target.value)}
-                      className="font-mono text-sm min-h-[400px] max-h-[500px] border-2 border-slate-200 focus:border-[#D4AF37]/40 focus:ring-2 focus:ring-[#D4AF37]/20 rounded-xl bg-slate-50/50 resize-none"
+                      className="font-mono text-sm min-h-[400px] max-h-[500px] border-2 border-slate-200 focus:border-[var(--brand-gold)]/40 focus:ring-2 focus:ring-[var(--brand-gold)]/20 rounded-xl bg-slate-50/50 resize-none"
                       placeholder="HTML 소스코드를 입력하세요..."
                     />
                     <div className="absolute top-3 right-3 text-xs text-slate-400 bg-white/80 px-2 py-1 rounded border border-slate-200">
@@ -512,7 +512,7 @@ const SEOOptimizer = ({
                 <Button
                   onClick={handleApply}
                   disabled={isApplying || !productId}
-                  className="bg-gradient-to-r from-[#0F4C5C] via-[#1a6b7a] to-[#0F4C5C] hover:from-[#1a6b7a] hover:via-[#0F4C5C] hover:to-[#1a6b7a] text-white rounded-xl px-8 shadow-lg hover:shadow-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed relative overflow-hidden group"
+                  className="bg-gradient-to-r from-[var(--brand-primary)] via-[var(--brand-primary-2)] to-[var(--brand-primary)] hover:from-[var(--brand-primary-2)] hover:via-[var(--brand-primary)] hover:to-[var(--brand-primary-2)] text-white rounded-xl px-8 shadow-lg hover:shadow-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed relative overflow-hidden group"
                 >
                   <span className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000"></span>
                   {isApplying ? (

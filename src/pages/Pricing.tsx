@@ -146,9 +146,9 @@ const Pricing = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#F0F9F8] via-white to-[#E6F4F1]">
+    <div className="min-h-screen bg-gradient-to-br from-[var(--brand-bg-start)] via-white to-[var(--brand-bg-end)]">
       {/* Navigation */}
-      <nav className="fixed top-0 left-0 right-0 z-50 backdrop-blur-md bg-white/80 border-b border-[#E2D9C8]">
+      <nav className="fixed top-0 left-0 right-0 z-50 backdrop-blur-md bg-white/80 border-b border-[var(--brand-border)]">
         <div className="container mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
             <Logo size="sm" showText={true} />
@@ -156,14 +156,14 @@ const Pricing = () => {
               <Button
                 variant="ghost"
                 onClick={() => navigate("/")}
-                className="text-slate-700 hover:text-[#0F4C5C]"
+                className="text-slate-700 hover:text-[var(--brand-primary)]"
               >
                 홈
               </Button>
               <Button
                 variant="ghost"
                 onClick={() => navigate("/dashboard")}
-                className="text-slate-700 hover:text-[#0F4C5C]"
+                className="text-slate-700 hover:text-[var(--brand-primary)]"
               >
                 대시보드
               </Button>
@@ -181,11 +181,11 @@ const Pricing = () => {
           transition={{ duration: 0.6 }}
           className="text-center max-w-3xl mx-auto mb-16"
         >
-          <Badge variant="outline" className="border-[#0F4C5C]/30 text-[#0F4C5C] mb-4">
+          <Badge variant="outline" className="border-[var(--brand-primary)]/30 text-[var(--brand-primary)] mb-4">
             간단한 가격
           </Badge>
           <h1 className="text-4xl md:text-5xl font-bold text-slate-700 mb-4 tracking-tight">
-            모든 기능을 <span className="text-[#0F4C5C]">한 곳에서</span>
+            모든 기능을 <span className="text-[var(--brand-primary)]">한 곳에서</span>
           </h1>
           <p className="text-xl text-slate-600 leading-relaxed">
             월간 구독으로 모든 프리미엄 기능을 무제한으로 사용하세요
@@ -200,15 +200,15 @@ const Pricing = () => {
           className="max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-6"
         >
           {/* Base subscription */}
-          <Card className="bg-white border-2 border-[#E2D9C8] shadow-lg hover:shadow-xl transition-all duration-300 rounded-2xl overflow-hidden relative">
+          <Card className="bg-white border-2 border-[var(--brand-border)] shadow-lg hover:shadow-xl transition-all duration-300 rounded-2xl overflow-hidden relative">
             {/* Premium Badge */}
             <div className="absolute top-6 right-6">
-              <Badge className="bg-gradient-to-r from-[#D4AF37] to-[#F4D03F] text-[#0F4C5C] border-0 px-3 py-1">
+              <Badge className="bg-gradient-to-r from-[var(--brand-gold)] to-[var(--brand-gold-2)] text-[var(--brand-primary)] border-0 px-3 py-1">
                 기본 구독
               </Badge>
             </div>
 
-            <CardHeader className="p-8 pb-6 text-center border-b border-[#E2D9C8]/50">
+            <CardHeader className="p-8 pb-6 text-center border-b border-[var(--brand-border)]/50">
               <CardTitle className="text-3xl font-bold text-slate-700 mb-2">
                 Pro Seller Plan
               </CardTitle>
@@ -221,7 +221,7 @@ const Pricing = () => {
               {/* Price */}
               <div className="text-center mb-8">
                 <div className="flex items-baseline justify-center gap-2">
-                  <span className="text-5xl font-bold text-[#0F4C5C]">₩10,000</span>
+                  <span className="text-5xl font-bold text-[var(--brand-primary)]">₩10,000</span>
                   <span className="text-xl text-slate-600">/ 월</span>
                 </div>
                 <p className="text-sm text-slate-500 mt-2">연간 결제 시 20% 할인</p>
@@ -237,10 +237,10 @@ const Pricing = () => {
                     transition={{ duration: 0.4, delay: 0.3 + index * 0.05 }}
                     className="flex items-start gap-3 p-3 rounded-lg hover:bg-[#FDF6E3]/50 transition-colors"
                   >
-                    <CheckCircle2 className="h-5 w-5 text-[#D4AF37] flex-shrink-0 mt-0.5" />
+                    <CheckCircle2 className="h-5 w-5 text-[var(--brand-gold)] flex-shrink-0 mt-0.5" />
                     <div className="flex-1">
                       <div className="font-medium text-slate-700 flex items-center gap-2">
-                        {feature.icon && <feature.icon className="h-4 w-4 text-[#0F4C5C]" />}
+                        {feature.icon && <feature.icon className="h-4 w-4 text-[var(--brand-primary)]" />}
                         {feature.text}
                       </div>
                       <p className="text-sm text-slate-500 mt-1">{feature.description}</p>
@@ -254,7 +254,7 @@ const Pricing = () => {
                 onClick={handlePayment}
                 disabled={isProcessing || hasActiveSubscription}
                 size="lg"
-                className="w-full bg-[#0F4C5C] hover:bg-[#0a3d4a] text-white text-lg font-semibold py-6 rounded-xl shadow-md hover:shadow-lg transition-all duration-300 group"
+                className="w-full bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-3)] text-white text-lg font-semibold py-6 rounded-xl shadow-md hover:shadow-lg transition-all duration-300 group"
               >
                 {isProcessing ? (
                   <>
@@ -279,13 +279,13 @@ const Pricing = () => {
           </Card>
 
           {/* Store management add-on */}
-          <Card className="bg-white border border-[#E2D9C8] shadow-sm hover:shadow-md transition-all duration-300 rounded-2xl overflow-hidden relative">
+          <Card className="bg-white border border-[var(--brand-border)] shadow-sm hover:shadow-md transition-all duration-300 rounded-2xl overflow-hidden relative">
             <div className="absolute top-6 right-6">
-              <Badge variant="outline" className="border-[#D4AF37]/40 text-[#0F4C5C]">
+              <Badge variant="outline" className="border-[var(--brand-gold)]/40 text-[var(--brand-primary)]">
                 추가 구독(애드온)
               </Badge>
             </div>
-            <CardHeader className="p-8 pb-6 text-center border-b border-[#E2D9C8]/50">
+            <CardHeader className="p-8 pb-6 text-center border-b border-[var(--brand-border)]/50">
               <CardTitle className="text-2xl font-bold text-slate-700 mb-2">
                 Store Manager Add-on
               </CardTitle>
@@ -296,7 +296,7 @@ const Pricing = () => {
             <CardContent className="p-8">
               <div className="text-center mb-8">
                 <div className="flex items-baseline justify-center gap-2">
-                  <span className="text-4xl font-bold text-[#0F4C5C]">₩20,000</span>
+                  <span className="text-4xl font-bold text-[var(--brand-primary)]">₩20,000</span>
                   <span className="text-lg text-slate-600">/ 월</span>
                 </div>
                 <p className="text-sm text-slate-500 mt-2">기본 구독이 필요합니다</p>
@@ -310,7 +310,7 @@ const Pricing = () => {
                   "CS용 고객 저장소 관리(중복 갱신 정책)",
                 ].map((t) => (
                   <div key={t} className="flex items-start gap-3 p-3 rounded-lg hover:bg-[#FDF6E3]/50 transition-colors">
-                    <CheckCircle2 className="h-5 w-5 text-[#D4AF37] flex-shrink-0 mt-0.5" />
+                    <CheckCircle2 className="h-5 w-5 text-[var(--brand-gold)] flex-shrink-0 mt-0.5" />
                     <div className="text-sm text-slate-700">{t}</div>
                   </div>
                 ))}
@@ -320,7 +320,7 @@ const Pricing = () => {
                 onClick={handleStoreAddonPayment}
                 disabled={isProcessingStoreAddon || hasStoreAddon}
                 size="lg"
-                className="w-full bg-white border border-[#0F4C5C] text-[#0F4C5C] hover:bg-[#0F4C5C] hover:text-white text-lg font-semibold py-6 rounded-xl transition-all duration-300"
+                className="w-full bg-white border border-[var(--brand-primary)] text-[var(--brand-primary)] hover:bg-[var(--brand-primary)] hover:text-white text-lg font-semibold py-6 rounded-xl transition-all duration-300"
               >
                 {isProcessingStoreAddon ? (
                   <>
@@ -364,7 +364,7 @@ const Pricing = () => {
                 a: "네, 첫 달은 무료로 모든 기능을 체험해보실 수 있습니다."
               }
             ].map((faq, index) => (
-              <Card key={index} className="bg-white border border-[#E2D9C8] shadow-sm">
+              <Card key={index} className="bg-white border border-[var(--brand-border)] shadow-sm">
                 <CardContent className="p-6">
                   <h3 className="font-semibold text-slate-700 mb-2">{faq.q}</h3>
                   <p className="text-slate-600 text-sm">{faq.a}</p>

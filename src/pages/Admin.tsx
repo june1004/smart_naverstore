@@ -178,7 +178,7 @@ const Admin = () => {
 
   if (!isSuperAdmin) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-[#F0F9F8] via-white to-[#E6F4F1] flex items-center justify-center px-6">
+      <div className="min-h-screen bg-gradient-to-br from-[var(--brand-bg-start)] via-white to-[var(--brand-bg-end)] flex items-center justify-center px-6">
         <Card className="max-w-lg w-full border border-[#E2D9C8] bg-white shadow-sm rounded-xl">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-slate-700">
@@ -204,7 +204,7 @@ const Admin = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#F0F9F8] via-white to-[#E6F4F1]">
+    <div className="min-h-screen bg-gradient-to-br from-[var(--brand-bg-start)] via-white to-[var(--brand-bg-end)]">
       <div className="container mx-auto px-6 lg:px-8 py-8 space-y-8">
         <div className="flex items-center justify-between">
           <Button
@@ -225,24 +225,24 @@ const Admin = () => {
         </div>
 
         <Tabs defaultValue="members" className="w-full">
-          <TabsList className="grid w-full grid-cols-3 bg-white border border-[#E2D9C8] shadow-sm rounded-xl p-1">
+          <TabsList className="grid w-full grid-cols-3 mb-6 bg-white border border-[var(--brand-border)] shadow-sm rounded-xl p-1">
             <TabsTrigger
               value="members"
-              className="flex items-center gap-2 py-3 px-4 data-[state=active]:bg-[#0F4C5C] data-[state=active]:text-white rounded-lg transition-all"
+              className="flex items-center gap-2 py-3 px-6 data-[state=active]:bg-[var(--brand-primary)] data-[state=active]:text-white rounded-lg transition-all"
             >
               <Users className="h-4 w-4" />
               회원관리
             </TabsTrigger>
             <TabsTrigger
               value="health"
-              className="flex items-center gap-2 py-3 px-4 data-[state=active]:bg-[#0F4C5C] data-[state=active]:text-white rounded-lg transition-all"
+              className="flex items-center gap-2 py-3 px-6 data-[state=active]:bg-[var(--brand-primary)] data-[state=active]:text-white rounded-lg transition-all"
             >
               <Activity className="h-4 w-4" />
               헬스/모니터링
             </TabsTrigger>
             <TabsTrigger
               value="stats"
-              className="flex items-center gap-2 py-3 px-4 data-[state=active]:bg-[#0F4C5C] data-[state=active]:text-white rounded-lg transition-all"
+              className="flex items-center gap-2 py-3 px-6 data-[state=active]:bg-[var(--brand-primary)] data-[state=active]:text-white rounded-lg transition-all"
             >
               <BarChart3 className="h-4 w-4" />
               자주쓰는 통계
@@ -250,8 +250,8 @@ const Admin = () => {
           </TabsList>
 
           <TabsContent value="members" className="space-y-6">
-            <Card className="shadow-sm border border-[#E2D9C8] bg-white rounded-xl">
-              <CardHeader className="bg-gradient-to-r from-[#0F4C5C] to-[#1a6b7a] text-white rounded-t-xl">
+            <Card className="shadow-sm border border-[var(--brand-border)] bg-white rounded-xl">
+              <CardHeader className="bg-gradient-to-r from-[var(--brand-primary)] to-[var(--brand-primary-2)] text-white rounded-t-xl">
                 <CardTitle className="flex items-center gap-2">
                   <Users className="h-5 w-5" />
                   회원 관리(권한/구독)
@@ -381,8 +381,8 @@ const Admin = () => {
           </TabsContent>
 
           <TabsContent value="health" className="space-y-6">
-            <Card className="shadow-sm border border-[#E2D9C8] bg-white rounded-xl">
-              <CardHeader className="bg-gradient-to-r from-[#0F4C5C] to-[#1a6b7a] text-white rounded-t-xl">
+            <Card className="shadow-sm border border-[var(--brand-border)] bg-white rounded-xl">
+              <CardHeader className="bg-gradient-to-r from-[var(--brand-primary)] to-[var(--brand-primary-2)] text-white rounded-t-xl">
                 <CardTitle className="flex items-center gap-2">
                   <Activity className="h-5 w-5" />
                   시스템 헬스/모니터링
@@ -458,8 +458,8 @@ const Admin = () => {
           </TabsContent>
 
           <TabsContent value="stats" className="space-y-6">
-            <Card className="shadow-sm border border-[#E2D9C8] bg-white rounded-xl">
-              <CardHeader className="bg-gradient-to-r from-[#0F4C5C] to-[#1a6b7a] text-white rounded-t-xl">
+            <Card className="shadow-sm border border-[var(--brand-border)] bg-white rounded-xl">
+              <CardHeader className="bg-gradient-to-r from-[var(--brand-primary)] to-[var(--brand-primary-2)] text-white rounded-t-xl">
                 <CardTitle className="flex items-center gap-2">
                   <BarChart3 className="h-5 w-5" />
                   자주 쓰는 통계

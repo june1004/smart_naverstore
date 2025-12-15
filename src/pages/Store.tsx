@@ -14,13 +14,13 @@ const Store = () => {
   const navigate = useNavigate();
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#F0F9F8] via-white to-[#E6F4F1]">
+    <div className="min-h-screen bg-gradient-to-br from-[var(--brand-bg-start)] via-white to-[var(--brand-bg-end)]">
       <div className="container mx-auto px-6 lg:px-8 py-8 space-y-8">
         {/* Header */}
         <div className="flex items-center justify-between">
           <Button
             variant="outline"
-            className="border-[#E2D9C8] bg-white hover:bg-slate-50 text-slate-700"
+              className="border-[var(--brand-border)] bg-white hover:bg-slate-50 text-slate-700"
             onClick={() => navigate("/dashboard")}
           >
             <ArrowLeft className="h-4 w-4 mr-2" />
@@ -38,31 +38,31 @@ const Store = () => {
         </div>
 
         <Tabs defaultValue="product" className="w-full">
-          <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 bg-white border border-[#E2D9C8] shadow-sm rounded-xl p-1">
+          <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 mb-6 bg-white border border-[var(--brand-border)] shadow-sm rounded-xl p-1">
             <TabsTrigger
               value="product"
-              className="flex items-center gap-2 py-3 px-4 data-[state=active]:bg-[#0F4C5C] data-[state=active]:text-white rounded-lg transition-all"
+              className="flex items-center gap-2 py-3 px-6 data-[state=active]:bg-[var(--brand-primary)] data-[state=active]:text-white rounded-lg transition-all"
             >
               <PackageSearch className="h-4 w-4" />
               상품/SEO 수정
             </TabsTrigger>
             <TabsTrigger
               value="orders"
-              className="flex items-center gap-2 py-3 px-4 data-[state=active]:bg-[#0F4C5C] data-[state=active]:text-white rounded-lg transition-all"
+              className="flex items-center gap-2 py-3 px-6 data-[state=active]:bg-[var(--brand-primary)] data-[state=active]:text-white rounded-lg transition-all"
             >
               <Receipt className="h-4 w-4" />
               주문/결제
             </TabsTrigger>
             <TabsTrigger
               value="customers"
-              className="flex items-center gap-2 py-3 px-4 data-[state=active]:bg-[#0F4C5C] data-[state=active]:text-white rounded-lg transition-all"
+              className="flex items-center gap-2 py-3 px-6 data-[state=active]:bg-[var(--brand-primary)] data-[state=active]:text-white rounded-lg transition-all"
             >
               <Users className="h-4 w-4" />
               고객 저장소
             </TabsTrigger>
             <TabsTrigger
               value="sales"
-              className="flex items-center gap-2 py-3 px-4 data-[state=active]:bg-[#0F4C5C] data-[state=active]:text-white rounded-lg transition-all"
+              className="flex items-center gap-2 py-3 px-6 data-[state=active]:bg-[var(--brand-primary)] data-[state=active]:text-white rounded-lg transition-all"
             >
               <TrendingUp className="h-4 w-4" />
               매출/제안
@@ -70,8 +70,8 @@ const Store = () => {
           </TabsList>
 
           <TabsContent value="product" className="space-y-6">
-            <Card className="shadow-sm border border-[#E2D9C8] bg-white rounded-xl">
-              <CardHeader className="bg-gradient-to-r from-[#0F4C5C] to-[#1a6b7a] text-white rounded-t-xl">
+            <Card className="shadow-sm border border-[var(--brand-border)] bg-white rounded-xl">
+              <CardHeader className="bg-gradient-to-r from-[var(--brand-primary)] to-[var(--brand-primary-2)] text-white rounded-t-xl">
                 <CardTitle className="flex items-center gap-2">
                   <PackageSearch className="h-5 w-5" />
                   상품명 · 태그 · 상세페이지(HTML) 수정

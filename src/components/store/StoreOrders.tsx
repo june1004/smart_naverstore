@@ -425,8 +425,8 @@ const StoreOrders = () => {
         </AlertDescription>
       </Alert>
 
-      <Card className="shadow-sm border border-[#E2D9C8] bg-white rounded-xl">
-        <CardHeader className="bg-gradient-to-r from-[#0F4C5C] to-[#1a6b7a] text-white rounded-t-xl">
+      <Card className="shadow-sm border border-[var(--brand-border)] bg-white rounded-xl">
+        <CardHeader className="bg-gradient-to-r from-[var(--brand-primary)] to-[var(--brand-primary-2)] text-white rounded-t-xl">
           <CardTitle className="flex items-center gap-2">
             <Receipt className="h-5 w-5" />
             주문/결제 내역 조회

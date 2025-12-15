@@ -62,10 +62,10 @@ const KeywordSearch = () => {
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="grid w-full grid-cols-4 mb-6">
-          <TabsTrigger value="shopping">쇼핑검색</TabsTrigger>
-          <TabsTrigger value="monthly">월간검색통계</TabsTrigger>
-          <TabsTrigger value="extraction">키워드추출</TabsTrigger>
-          <TabsTrigger value="quality">키워드 품질 분석</TabsTrigger>
+          <TabsTrigger value="shopping" className="py-3 px-6">쇼핑검색</TabsTrigger>
+          <TabsTrigger value="monthly" className="py-3 px-6">월간검색통계</TabsTrigger>
+          <TabsTrigger value="extraction" className="py-3 px-6">키워드추출</TabsTrigger>
+          <TabsTrigger value="quality" className="py-3 px-6">키워드 품질 분석</TabsTrigger>
         </TabsList>
 
         <TabsContent value="shopping">

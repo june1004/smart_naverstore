@@ -45,6 +45,17 @@
     --sidebar-accent-foreground: 240 5.9% 10%;
     --sidebar-border: 220 13% 91%;
     --sidebar-ring: 217.2 91.2% 59.8%;
+
+    /* 브랜드 테마 색상 (Pastel Luxury) */
+    --brand-primary: #0F4C5C;
+    --brand-primary-2: #1a6b7a;
+    --brand-primary-3: #0a3d4a;
+    --brand-primary-4: #062e38;
+    --brand-gold: #D4AF37;
+    --brand-gold-2: #F4D03F;
+    --brand-border: #E2D9C8;
+    --brand-bg-start: #F0F9F8;
+    --brand-bg-end: #E6F4F1;
   }
 
   .dark {

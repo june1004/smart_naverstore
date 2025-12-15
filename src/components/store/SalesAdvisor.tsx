@@ -7,8 +7,8 @@ import { Lightbulb, TrendingUp, Target, ShieldCheck } from "lucide-react";
 const SalesAdvisor = () => {
   return (
     <div className="space-y-6">
-      <Card className="shadow-sm border border-[#E2D9C8] bg-white rounded-xl">
-        <CardHeader className="bg-gradient-to-r from-[#0F4C5C] to-[#1a6b7a] text-white rounded-t-xl">
+      <Card className="shadow-sm border border-[var(--brand-border)] bg-white rounded-xl">
+        <CardHeader className="bg-gradient-to-r from-[var(--brand-primary)] to-[var(--brand-primary-2)] text-white rounded-t-xl">
           <CardTitle className="flex items-center gap-2">
             <TrendingUp className="h-5 w-5" />
             매출 관리 & 상승 제안
@@ -19,7 +19,7 @@ const SalesAdvisor = () => {
         </CardHeader>
         <CardContent className="p-6 space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="p-4 rounded-xl border border-[#E2D9C8] bg-[#F0F9F8]">
+            <div className="p-4 rounded-xl border border-[var(--brand-border)] bg-[var(--brand-bg-start)]">
               <div className="flex items-center gap-2 text-slate-700 font-semibold">
                 <Target className="h-4 w-4 text-[#0F4C5C]" />
                 오늘의 액션

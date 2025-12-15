@@ -429,9 +429,9 @@ const KeywordExtraction = ({ keywordData, setKeywordData }: Props) => {
       {/* 키워드 탭 */}
       {keywordData && (
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="related">연관키워드 ({keywordData.relatedKeywords?.length || 0})</TabsTrigger>
-            <TabsTrigger value="autocomplete">
+          <TabsList className="grid w-full grid-cols-2 mb-6">
+            <TabsTrigger value="related" className="py-3 px-6">연관키워드 ({keywordData.relatedKeywords?.length || 0})</TabsTrigger>
+            <TabsTrigger value="autocomplete" className="py-3 px-6">
               자동완성키워드 ({Object.values(keywordData.autocompleteKeywordsByKeyword || {}).reduce((total, keywords) => total + keywords.length, 0)})
             </TabsTrigger>
           </TabsList>

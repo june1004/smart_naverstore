@@ -127,16 +127,16 @@ const Auth = () => {
 
   if (authLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#F0F9F8]">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#0F4C5C]"></div>
+      <div className="min-h-screen flex items-center justify-center bg-[var(--brand-bg-start)]">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[var(--brand-primary)]"></div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#F0F9F8] via-white to-[#E6F4F1] flex items-center justify-center p-4">
-      <Card className="w-full max-w-md shadow-sm border border-[#E2D9C8] bg-white rounded-xl">
-        <CardHeader className="text-center bg-gradient-to-r from-[#0F4C5C] to-[#1a6b7a] text-white rounded-t-xl">
+    <div className="min-h-screen bg-gradient-to-br from-[var(--brand-bg-start)] via-white to-[var(--brand-bg-end)] flex items-center justify-center p-4">
+      <Card className="w-full max-w-md shadow-sm border border-[var(--brand-border)] bg-white rounded-xl">
+        <CardHeader className="text-center bg-gradient-to-r from-[var(--brand-primary)] to-[var(--brand-primary-2)] text-white rounded-t-xl">
           <CardTitle className="text-2xl font-bold text-white">
             네이버 쇼핑몰 분석 도구
           </CardTitle>
@@ -188,7 +188,7 @@ const Auth = () => {
               <Button 
                 onClick={handleSignIn} 
                 disabled={loading}
-                className="w-full bg-[#0F4C5C] hover:bg-[#0a3d4a] text-white"
+                className="w-full bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-3)] text-white"
               >
                 {loading ? "로그인 중..." : "로그인"}
               </Button>
@@ -250,7 +250,7 @@ const Auth = () => {
               <Button 
                 onClick={handleSignUp} 
                 disabled={loading}
-                className="w-full bg-[#0F4C5C] hover:bg-[#0a3d4a] text-white"
+                className="w-full bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-3)] text-white"
               >
                 {loading ? "가입 중..." : "회원가입"}
               </Button>
@@ -261,7 +261,7 @@ const Auth = () => {
             <Button 
               variant="ghost" 
               onClick={() => navigate("/")}
-              className="text-[#0F4C5C] hover:text-[#0a3d4a]"
+              className="text-[var(--brand-primary)] hover:text-[var(--brand-primary-3)]"
             >
               메인페이지로 돌아가기
             </Button>

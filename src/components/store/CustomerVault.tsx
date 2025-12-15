@@ -189,8 +189,8 @@ const CustomerVault = () => {
   };
 
   return (
-    <Card className="shadow-sm border border-[#E2D9C8] bg-white rounded-xl">
-      <CardHeader className="bg-gradient-to-r from-[#0F4C5C] to-[#1a6b7a] text-white rounded-t-xl">
+    <Card className="shadow-sm border border-[var(--brand-border)] bg-white rounded-xl">
+      <CardHeader className="bg-gradient-to-r from-[var(--brand-primary)] to-[var(--brand-primary-2)] text-white rounded-t-xl">
         <CardTitle className="flex items-center gap-2">
           <ShieldAlert className="h-5 w-5" />
           고객(구매자) 저장소
@@ -208,7 +208,7 @@ const CustomerVault = () => {
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 placeholder="예: 12/14 구매자 문의"
-                className="border-[#E2D9C8] focus:border-[#0F4C5C] focus:ring-[#0F4C5C]"
+                className="border-[var(--brand-border)] focus:border-[var(--brand-primary)] focus:ring-[var(--brand-primary)]"
               />
             </div>
 
@@ -219,7 +219,7 @@ const CustomerVault = () => {
                   type="datetime-local"
                   value={orderedAt}
                   onChange={(e) => setOrderedAt(e.target.value)}
-                  className="border-[#E2D9C8] focus:border-[#0F4C5C] focus:ring-[#0F4C5C]"
+                  className="border-[var(--brand-border)] focus:border-[var(--brand-primary)] focus:ring-[var(--brand-primary)]"
                 />
               </div>
               <div className="space-y-2">
@@ -228,7 +228,7 @@ const CustomerVault = () => {
                   value={orderId}
                   onChange={(e) => setOrderId(e.target.value)}
                   placeholder="예: 20251214-000001"
-                  className="border-[#E2D9C8] focus:border-[#0F4C5C] focus:ring-[#0F4C5C]"
+                  className="border-[var(--brand-border)] focus:border-[var(--brand-primary)] focus:ring-[var(--brand-primary)]"
                 />
               </div>
               <div className="space-y-2">
@@ -237,7 +237,7 @@ const CustomerVault = () => {
                   value={address}
                   onChange={(e) => setAddress(e.target.value)}
                   placeholder="예: 서울시 …"
-                  className="border-[#E2D9C8] focus:border-[#0F4C5C] focus:ring-[#0F4C5C]"
+                  className="border-[var(--brand-border)] focus:border-[var(--brand-primary)] focus:ring-[var(--brand-primary)]"
                 />
               </div>
             </div>
@@ -274,7 +274,7 @@ const CustomerVault = () => {
               >
                 새로고침
               </Button>
-              <Button onClick={handleSave} disabled={isSaving} className="bg-[#0F4C5C] hover:bg-[#0a3d4a] text-white">
+              <Button onClick={handleSave} disabled={isSaving} className="bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-3)] text-white">
                 <Save className="h-4 w-4 mr-2" />
                 저장
               </Button>
@@ -292,14 +292,14 @@ const CustomerVault = () => {
                   className="pl-9 border-[#E2D9C8] focus:border-[#0F4C5C] focus:ring-[#0F4C5C]"
                 />
               </div>
-              <Badge variant="outline" className="border-[#0F4C5C]/30 text-[#0F4C5C]">
+              <Badge variant="outline" className="border-[var(--brand-primary)]/30 text-[var(--brand-primary)]">
                 {filtered.length}건
               </Badge>
             </div>
 
             <Separator className="bg-slate-200" />
 
-            <div className="border border-[#E2D9C8] rounded-xl overflow-hidden">
+            <div className="border border-[var(--brand-border)] rounded-xl overflow-hidden">
               <div className="px-4 py-3 bg-[#F0F9F8] text-sm font-semibold text-slate-700">저장 목록</div>
               {filtered.length === 0 ? (
                 <div className="p-6 text-sm text-slate-600">
@@ -317,7 +317,7 @@ const CustomerVault = () => {
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
-                          <Button variant="outline" size="sm" className="border-[#E2D9C8]" onClick={() => handleCopy(r)}>
+                          <Button variant="outline" size="sm" className="border-[var(--brand-border)]" onClick={() => handleCopy(r)}>
                             <Copy className="h-4 w-4 mr-1" />
                             복사
                           </Button>

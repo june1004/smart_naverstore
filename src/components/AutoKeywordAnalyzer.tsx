@@ -87,16 +87,16 @@ const AutoKeywordAnalyzer = () => {
       {/* 분석 결과 */}
       {analysisResult && isAnalysisValid() && (
         <Tabs defaultValue="categories" className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="categories" className="flex items-center gap-2">
+          <TabsList className="grid w-full grid-cols-3 mb-6">
+            <TabsTrigger value="categories" className="flex items-center gap-2 py-3 px-6">
               <ShoppingBag className="h-4 w-4" />
               카테고리 & 검색량
             </TabsTrigger>
-            <TabsTrigger value="insights" className="flex items-center gap-2">
+            <TabsTrigger value="insights" className="flex items-center gap-2 py-3 px-6">
               <BarChart3 className="h-4 w-4" />
               인사이트 차트
             </TabsTrigger>
-            <TabsTrigger value="trends" className="flex items-center gap-2">
+            <TabsTrigger value="trends" className="flex items-center gap-2 py-3 px-6">
               <TrendingUp className="h-4 w-4" />
               트렌드 분석
             </TabsTrigger>

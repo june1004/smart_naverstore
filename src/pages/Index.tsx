@@ -21,14 +21,14 @@ const Index = () => {
   const { toast } = useToast();
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#F0F9F8] via-white to-[#E6F4F1]">
+    <div className="min-h-screen bg-gradient-to-br from-[var(--brand-bg-start)] via-white to-[var(--brand-bg-end)]">
       <div className="container mx-auto px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="text-center mb-8">
           <div className="flex justify-between items-center mb-4">
             <Button
               variant="outline"
-              className="border-[#E2D9C8] bg-white hover:bg-slate-50 text-slate-700"
+              className="border-[var(--brand-border)] bg-white hover:bg-slate-50 text-slate-700"
               onClick={() => {
                 if (!hasStoreAddon) {
                   toast({
@@ -54,32 +54,32 @@ const Index = () => {
 
         {/* Main Tabs */}
         <Tabs defaultValue="auto-analyzer" className="w-full">
-          <TabsList className="grid w-full grid-cols-2 md:grid-cols-5 mb-8 bg-white border border-[#E2D9C8] shadow-sm rounded-xl p-1">
-            <TabsTrigger value="auto-analyzer" className="flex items-center gap-2 py-3 px-6 data-[state=active]:bg-[#0F4C5C] data-[state=active]:text-white rounded-lg transition-all">
+          <TabsList className="grid w-full grid-cols-2 md:grid-cols-5 mb-6 bg-white border border-[var(--brand-border)] shadow-sm rounded-xl p-1">
+            <TabsTrigger value="auto-analyzer" className="flex items-center gap-2 py-3 px-6 data-[state=active]:bg-[var(--brand-primary)] data-[state=active]:text-white rounded-lg transition-all">
               <Sparkles className="h-4 w-4" />
               AI 자동분석
             </TabsTrigger>
-            <TabsTrigger value="keyword" className="flex items-center gap-2 py-3 px-6 data-[state=active]:bg-[#0F4C5C] data-[state=active]:text-white rounded-lg transition-all">
+            <TabsTrigger value="keyword" className="flex items-center gap-2 py-3 px-6 data-[state=active]:bg-[var(--brand-primary)] data-[state=active]:text-white rounded-lg transition-all">
               <Search className="h-4 w-4" />
               키워드 분석
             </TabsTrigger>
-            <TabsTrigger value="trend" className="flex items-center gap-2 py-3 px-6 data-[state=active]:bg-[#0F4C5C] data-[state=active]:text-white rounded-lg transition-all">
+            <TabsTrigger value="trend" className="flex items-center gap-2 py-3 px-6 data-[state=active]:bg-[var(--brand-primary)] data-[state=active]:text-white rounded-lg transition-all">
               <TrendingUp className="h-4 w-4" />
               통합검색어 트렌드
             </TabsTrigger>
-            <TabsTrigger value="insight" className="flex items-center gap-2 py-3 px-6 data-[state=active]:bg-[#0F4C5C] data-[state=active]:text-white rounded-lg transition-all">
+            <TabsTrigger value="insight" className="flex items-center gap-2 py-3 px-6 data-[state=active]:bg-[var(--brand-primary)] data-[state=active]:text-white rounded-lg transition-all">
               <BarChart3 className="h-4 w-4" />
               쇼핑인사이트
             </TabsTrigger>
-            <TabsTrigger value="service" className="flex items-center gap-2 py-3 px-6 data-[state=active]:bg-[#0F4C5C] data-[state=active]:text-white rounded-lg transition-all">
+            <TabsTrigger value="service" className="flex items-center gap-2 py-3 px-6 data-[state=active]:bg-[var(--brand-primary)] data-[state=active]:text-white rounded-lg transition-all">
               <Settings className="h-4 w-4" />
               서비스 관리
             </TabsTrigger>
           </TabsList>
 
           <TabsContent value="auto-analyzer" className="space-y-6">
-            <Card className="shadow-sm border border-[#E2D9C8] bg-white rounded-xl">
-              <CardHeader className="bg-gradient-to-r from-[#0F4C5C] to-[#1a6b7a] text-white rounded-t-xl">
+            <Card className="shadow-sm border border-[var(--brand-border)] bg-white rounded-xl">
+              <CardHeader className="bg-gradient-to-r from-[var(--brand-primary)] to-[var(--brand-primary-2)] text-white rounded-t-xl">
                 <CardTitle className="flex items-center gap-2">
                   <Sparkles className="h-5 w-5" />
                   AI 키워드 자동 분석
@@ -99,8 +99,8 @@ const Index = () => {
           </TabsContent>
 
           <TabsContent value="trend" className="space-y-6">
-            <Card className="shadow-sm border border-[#E2D9C8] bg-white rounded-xl">
-              <CardHeader className="bg-gradient-to-r from-[#0F4C5C] to-[#1a6b7a] text-white rounded-t-xl">
+            <Card className="shadow-sm border border-[var(--brand-border)] bg-white rounded-xl">
+              <CardHeader className="bg-gradient-to-r from-[var(--brand-primary)] to-[var(--brand-primary-2)] text-white rounded-t-xl">
                 <CardTitle className="flex items-center gap-2">
                   <TrendingUp className="h-5 w-5" />
                   통합검색어 트렌드
@@ -116,8 +116,8 @@ const Index = () => {
           </TabsContent>
 
           <TabsContent value="insight" className="space-y-6">
-            <Card className="shadow-sm border border-[#E2D9C8] bg-white rounded-xl">
-              <CardHeader className="bg-gradient-to-r from-[#0F4C5C] to-[#1a6b7a] text-white rounded-t-xl">
+            <Card className="shadow-sm border border-[var(--brand-border)] bg-white rounded-xl">
+              <CardHeader className="bg-gradient-to-r from-[var(--brand-primary)] to-[var(--brand-primary-2)] text-white rounded-t-xl">
                 <CardTitle className="flex items-center gap-2">
                   <BarChart3 className="h-5 w-5" />
                   쇼핑인사이트
@@ -133,8 +133,8 @@ const Index = () => {
           </TabsContent>
 
           <TabsContent value="service" className="space-y-6">
-            <Card className="shadow-sm border border-[#E2D9C8] bg-white rounded-xl">
-              <CardHeader className="bg-gradient-to-r from-[#0F4C5C] to-[#1a6b7a] text-white rounded-t-xl">
+            <Card className="shadow-sm border border-[var(--brand-border)] bg-white rounded-xl">
+              <CardHeader className="bg-gradient-to-r from-[var(--brand-primary)] to-[var(--brand-primary-2)] text-white rounded-t-xl">
                 <CardTitle className="flex items-center gap-2">
                   <Settings className="h-5 w-5" />
                   서비스 관리
