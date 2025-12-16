@@ -49,16 +49,18 @@ const Landing = () => {
     <div className="min-h-screen bg-white">
       {/* Navigation */}
       <nav className="fixed top-0 left-0 right-0 z-50 backdrop-blur-md bg-white/80 border-b border-slate-200/50">
-        <div className="container mx-auto px-6 py-4">
-          <div className="flex items-center justify-between">
+        <div className="container mx-auto px-4 sm:px-6 py-3 sm:py-4">
+          <div className="flex items-center justify-between gap-2">
             <Logo size="sm" showText={true} />
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 sm:gap-4">
               <Button
                 variant="ghost"
+                size="sm"
                 onClick={() => navigate("/dashboard")}
-                className="text-slate-700 hover:text-[#0F4C5C]"
+                className="text-slate-700 hover:text-[#0F4C5C] text-xs sm:text-sm px-2 sm:px-4"
               >
-                대시보드
+                <span className="hidden sm:inline">대시보드</span>
+                <span className="sm:hidden">대시</span>
               </Button>
               <UserProfile />
             </div>

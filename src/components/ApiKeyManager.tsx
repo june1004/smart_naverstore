@@ -211,19 +211,6 @@ const ApiKeyManager = () => {
                 </Button>
               )}
             </div>
-            
-            <div className="text-sm text-gray-600 bg-blue-50 p-3 rounded-lg">
-              <p className="font-medium mb-1">📌 Supabase Edge Functions에서 사용하려면:</p>
-              <p>1. Supabase 대시보드 → Project Settings → Edge Functions → Secrets</p>
-              <p>2. 다음 환경 변수를 추가하세요:</p>
-              <ul className="list-disc list-inside mt-2 space-y-1">
-                <li>NAVER_SOLUTION_ID</li>
-                <li>NAVER_APPLICATION_ID</li>
-                <li>NAVER_APPLICATION_SECRET</li>
-                <li>NAVER_CLIENT_ID (선택)</li>
-                <li>NAVER_CLIENT_SECRET (선택)</li>
-              </ul>
-            </div>
           </CardContent>
         </CollapsibleContent>
       </Collapsible>

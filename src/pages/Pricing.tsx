@@ -149,23 +149,26 @@ const Pricing = () => {
     <div className="min-h-screen bg-gradient-to-br from-[var(--brand-bg-start)] via-background to-[var(--brand-bg-end)]">
       {/* Navigation */}
       <nav className="fixed top-0 left-0 right-0 z-50 backdrop-blur-md bg-white/80 border-b border-[var(--brand-border)]">
-        <div className="container mx-auto px-6 py-4">
-          <div className="flex items-center justify-between">
+        <div className="container mx-auto px-4 sm:px-6 py-3 sm:py-4">
+          <div className="flex items-center justify-between gap-2">
             <Logo size="sm" showText={true} />
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-1 sm:gap-4">
               <Button
                 variant="ghost"
+                size="sm"
                 onClick={() => navigate("/")}
-                className="text-slate-700 hover:text-[var(--brand-primary)]"
+                className="text-slate-700 hover:text-[var(--brand-primary)] text-xs sm:text-sm px-2 sm:px-4"
               >
                 홈
               </Button>
               <Button
                 variant="ghost"
+                size="sm"
                 onClick={() => navigate("/dashboard")}
-                className="text-slate-700 hover:text-[var(--brand-primary)]"
+                className="text-slate-700 hover:text-[var(--brand-primary)] text-xs sm:text-sm px-2 sm:px-4"
               >
-                대시보드
+                <span className="hidden sm:inline">대시보드</span>
+                <span className="sm:hidden">대시</span>
               </Button>
               <UserProfile />
             </div>

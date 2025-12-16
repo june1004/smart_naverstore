@@ -25,10 +25,11 @@ const UserProfile = () => {
       <Button 
         onClick={() => navigate("/auth")}
         variant="outline" 
-        className="flex items-center gap-2"
+        size="sm"
+        className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm px-2 sm:px-4"
       >
-        <LogIn className="h-4 w-4" />
-        로그인
+        <LogIn className="h-3 w-3 sm:h-4 sm:w-4" />
+        <span className="hidden sm:inline">로그인</span>
       </Button>
     );
   }
@@ -38,8 +39,8 @@ const UserProfile = () => {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" className="relative h-10 w-10 rounded-full">
-          <Avatar className="h-10 w-10">
+        <Button variant="ghost" className="relative h-8 w-8 sm:h-10 sm:w-10 rounded-full">
+          <Avatar className="h-8 w-8 sm:h-10 sm:w-10">
             <AvatarFallback className="bg-blue-600 text-white">
               {userInitial.toUpperCase()}
             </AvatarFallback>

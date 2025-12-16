@@ -13,12 +13,12 @@ export function ThemeToggle() {
   const { theme, setTheme, resolvedTheme } = useTheme();
 
   const getThemeIcon = () => {
-    if (theme === "light") return <Sun className="h-5 w-5" />;
-    if (theme === "dark") return <Moon className="h-5 w-5" />;
-    if (theme === "blue") return <Droplet className="h-5 w-5 text-blue-500" />;
-    if (theme === "green") return <Droplet className="h-5 w-5 text-green-500" />;
-    if (theme === "purple") return <Sparkles className="h-5 w-5 text-purple-500" />;
-    return <Monitor className="h-5 w-5" />;
+    if (theme === "light") return <Sun className="h-4 w-4 sm:h-5 sm:w-5" />;
+    if (theme === "dark") return <Moon className="h-4 w-4 sm:h-5 sm:w-5" />;
+    if (theme === "blue") return <Droplet className="h-4 w-4 sm:h-5 sm:w-5 text-blue-500" />;
+    if (theme === "green") return <Droplet className="h-4 w-4 sm:h-5 sm:w-5 text-green-500" />;
+    if (theme === "purple") return <Sparkles className="h-4 w-4 sm:h-5 sm:w-5 text-purple-500" />;
+    return <Monitor className="h-4 w-4 sm:h-5 sm:w-5" />;
   };
 
   return (
@@ -27,7 +27,7 @@ export function ThemeToggle() {
         <Button
           variant="outline"
           size="icon"
-          className="relative h-10 w-10 border-[var(--brand-border)] bg-background hover:bg-accent"
+          className="relative h-8 w-8 sm:h-10 sm:w-10 border-[var(--brand-border)] bg-background hover:bg-accent"
         >
           {getThemeIcon()}
           <span className="sr-only">테마 변경</span>
