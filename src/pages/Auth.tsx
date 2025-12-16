@@ -134,13 +134,13 @@ const Auth = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[var(--brand-bg-start)] via-white to-[var(--brand-bg-end)] flex items-center justify-center p-4">
-      <Card className="w-full max-w-md shadow-sm border border-[var(--brand-border)] bg-white rounded-xl">
+    <div className="min-h-screen bg-gradient-to-br from-[var(--brand-bg-start)] via-background to-[var(--brand-bg-end)] flex items-center justify-center p-4">
+      <Card className="w-full max-w-md shadow-sm border border-[var(--brand-border)] bg-card rounded-xl">
         <CardHeader className="text-center bg-gradient-to-r from-[var(--brand-primary)] to-[var(--brand-primary-2)] text-white rounded-t-xl">
           <CardTitle className="text-2xl font-bold text-white">
             네이버 쇼핑몰 분석 도구
           </CardTitle>
-          <CardDescription className="text-slate-100">
+          <CardDescription className="text-white/90">
             회원가입 또는 로그인하여 모든 기능을 이용하세요
           </CardDescription>
         </CardHeader>

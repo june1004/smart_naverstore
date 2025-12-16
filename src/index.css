@@ -60,40 +60,174 @@
 
   .dark {
     --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
+    --foreground: 0 0% 100%;
 
     --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
+    --card-foreground: 0 0% 100%;
 
     --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
+    --popover-foreground: 0 0% 100%;
 
-    --primary: 210 40% 98%;
+    --primary: 0 0% 100%;
     --primary-foreground: 222.2 47.4% 11.2%;
 
     --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
+    --secondary-foreground: 0 0% 100%;
 
     --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
+    --muted-foreground: 0 0% 85%;
 
     --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
+    --accent-foreground: 0 0% 100%;
 
     --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive-foreground: 0 0% 100%;
 
     --border: 217.2 32.6% 17.5%;
     --input: 217.2 32.6% 17.5%;
     --ring: 212.7 26.8% 83.9%;
     --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
+    --sidebar-foreground: 0 0% 100%;
     --sidebar-primary: 224.3 76.3% 48%;
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
+    --sidebar-accent-foreground: 0 0% 100%;
     --sidebar-border: 240 3.7% 15.9%;
     --sidebar-ring: 217.2 91.2% 59.8%;
+
+    /* 브랜드 테마 색상 (다크모드용 - 대비 개선) */
+    --brand-primary: #4A9DB8;
+    --brand-primary-2: #5BB3CC;
+    --brand-primary-3: #3A8CA3;
+    --brand-primary-4: #2A7A8F;
+    --brand-gold: #F4D03F;
+    --brand-gold-2: #FFE066;
+    --brand-border: #3A4A4F;
+    --brand-bg-start: #1A2A2F;
+    --brand-bg-end: #1F2F34;
+  }
+
+  /* 블루 테마 */
+  .theme-blue {
+    --background: 222.2 47.4% 11.2%;
+    --foreground: 0 0% 100%;
+
+    --card: 222.2 47.4% 11.2%;
+    --card-foreground: 0 0% 100%;
+
+    --popover: 222.2 47.4% 11.2%;
+    --popover-foreground: 0 0% 100%;
+
+    --primary: 217.2 91.2% 59.8%;
+    --primary-foreground: 222.2 47.4% 11.2%;
+
+    --secondary: 217.2 32.6% 20%;
+    --secondary-foreground: 0 0% 100%;
+
+    --muted: 217.2 32.6% 20%;
+    --muted-foreground: 0 0% 85%;
+
+    --accent: 217.2 32.6% 20%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 217.2 32.6% 25%;
+    --input: 217.2 32.6% 25%;
+    --ring: 217.2 91.2% 59.8%;
+
+    --brand-primary: #3B82F6;
+    --brand-primary-2: #60A5FA;
+    --brand-primary-3: #2563EB;
+    --brand-primary-4: #1D4ED8;
+    --brand-gold: #F4D03F;
+    --brand-gold-2: #FFE066;
+    --brand-border: #475569;
+    --brand-bg-start: #1E293B;
+    --brand-bg-end: #0F172A;
+  }
+
+  /* 그린 테마 */
+  .theme-green {
+    --background: 142.1 76.2% 8%;
+    --foreground: 0 0% 100%;
+
+    --card: 142.1 76.2% 8%;
+    --card-foreground: 0 0% 100%;
+
+    --popover: 142.1 76.2% 8%;
+    --popover-foreground: 0 0% 100%;
+
+    --primary: 142.1 70.6% 45.3%;
+    --primary-foreground: 142.1 76.2% 8%;
+
+    --secondary: 142.1 32.6% 20%;
+    --secondary-foreground: 0 0% 100%;
+
+    --muted: 142.1 32.6% 20%;
+    --muted-foreground: 0 0% 85%;
+
+    --accent: 142.1 32.6% 20%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 142.1 32.6% 25%;
+    --input: 142.1 32.6% 25%;
+    --ring: 142.1 70.6% 45.3%;
+
+    --brand-primary: #10B981;
+    --brand-primary-2: #34D399;
+    --brand-primary-3: #059669;
+    --brand-primary-4: #047857;
+    --brand-gold: #F4D03F;
+    --brand-gold-2: #FFE066;
+    --brand-border: #374151;
+    --brand-bg-start: #064E3B;
+    --brand-bg-end: #022C22;
+  }
+
+  /* 퍼플 테마 */
+  .theme-purple {
+    --background: 262.1 83.3% 7.8%;
+    --foreground: 0 0% 100%;
+
+    --card: 262.1 83.3% 7.8%;
+    --card-foreground: 0 0% 100%;
+
+    --popover: 262.1 83.3% 7.8%;
+    --popover-foreground: 0 0% 100%;
+
+    --primary: 262.1 52.8% 50.2%;
+    --primary-foreground: 262.1 83.3% 7.8%;
+
+    --secondary: 262.1 32.6% 20%;
+    --secondary-foreground: 0 0% 100%;
+
+    --muted: 262.1 32.6% 20%;
+    --muted-foreground: 0 0% 85%;
+
+    --accent: 262.1 32.6% 20%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 262.1 32.6% 25%;
+    --input: 262.1 32.6% 25%;
+    --ring: 262.1 52.8% 50.2%;
+
+    --brand-primary: #A855F7;
+    --brand-primary-2: #C084FC;
+    --brand-primary-3: #9333EA;
+    --brand-primary-4: #7E22CE;
+    --brand-gold: #F4D03F;
+    --brand-gold-2: #FFE066;
+    --brand-border: #4C1D95;
+    --brand-bg-start: #3B0764;
+    --brand-bg-end: #2E1065;
   }
 }
 

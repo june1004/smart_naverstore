@@ -29,10 +29,10 @@ const Logo = ({ className = "", showText = true, size = "md" }: LogoProps) => {
       </div>
       {showText && (
         <div className="flex flex-col">
-          <h1 className={`${textSizeClasses[size]} font-bold text-gray-900 leading-tight`}>
+          <h1 className={`${textSizeClasses[size]} font-bold text-foreground leading-tight`}>
             네이버 쇼핑몰
           </h1>
-          <p className={`${size === "sm" ? "text-xs" : "text-sm"} text-gray-600 font-medium`}>
+          <p className={`${size === "sm" ? "text-xs" : "text-sm"} text-muted-foreground font-medium`}>
             분석 도구
           </p>
         </div>

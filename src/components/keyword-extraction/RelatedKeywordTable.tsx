@@ -210,14 +210,14 @@ const RelatedKeywordTable = ({ relatedKeywords, onKeywordClick, onSearchRelatedK
           </TableHeader>
           <TableBody>
             {paginatedRelatedKeywords?.map((item, index) => (
-              <TableRow key={`${item.keyword}-${index}`} className="hover:bg-blue-50">
+              <TableRow key={`${item.keyword}-${index}`} className="hover:bg-accent/50">
                 <TableCell className="text-center font-medium">
                   {relatedStartIndex + index + 1}
                 </TableCell>
                 <TableCell className="font-medium">
                   <button
                     onClick={() => onKeywordClick(item)}
-                    className="text-blue-700 hover:underline"
+                    className="text-primary hover:underline"
                   >
                     {item.keyword}
                   </button>
@@ -230,18 +230,18 @@ const RelatedKeywordTable = ({ relatedKeywords, onKeywordClick, onSearchRelatedK
                 <TableCell className="text-center">
                   <div className="space-y-1">
                     <div className="flex items-center justify-center gap-1 text-sm">
-                      <Monitor className="h-3 w-3 text-blue-500" />
-                      <span className="text-blue-600 font-semibold">
+                      <Monitor className="h-3 w-3 text-blue-500 dark:text-blue-400" />
+                      <span className="text-blue-600 dark:text-blue-400 font-semibold">
                         {item.monthlyPcSearchCount?.toLocaleString() || '-'}
                       </span>
                     </div>
                     <div className="flex items-center justify-center gap-1 text-sm">
-                      <Smartphone className="h-3 w-3 text-green-500" />
-                      <span className="text-green-600 font-semibold">
+                      <Smartphone className="h-3 w-3 text-green-500 dark:text-green-400" />
+                      <span className="text-green-600 dark:text-green-400 font-semibold">
                         {item.monthlyMobileSearchCount?.toLocaleString() || '-'}
                       </span>
                     </div>
-                    <div className="text-xs text-gray-500 border-t pt-1">
+                    <div className="text-xs text-muted-foreground border-t border-border pt-1">
                       전체: {item.totalSearchCount?.toLocaleString() || '-'}
                     </div>
                   </div>

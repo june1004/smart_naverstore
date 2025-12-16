@@ -178,21 +178,21 @@ const Admin = () => {
 
   if (!isSuperAdmin) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-[var(--brand-bg-start)] via-white to-[var(--brand-bg-end)] flex items-center justify-center px-6">
-        <Card className="max-w-lg w-full border border-[#E2D9C8] bg-white shadow-sm rounded-xl">
+      <div className="min-h-screen bg-gradient-to-br from-[var(--brand-bg-start)] via-background to-[var(--brand-bg-end)] flex items-center justify-center px-6">
+        <Card className="max-w-lg w-full border border-[var(--brand-border)] bg-card shadow-sm rounded-xl">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-slate-700">
+            <CardTitle className="flex items-center gap-2 text-foreground">
               <Shield className="h-5 w-5 text-amber-600" />
               접근 제한
             </CardTitle>
-            <CardDescription className="text-slate-600">
+            <CardDescription className="text-muted-foreground">
               관리자 페이지는 <b>수퍼관리자</b>만 접근할 수 있습니다.
             </CardDescription>
           </CardHeader>
           <CardContent className="flex justify-end">
             <Button
               variant="outline"
-              className="border-[#E2D9C8] bg-white hover:bg-slate-50 text-slate-700"
+              className="border-[var(--brand-border)] bg-background hover:bg-accent text-foreground"
               onClick={() => navigate("/dashboard")}
             >
               대시보드로
@@ -204,7 +204,7 @@ const Admin = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[var(--brand-bg-start)] via-white to-[var(--brand-bg-end)]">
+    <div className="min-h-screen bg-gradient-to-br from-[var(--brand-bg-start)] via-background to-[var(--brand-bg-end)]">
       <div className="container mx-auto px-6 lg:px-8 py-8 space-y-8">
         <div className="flex items-center justify-between">
           <Button
@@ -220,12 +220,12 @@ const Admin = () => {
         </div>
 
         <div className="text-center space-y-2">
-          <h1 className="text-3xl font-bold text-slate-700">관리자</h1>
-          <p className="text-slate-600">회원관리 · 시스템 헬스 · 자주 쓰는 통계를 한 곳에서 관리합니다</p>
+          <h1 className="text-3xl font-bold text-foreground">관리자</h1>
+          <p className="text-muted-foreground">회원관리 · 시스템 헬스 · 자주 쓰는 통계를 한 곳에서 관리합니다</p>
         </div>
 
         <Tabs defaultValue="members" className="w-full">
-          <TabsList className="grid w-full grid-cols-3 mb-6 bg-white border border-[var(--brand-border)] shadow-sm rounded-xl p-1">
+          <TabsList className="grid w-full grid-cols-3 mb-6 bg-card border border-[var(--brand-border)] shadow-sm rounded-xl p-1">
             <TabsTrigger
               value="members"
               className="flex items-center gap-2 py-3 px-6 data-[state=active]:bg-[var(--brand-primary)] data-[state=active]:text-white rounded-lg transition-all"
@@ -250,13 +250,13 @@ const Admin = () => {
           </TabsList>
 
           <TabsContent value="members" className="space-y-6">
-            <Card className="shadow-sm border border-[var(--brand-border)] bg-white rounded-xl">
+            <Card className="shadow-sm border border-[var(--brand-border)] bg-card rounded-xl">
               <CardHeader className="bg-gradient-to-r from-[var(--brand-primary)] to-[var(--brand-primary-2)] text-white rounded-t-xl">
                 <CardTitle className="flex items-center gap-2">
                   <Users className="h-5 w-5" />
                   회원 관리(권한/구독)
                 </CardTitle>
-                <CardDescription className="text-slate-100">
+                <CardDescription className="text-white/90">
                   기본 구독(is_paid_subscriber)과 스토어관리 애드온(store_addon_active)을 토글로 관리합니다.
                 </CardDescription>
               </CardHeader>
@@ -271,7 +271,7 @@ const Admin = () => {
                   <Button
                     onClick={loadProfiles}
                     variant="outline"
-                    className="border-[#E2D9C8] bg-white hover:bg-slate-50 text-slate-700"
+                    className="border-[var(--brand-border)] bg-background hover:bg-accent text-foreground"
                     disabled={isLoadingProfiles}
                   >
                     {isLoadingProfiles ? (
@@ -285,27 +285,27 @@ const Admin = () => {
                   </Button>
                 </div>
 
-                <div className="border border-[#E2D9C8] rounded-xl overflow-hidden bg-white">
+                <div className="border border-[var(--brand-border)] rounded-xl overflow-hidden bg-card">
                   <div className="px-4 py-3 bg-[#F0F9F8] text-sm font-semibold text-slate-700">
                     회원 ({filtered.length})
                   </div>
                   {filtered.length === 0 ? (
-                    <div className="p-6 text-sm text-slate-600">표시할 회원이 없습니다.</div>
+                    <div className="p-6 text-sm text-muted-foreground">표시할 회원이 없습니다.</div>
                   ) : (
                     <div className="divide-y divide-slate-100">
                       {filtered.map((p) => (
                         <div key={p.id} className="p-4 flex flex-col lg:flex-row lg:items-center gap-3">
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 flex-wrap">
-                              <div className="font-semibold text-slate-700 truncate">
+                              <div className="font-semibold text-foreground truncate">
                                 {p.full_name ?? "이름 없음"}
                               </div>
                               {p.is_super_admin ? (
                                 <Badge className="bg-[#0F4C5C] text-white">SUPER</Badge>
                               ) : null}
                             </div>
-                            <div className="text-xs text-slate-500 mt-1 truncate">{p.id}</div>
-                            <div className="text-sm text-slate-600 mt-1">
+                            <div className="text-xs text-muted-foreground mt-1 truncate">{p.id}</div>
+                            <div className="text-sm text-muted-foreground mt-1">
                               {p.company_name ?? "-"} / {p.username ?? "-"}
                             </div>
                           </div>
@@ -353,7 +353,7 @@ const Admin = () => {
                   )}
                 </div>
 
-                <div className="border border-[#E2D9C8] rounded-xl overflow-hidden bg-white">
+                <div className="border border-[var(--brand-border)] rounded-xl overflow-hidden bg-card">
                   <div className="px-4 py-3 bg-[#F0F9F8] text-sm font-semibold text-slate-700">
                     최근 결제 ({recentPayments.length})
                   </div>
@@ -381,13 +381,13 @@ const Admin = () => {
           </TabsContent>
 
           <TabsContent value="health" className="space-y-6">
-            <Card className="shadow-sm border border-[var(--brand-border)] bg-white rounded-xl">
+            <Card className="shadow-sm border border-[var(--brand-border)] bg-card rounded-xl">
               <CardHeader className="bg-gradient-to-r from-[var(--brand-primary)] to-[var(--brand-primary-2)] text-white rounded-t-xl">
                 <CardTitle className="flex items-center gap-2">
                   <Activity className="h-5 w-5" />
                   시스템 헬스/모니터링
                 </CardTitle>
-                <CardDescription className="text-slate-100">
+                <CardDescription className="text-white/90">
                   폴링 실행 결과(성공/실패)와 최근 상태를 확인합니다.
                 </CardDescription>
               </CardHeader>
@@ -396,7 +396,7 @@ const Admin = () => {
                   <Button
                     onClick={loadHealth}
                     variant="outline"
-                    className="border-[#E2D9C8] bg-white hover:bg-slate-50 text-slate-700"
+                    className="border-[var(--brand-border)] bg-background hover:bg-accent text-foreground"
                     disabled={isLoadingHealth}
                   >
                     {isLoadingHealth ? (
@@ -429,7 +429,7 @@ const Admin = () => {
                   </div>
                 </div>
 
-                <div className="border border-[#E2D9C8] rounded-xl overflow-hidden bg-white">
+                <div className="border border-[var(--brand-border)] rounded-xl overflow-hidden bg-card">
                   <div className="px-4 py-3 bg-[#F0F9F8] text-sm font-semibold text-slate-700">
                     최근 폴링 실행 ({pollingRuns.length})
                   </div>
@@ -458,13 +458,13 @@ const Admin = () => {
           </TabsContent>
 
           <TabsContent value="stats" className="space-y-6">
-            <Card className="shadow-sm border border-[var(--brand-border)] bg-white rounded-xl">
+            <Card className="shadow-sm border border-[var(--brand-border)] bg-card rounded-xl">
               <CardHeader className="bg-gradient-to-r from-[var(--brand-primary)] to-[var(--brand-primary-2)] text-white rounded-t-xl">
                 <CardTitle className="flex items-center gap-2">
                   <BarChart3 className="h-5 w-5" />
                   자주 쓰는 통계
                 </CardTitle>
-                <CardDescription className="text-slate-100">
+                <CardDescription className="text-white/90">
                   운영에 자주 필요한 숫자만 요약합니다.
                 </CardDescription>
               </CardHeader>

@@ -1,8 +1,10 @@
-# Welcome to your Lovable project
+# 네이버 쇼핑몰 분석 도구 (naver_smart)
 
-## Project info
+## 프로젝트 정보
 
-**URL**: https://lovable.dev/projects/bfa489ef-98d7-4fcd-ac5c-2ee560bdc473
+**로컬 저장소:** `naver_smart`  
+**원격 저장소:** `https://github.com/june1004/smart_naverstore.git`  
+**배포:** Vercel (자동 배포)
 
 ## How can I edit this code?
 

@@ -7,6 +7,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { KeywordProvider } from "@/contexts/KeywordContext";
 import { AnalysisProvider } from "@/contexts/AnalysisContext";
+import { ThemeProvider } from "@/contexts/ThemeContext";
 import Landing from "./pages/Landing";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
@@ -22,13 +23,14 @@ const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <AuthProvider>
-        <KeywordProvider>
-          <AnalysisProvider>
-            <Toaster />
-            <Sonner />
-            <BrowserRouter>
+    <ThemeProvider>
+      <TooltipProvider>
+        <AuthProvider>
+          <KeywordProvider>
+            <AnalysisProvider>
+              <Toaster />
+              <Sonner />
+              <BrowserRouter>
               <Routes>
                 {/* Public Routes */}
                 <Route path="/" element={<Landing />} />
@@ -73,6 +75,7 @@ const App = () => (
         </KeywordProvider>
       </AuthProvider>
     </TooltipProvider>
+    </ThemeProvider>
   </QueryClientProvider>
 );
 

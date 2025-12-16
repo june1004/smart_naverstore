@@ -88,7 +88,7 @@ const CategoryAnalysisTable = ({ keyword, totalItems, categories }: CategoryAnal
     <Card>
       <CardHeader>
         <CardTitle>'{keyword}' 카테고리 분석 결과</CardTitle>
-        <p className="text-sm text-gray-600">
+        <p className="text-sm text-muted-foreground">
           총 {totalItems || 0}개 상품 분석 (실제 카테고리 구조 연동)
         </p>
       </CardHeader>
@@ -109,9 +109,9 @@ const CategoryAnalysisTable = ({ keyword, totalItems, categories }: CategoryAnal
           </TableHeader>
           <TableBody>
             {categories.map((category, index) => (
-              <TableRow 
+              <TableRow
                 key={index}
-                className={category.hasRealCategory ? "cursor-pointer hover:bg-blue-50" : ""}
+                className={category.hasRealCategory ? "cursor-pointer hover:bg-accent/50" : ""}
                 onClick={() => handleCategoryClick(category)}
               >
                 <TableCell>{index + 1}</TableCell>
@@ -120,26 +120,26 @@ const CategoryAnalysisTable = ({ keyword, totalItems, categories }: CategoryAnal
                     <div className="font-medium flex items-center gap-2">
                       {category.realCategoryPath || category.name}
                       {category.hasRealCategory && user && (
-                        <ExternalLink className="h-3 w-3 text-blue-500" />
+                        <ExternalLink className="h-3 w-3 text-primary" />
                       )}
                       {!user && (
-                        <Lock className="h-3 w-3 text-gray-400" />
+                        <Lock className="h-3 w-3 text-muted-foreground" />
                       )}
                     </div>
                   </div>
                 </TableCell>
                 <TableCell>
-                  <Badge variant="outline" className="bg-blue-50">
+                  <Badge variant="outline" className="bg-blue-50 dark:bg-blue-950 dark:text-blue-200">
                     {category.level1 || '-'}
                   </Badge>
                 </TableCell>
                 <TableCell>
-                  <Badge variant="outline" className="bg-green-50">
+                  <Badge variant="outline" className="bg-green-50 dark:bg-green-950 dark:text-green-200">
                     {category.level2 || '-'}
                   </Badge>
                 </TableCell>
                 <TableCell>
-                  <Badge variant="outline" className="bg-purple-50">
+                  <Badge variant="outline" className="bg-purple-50 dark:bg-purple-950 dark:text-purple-200">
                     {category.level3 || '-'}
                   </Badge>
                 </TableCell>
@@ -153,9 +153,9 @@ const CategoryAnalysisTable = ({ keyword, totalItems, categories }: CategoryAnal
                 <TableCell>
                   {category.hasRealCategory ? (
                     <div className="flex items-center gap-2">
-                      <Badge variant="default" className="bg-green-600">연동됨</Badge>
+                      <Badge variant="default" className="bg-green-600 dark:bg-green-500">연동됨</Badge>
                       {!user && (
-                        <Badge variant="outline" className="text-orange-600 border-orange-300">
+                        <Badge variant="outline" className="text-orange-600 dark:text-orange-400 border-orange-300 dark:border-orange-600">
                           로그인 필요
                         </Badge>
                       )}
@@ -170,12 +170,12 @@ const CategoryAnalysisTable = ({ keyword, totalItems, categories }: CategoryAnal
         </Table>
         
         {!user && (
-          <div className="mt-4 p-3 bg-orange-50 border border-orange-200 rounded-lg">
-            <div className="flex items-center gap-2 text-orange-700">
+          <div className="mt-4 p-3 bg-orange-50 dark:bg-orange-950 border border-orange-200 dark:border-orange-800 rounded-lg">
+            <div className="flex items-center gap-2 text-orange-700 dark:text-orange-300">
               <Lock className="h-4 w-4" />
               <span className="text-sm font-medium">상세 카테고리 분석</span>
             </div>
-            <p className="text-sm text-orange-600 mt-1">
+            <p className="text-sm text-orange-600 dark:text-orange-400 mt-1">
               로그인하시면 카테고리를 클릭하여 통합검색어 트렌드 페이지에서 해당 카테고리의 인기검색어를 확인하실 수 있습니다.
             </p>
           </div>

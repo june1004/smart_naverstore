@@ -329,13 +329,13 @@ const KeywordExtraction = ({ keywordData, setKeywordData }: Props) => {
     <div className="space-y-6">
       {/* 로그인 안내 */}
       {!user && (
-        <Card className="border-orange-200 bg-orange-50">
+        <Card className="border-orange-200 dark:border-orange-800 bg-orange-50 dark:bg-orange-950">
           <CardContent className="p-4">
-            <div className="flex items-center gap-2 text-orange-700">
+            <div className="flex items-center gap-2 text-orange-700 dark:text-orange-300">
               <User className="h-4 w-4" />
               <span className="font-medium">로그인이 필요한 기능입니다</span>
             </div>
-            <p className="text-sm text-orange-600 mt-1">
+            <p className="text-sm text-orange-600 dark:text-orange-400 mt-1">
               키워드 추출 기능을 사용하려면 회원가입 또는 로그인해주세요.
             </p>
           </CardContent>

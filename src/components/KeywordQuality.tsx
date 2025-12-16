@@ -74,36 +74,36 @@ const KeywordQuality: React.FC<Props> = ({ relatedKeywords, autocompleteKeywords
           ))}
         </ul>
       </div>
-      <table className="min-w-full border text-sm">
-        <thead className="bg-blue-50">
+      <table className="min-w-full border border-border text-sm">
+        <thead className="bg-muted">
           <tr>
-            <th className="border px-2 py-1">구분</th>
-            <th className="border px-2 py-1">키워드</th>
-            <th className="border px-2 py-1">검색키워드</th>
-            <th className="border px-2 py-1">월간검색수(PC)</th>
-            <th className="border px-2 py-1">월간검색수(모바일)</th>
-            <th className="border px-2 py-1">검색량</th>
-            <th className="border px-2 py-1">클릭수</th>
-            <th className="border px-2 py-1">클릭률(%)</th>
-            <th className="border px-2 py-1">경쟁도</th>
-            <th className="border px-2 py-1">품질점수</th>
-            <th className="border px-2 py-1">등급</th>
+            <th className="border border-border px-2 py-1">구분</th>
+            <th className="border border-border px-2 py-1">키워드</th>
+            <th className="border border-border px-2 py-1">검색키워드</th>
+            <th className="border border-border px-2 py-1">월간검색수(PC)</th>
+            <th className="border border-border px-2 py-1">월간검색수(모바일)</th>
+            <th className="border border-border px-2 py-1">검색량</th>
+            <th className="border border-border px-2 py-1">클릭수</th>
+            <th className="border border-border px-2 py-1">클릭률(%)</th>
+            <th className="border border-border px-2 py-1">경쟁도</th>
+            <th className="border border-border px-2 py-1">품질점수</th>
+            <th className="border border-border px-2 py-1">등급</th>
           </tr>
         </thead>
         <tbody>
           {qualityData.map((k, i) => (
             <tr key={i}>
-              <td className="border px-2 py-1">{k.type}</td>
-              <td className="border px-2 py-1">{k.keyword}</td>
-              <td className="border px-2 py-1">{k.searchKeyword ?? '-'}</td>
-              <td className="border px-2 py-1 text-right">{k.monthlyPcSearchCount ?? '-'}</td>
-              <td className="border px-2 py-1 text-right">{k.monthlyMobileSearchCount ?? '-'}</td>
-              <td className="border px-2 py-1 text-right">{k.totalSearchCount ?? '-'}</td>
-              <td className="border px-2 py-1 text-right">{(k.totalAvgClick ?? 0).toFixed(1)}</td>
-              <td className="border px-2 py-1 text-right">{(k.avgCtr ?? 0).toFixed(2)}</td>
-              <td className="border px-2 py-1 text-right">{k.competitionScore ?? '-'}</td>
-              <td className="border px-2 py-1 text-center font-bold">{k.qualityScore}</td>
-              <td className="border px-2 py-1 text-center font-bold text-blue-700">{k.grade}</td>
+              <td className="border border-border px-2 py-1">{k.type}</td>
+              <td className="border border-border px-2 py-1">{k.keyword}</td>
+              <td className="border border-border px-2 py-1">{k.searchKeyword ?? '-'}</td>
+              <td className="border border-border px-2 py-1 text-right">{k.monthlyPcSearchCount ?? '-'}</td>
+              <td className="border border-border px-2 py-1 text-right">{k.monthlyMobileSearchCount ?? '-'}</td>
+              <td className="border border-border px-2 py-1 text-right">{k.totalSearchCount ?? '-'}</td>
+              <td className="border border-border px-2 py-1 text-right">{(k.totalAvgClick ?? 0).toFixed(1)}</td>
+              <td className="border border-border px-2 py-1 text-right">{(k.avgCtr ?? 0).toFixed(2)}</td>
+              <td className="border border-border px-2 py-1 text-right">{k.competitionScore ?? '-'}</td>
+              <td className="border border-border px-2 py-1 text-center font-bold">{k.qualityScore}</td>
+              <td className="border border-border px-2 py-1 text-center font-bold text-primary">{k.grade}</td>
             </tr>
           ))}
         </tbody>
